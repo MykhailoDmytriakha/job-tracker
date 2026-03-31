@@ -7,7 +7,7 @@ from .database import engine
 from . import models
 from .seed import seed_default_stages
 from .migrations import run_migrations
-from .api import stages, tasks, board, dashboard, projects, documents, categories
+from .api import stages, tasks, board, dashboard, projects, documents, categories, contacts
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.include_router(board.router)
 app.include_router(dashboard.router)
 app.include_router(documents.router)
 app.include_router(categories.router)
+app.include_router(contacts.router)
 
 
 @app.get("/api/health")

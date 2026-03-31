@@ -26,6 +26,13 @@ task_dependencies = Table(
 )
 
 
+task_contacts = Table(
+    "task_contacts",
+    Base.metadata,
+    Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    Column("contact_id", Integer, ForeignKey("contacts.id", ondelete="CASCADE"), primary_key=True),
+)
+
 task_documents = Table(
     "task_documents",
     Base.metadata,
@@ -125,6 +132,7 @@ class Task(Base):
         cascade="all, delete-orphan",
     )
     documents = relationship("Document", secondary=task_documents, back_populates="tasks")
+    contacts = relationship("Contact", secondary=task_contacts, back_populates="tasks")
     blocked_by = relationship(
         "Task",
         secondary=task_dependencies,
@@ -152,6 +160,46 @@ class Document(Base):
 
     project = relationship("Project", backref="documents")
     tasks = relationship("Task", secondary=task_documents, back_populates="documents")
+
+
+class Contact(Base):
+    __tablename__ = "contacts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    linkedin = Column(String, nullable=True)
+    company = Column(String, nullable=True)
+    role = Column(String, nullable=True)
+    department = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    contact_type = Column(String, nullable=True)
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    project = relationship("Project", backref="contacts")
+    tasks = relationship("Task", secondary=task_contacts, back_populates="contacts")
+    interactions = relationship(
+        "Interaction", back_populates="contact",
+        order_by="Interaction.date.desc()",
+        cascade="all, delete-orphan",
+    )
+
+
+class Interaction(Base):
+    __tablename__ = "interactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contact_id = Column(Integer, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=False)
+    date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    channel = Column(String, nullable=True)
+    direction = Column(String, nullable=True)
+    summary = Column(Text, default="")
+
+    contact = relationship("Contact", back_populates="interactions")
 
 
 class ChecklistItem(Base):

@@ -88,6 +88,7 @@ export interface TaskFull extends TaskBrief {
   blocked_by: TaskDependencyBrief[];
   blocks: TaskDependencyBrief[];
   documents: DocumentBrief[];
+  contacts: ContactBrief[];
 }
 
 export interface BoardColumn {
@@ -146,6 +147,58 @@ export const documentsApi = {
     request<{ ok: boolean }>(`/tasks/${taskId}/documents`, { method: "POST", body: JSON.stringify({ document_id: documentId }) }),
   unlinkFromTask: (taskId: number, docId: number) =>
     request<{ ok: boolean }>(`/tasks/${taskId}/documents/${docId}`, { method: "DELETE" }),
+};
+
+// --- Contact ---
+
+export interface ContactBrief {
+  id: number;
+  project_id: number;
+  name: string;
+  company: string | null;
+  role: string | null;
+  contact_type: string | null;
+  email: string | null;
+  updated_at: string | null;
+}
+
+export interface Interaction {
+  id: number;
+  contact_id: number;
+  date: string;
+  channel: string | null;
+  direction: string | null;
+  summary: string;
+}
+
+export interface ContactFull extends ContactBrief {
+  phone: string | null;
+  linkedin: string | null;
+  department: string | null;
+  location: string | null;
+  notes: string;
+  created_at: string;
+  tasks: TaskBrief[];
+  interactions: Interaction[];
+}
+
+export const contactsApi = {
+  list: (projectId: number, params?: Record<string, string>) => {
+    const p = new URLSearchParams({ project_id: String(projectId), ...params });
+    return request<ContactBrief[]>(`/contacts/?${p}`);
+  },
+  get: (id: number) => request<ContactFull>(`/contacts/${id}`),
+  create: (projectId: number, data: Partial<ContactFull>) =>
+    request<ContactFull>(`/contacts/?project_id=${projectId}`, { method: "POST", body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<ContactFull>) =>
+    request<ContactFull>(`/contacts/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: number) => request<{ ok: boolean }>(`/contacts/${id}`, { method: "DELETE" }),
+  addInteraction: (contactId: number, data: { summary: string; channel?: string; direction?: string }) =>
+    request<Interaction>(`/contacts/${contactId}/interactions`, { method: "POST", body: JSON.stringify(data) }),
+  linkToTask: (taskId: number, contactId: number) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/contacts`, { method: "POST", body: JSON.stringify({ contact_id: contactId }) }),
+  unlinkFromTask: (taskId: number, contactId: number) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/contacts/${contactId}`, { method: "DELETE" }),
 };
 
 // --- Category ---

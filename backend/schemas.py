@@ -131,6 +131,97 @@ class CategoryOut(BaseModel):
         from_attributes = True
 
 
+# --- Interaction ---
+
+
+class InteractionCreate(BaseModel):
+    date: Optional[datetime] = None
+    channel: Optional[str] = None
+    direction: Optional[str] = None
+    summary: str = ""
+
+
+class InteractionOut(BaseModel):
+    id: int
+    contact_id: int
+    date: datetime
+    channel: Optional[str] = None
+    direction: Optional[str] = None
+    summary: str
+
+    class Config:
+        from_attributes = True
+
+
+# --- Contact ---
+
+
+class ContactCreate(BaseModel):
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+    department: Optional[str] = None
+    location: Optional[str] = None
+    contact_type: Optional[str] = None
+    notes: str = ""
+
+
+class ContactUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+    department: Optional[str] = None
+    location: Optional[str] = None
+    contact_type: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ContactBrief(BaseModel):
+    id: int
+    project_id: int
+    name: str
+    company: Optional[str] = None
+    role: Optional[str] = None
+    contact_type: Optional[str] = None
+    email: Optional[str] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ContactOut(BaseModel):
+    id: int
+    project_id: int
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+    department: Optional[str] = None
+    location: Optional[str] = None
+    contact_type: Optional[str] = None
+    notes: str = ""
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    tasks: list["TaskBrief"] = []
+    interactions: list[InteractionOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class ContactLinkRequest(BaseModel):
+    contact_id: int
+
+
 # --- Document ---
 
 
@@ -264,6 +355,7 @@ class TaskOut(BaseModel):
     blocked_by: list[TaskDependencyBrief] = []
     blocks: list[TaskDependencyBrief] = []
     documents: list[DocumentBrief] = []
+    contacts: list[ContactBrief] = []
 
     class Config:
         from_attributes = True

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { tasksApi, categoriesApi, ApiError } from "../api";
 import type { TaskFull } from "../api";
 import { TaskDocuments } from "./TaskDocuments";
+import { TaskContacts } from "./TaskContacts";
 import { ChecklistSection } from "./ChecklistSection";
 import { DependencySection } from "./DependencySection";
 import { ConfirmModal } from "./ConfirmModal";
@@ -398,6 +399,9 @@ export function TaskDetail({
 
         {/* Documents */}
         <TaskDocuments taskId={taskId} documents={task.documents} projectId={task.project_id} onUpdate={load} />
+
+        {/* Contacts */}
+        <TaskContacts taskId={taskId} contacts={task.contacts} projectId={task.project_id} onUpdate={load} />
 
         {/* Activity: for non-recurring, show at bottom */}
         {!task.is_recurring && (

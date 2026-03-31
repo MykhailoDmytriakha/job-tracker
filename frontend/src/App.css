@@ -1353,6 +1353,67 @@ main {
   font-size: 12px; cursor: pointer; background: var(--accent); color: white; font-weight: 600;
 }
 .task-docs-create button:last-child { background: var(--bg-muted); color: var(--text-muted); font-weight: 400; }
+
+/* ============================================================
+   CONTACTS PAGE + COMPONENTS
+   ============================================================ */
+.contacts-layout { display: grid; grid-template-columns: 1fr; gap: 0; height: 100%; }
+.contacts-layout.has-detail { grid-template-columns: 300px 1fr; }
+.contacts-list-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-right: 1px solid var(--border); overflow-y: auto; }
+.contacts-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; transition: background var(--transition); }
+.contacts-item:hover { background: var(--bg-hover); }
+.contacts-item.selected { background: var(--bg-active); }
+.contacts-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.contacts-item-name { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contacts-item-company { font-size: 11px; color: var(--text-muted); }
+
+.contact-type-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; }
+.contact-type-badge.small { font-size: 8px; padding: 1px 4px; }
+.ctype-colleague { background: var(--green-soft); color: var(--green); }
+.ctype-recruiter { background: var(--accent-soft); color: var(--accent); }
+.ctype-manager { background: var(--purple-soft); color: var(--purple); }
+.ctype-reference { background: var(--orange-soft); color: var(--orange); }
+.ctype-hiring_manager { background: var(--red-soft); color: var(--red); }
+
+.contacts-detail-panel { display: flex; flex-direction: column; padding: 16px 24px; overflow-y: auto; height: 100%; }
+.contacts-detail-name { font-size: 20px; font-weight: 700; color: var(--text); margin: 0 0 8px; }
+
+.contacts-fields { margin: 16px 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.contact-field { display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background var(--transition); min-height: 36px; }
+.contact-field:last-child { border-bottom: none; }
+.contact-field:hover { background: var(--bg-hover); }
+.contact-field-label { font-size: 12px; font-weight: 500; color: var(--text-muted); width: 90px; flex-shrink: 0; }
+.contact-field-value { font-size: 13px; color: var(--text); font-weight: 500; flex: 1; }
+.contact-field-value.empty { color: var(--text-placeholder); font-weight: 400; }
+.contact-field-value.link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.contact-field-input { flex: 1; padding: 4px 8px; border: 1px solid var(--accent); border-radius: 4px; background: var(--bg-card); color: var(--text); font-size: 13px; outline: none; box-shadow: 0 0 0 2px var(--accent-soft); }
+
+/* Interactions */
+.interaction-form { display: flex; gap: 4px; margin-bottom: 8px; }
+.interaction-form input { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-muted); color: var(--text); font-size: 13px; }
+.interaction-form input:focus { outline: none; border-color: var(--accent); }
+.interaction-form select { padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-muted); color: var(--text); font-size: 12px; }
+.interaction-form button { padding: 6px 12px; background: var(--accent); color: white; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; cursor: pointer; }
+.interaction-item { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.interaction-item:last-child { border-bottom: none; }
+.interaction-meta { display: flex; gap: 6px; align-items: center; margin-bottom: 2px; }
+.interaction-channel { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; }
+.ch-email { background: var(--accent-soft); color: var(--accent); }
+.ch-linkedin { background: var(--accent-soft); color: var(--accent); }
+.ch-teams { background: var(--purple-soft); color: var(--purple); }
+.ch-phone { background: var(--green-soft); color: var(--green); }
+.ch-in_person { background: var(--orange-soft); color: var(--orange); }
+.interaction-direction { font-size: 12px; color: var(--text-faint); }
+.interaction-date { font-size: 11px; color: var(--text-faint); }
+.interaction-summary { font-size: 13px; color: var(--text); line-height: 1.4; }
+
+/* Task contacts section */
+.task-contacts-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.task-contact-item { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: var(--bg-muted); border-radius: var(--radius-sm); }
+.task-contact-item:hover { background: var(--bg-hover); }
+.task-contact-name { font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 2px; transition: text-decoration-color var(--transition); }
+.task-contact-name:hover { text-decoration-color: var(--accent); }
+.task-contact-company { font-size: 11px; color: var(--text-muted); flex: 1; }
 .toast-info { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
 .toast-link { text-decoration: underline; cursor: pointer; font-weight: 700; }
 .toast-link:hover { opacity: 0.8; }

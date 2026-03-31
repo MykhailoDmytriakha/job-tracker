@@ -617,6 +617,44 @@ def unlink_document(task_id: int, doc_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+# --- Task Contacts ---
+
+
+@router.get("/{task_id}/contacts", response_model=list[schemas.ContactBrief])
+def get_task_contacts(task_id: int, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task.contacts
+
+
+@router.post("/{task_id}/contacts")
+def link_contact(task_id: int, body: schemas.ContactLinkRequest, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    contact = db.query(models.Contact).filter(models.Contact.id == body.contact_id).first()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    if contact in task.contacts:
+        raise HTTPException(status_code=400, detail="Already linked")
+    task.contacts.append(contact)
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/{task_id}/contacts/{contact_id}")
+def unlink_contact(task_id: int, contact_id: int, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+    if contact and contact in task.contacts:
+        task.contacts.remove(contact)
+    db.commit()
+    return {"ok": True}
+
+
 # --- Helpers ---
 
 
@@ -705,5 +743,14 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
                 doc_type=d.doc_type, updated_at=d.updated_at,
             )
             for d in t.documents
+        ],
+        contacts=[
+            schemas.ContactBrief(
+                id=c.id, project_id=c.project_id, name=c.name,
+                company=c.company, role=c.role,
+                contact_type=c.contact_type, email=c.email,
+                updated_at=c.updated_at,
+            )
+            for c in t.contacts
         ],
     )
