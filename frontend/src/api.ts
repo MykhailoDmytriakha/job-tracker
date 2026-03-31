@@ -89,6 +89,7 @@ export interface TaskFull extends TaskBrief {
   blocks: TaskDependencyBrief[];
   documents: DocumentBrief[];
   contacts: ContactBrief[];
+  companies: CompanyBrief[];
 }
 
 export interface BoardColumn {
@@ -147,6 +148,45 @@ export const documentsApi = {
     request<{ ok: boolean }>(`/tasks/${taskId}/documents`, { method: "POST", body: JSON.stringify({ document_id: documentId }) }),
   unlinkFromTask: (taskId: number, docId: number) =>
     request<{ ok: boolean }>(`/tasks/${taskId}/documents/${docId}`, { method: "DELETE" }),
+};
+
+// --- Company ---
+
+export interface CompanyBrief {
+  id: number;
+  project_id: number;
+  name: string;
+  short_name: string | null;
+  company_type: string | null;
+  domain: string | null;
+  strategic_lane: string | null;
+  updated_at: string | null;
+}
+
+export interface CompanyFull extends CompanyBrief {
+  website: string | null;
+  location: string | null;
+  notes: string;
+  created_at: string;
+  contacts: ContactBrief[];
+  tasks: TaskBrief[];
+}
+
+export const companiesApi = {
+  list: (projectId: number, params?: Record<string, string>) => {
+    const p = new URLSearchParams({ project_id: String(projectId), ...params });
+    return request<CompanyBrief[]>(`/companies/?${p}`);
+  },
+  get: (id: number) => request<CompanyFull>(`/companies/${id}`),
+  create: (projectId: number, data: Partial<CompanyFull>) =>
+    request<CompanyFull>(`/companies/?project_id=${projectId}`, { method: "POST", body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<CompanyFull>) =>
+    request<CompanyFull>(`/companies/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: number) => request<{ ok: boolean }>(`/companies/${id}`, { method: "DELETE" }),
+  linkToTask: (taskId: number, companyId: number) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/companies`, { method: "POST", body: JSON.stringify({ company_id: companyId }) }),
+  unlinkFromTask: (taskId: number, companyId: number) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/companies/${companyId}`, { method: "DELETE" }),
 };
 
 // --- Contact ---

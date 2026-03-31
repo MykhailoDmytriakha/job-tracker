@@ -12,6 +12,13 @@ def run_migrations(engine):
     tables = inspector.get_table_names()
 
     # Tasks table migrations (for existing DBs missing new columns)
+    # Contacts table: add company_id if missing
+    if "contacts" in tables:
+        contact_cols = {col["name"] for col in inspector.get_columns("contacts")}
+        if "company_id" not in contact_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE contacts ADD COLUMN company_id INTEGER REFERENCES companies(id)"))
+
     if "tasks" in tables:
         existing = {col["name"] for col in inspector.get_columns("tasks")}
         migrations = [

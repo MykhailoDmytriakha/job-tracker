@@ -3,6 +3,7 @@ import { tasksApi, categoriesApi, ApiError } from "../api";
 import type { TaskFull } from "../api";
 import { TaskDocuments } from "./TaskDocuments";
 import { TaskContacts } from "./TaskContacts";
+import { TaskCompanies } from "./TaskCompanies";
 import { ChecklistSection } from "./ChecklistSection";
 import { DependencySection } from "./DependencySection";
 import { ConfirmModal } from "./ConfirmModal";
@@ -399,6 +400,9 @@ export function TaskDetail({
 
         {/* Documents */}
         <TaskDocuments taskId={taskId} documents={task.documents} projectId={task.project_id} onUpdate={load} />
+
+        {/* Companies */}
+        <TaskCompanies taskId={taskId} companies={task.companies} projectId={task.project_id} onUpdate={load} />
 
         {/* Contacts */}
         <TaskContacts taskId={taskId} contacts={task.contacts} projectId={task.project_id} onUpdate={load} />

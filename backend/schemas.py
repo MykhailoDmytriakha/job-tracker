@@ -131,6 +131,61 @@ class CategoryOut(BaseModel):
         from_attributes = True
 
 
+# --- Company ---
+
+
+class CompanyCreate(BaseModel):
+    name: str
+    short_name: Optional[str] = None
+    company_type: Optional[str] = None
+    domain: Optional[str] = None
+    website: Optional[str] = None
+    location: Optional[str] = None
+    strategic_lane: Optional[str] = None
+    notes: str = ""
+
+
+class CompanyUpdate(BaseModel):
+    name: Optional[str] = None
+    short_name: Optional[str] = None
+    company_type: Optional[str] = None
+    domain: Optional[str] = None
+    website: Optional[str] = None
+    location: Optional[str] = None
+    strategic_lane: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CompanyBrief(BaseModel):
+    id: int
+    project_id: int
+    name: str
+    short_name: Optional[str] = None
+    company_type: Optional[str] = None
+    domain: Optional[str] = None
+    strategic_lane: Optional[str] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CompanyOut(CompanyBrief):
+    website: Optional[str] = None
+    location: Optional[str] = None
+    notes: str = ""
+    created_at: datetime
+    contacts: list["ContactBrief"] = []
+    tasks: list["TaskBrief"] = []
+
+    class Config:
+        from_attributes = True
+
+
+class CompanyLinkRequest(BaseModel):
+    company_id: int
+
+
 # --- Interaction ---
 
 
@@ -356,6 +411,7 @@ class TaskOut(BaseModel):
     blocks: list[TaskDependencyBrief] = []
     documents: list[DocumentBrief] = []
     contacts: list[ContactBrief] = []
+    companies: list[CompanyBrief] = []
 
     class Config:
         from_attributes = True

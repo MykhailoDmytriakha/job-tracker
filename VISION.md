@@ -236,6 +236,21 @@ task_contacts (many-to-many):
 
 **Why defer:** Requires its own page, interactions model, possibly import from LinkedIn/Gmail. Big scope. Categories fix is quick and unblocks real usage now.
 
+### Architecture: File Attachments — PDF/DOCX support (Milestone 3)
+Documents currently store markdown text in DB. Need to support binary file attachments (PDF, DOCX) for resumes and other artifacts.
+
+**Approach:**
+- Add `Attachment` model: id, document_id (optional), task_id (optional), filename, mime_type, size, storage_path
+- Store files on disk (e.g. `data/attachments/{id}/{filename}`)
+- API: upload, download, delete
+- UI: upload button on Document view and TaskDetail, download link, preview for PDFs
+- Resume workflow: markdown = source of truth, "Export to PDF" generates from markdown + CSS template, or user uploads manually crafted PDF
+
+**Resume template engine (future):**
+- 2-3 CSS templates for resume rendering (clean, modern, classic)
+- Preview before download
+- Separation: markdown = content, template = presentation, PDF = output
+
 **Decision (2026-03-31):** Auth deferred until deployment/second user. Reason: single user now, architecture already prepared (user_id on Project = one column), implementing auth now adds friction without value. When ready: email+password + Google OAuth + Apple in one pass.
 
 ### Idea: Onboarding Starter Tasks

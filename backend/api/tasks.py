@@ -655,6 +655,36 @@ def unlink_contact(task_id: int, contact_id: int, db: Session = Depends(get_db))
     return {"ok": True}
 
 
+# --- Task Companies ---
+
+
+@router.post("/{task_id}/companies")
+def link_company(task_id: int, body: schemas.CompanyLinkRequest, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    company = db.query(models.Company).filter(models.Company.id == body.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    if company in task.companies:
+        raise HTTPException(status_code=400, detail="Already linked")
+    task.companies.append(company)
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/{task_id}/companies/{company_id}")
+def unlink_company(task_id: int, company_id: int, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if company and company in task.companies:
+        task.companies.remove(company)
+    db.commit()
+    return {"ok": True}
+
+
 # --- Helpers ---
 
 
@@ -752,5 +782,14 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
                 updated_at=c.updated_at,
             )
             for c in t.contacts
+        ],
+        companies=[
+            schemas.CompanyBrief(
+                id=co.id, project_id=co.project_id, name=co.name,
+                short_name=co.short_name, company_type=co.company_type,
+                domain=co.domain, strategic_lane=co.strategic_lane,
+                updated_at=co.updated_at,
+            )
+            for co in t.companies
         ],
     )

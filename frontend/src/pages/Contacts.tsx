@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { contactsApi } from "../api";
 import type { ContactBrief, ContactFull } from "../api";
 import { useProject } from "../ProjectContext";
@@ -8,6 +9,7 @@ const CHANNELS = ["email", "linkedin", "teams", "phone", "in_person"];
 
 export function Contacts() {
   const { active: project } = useProject();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [contacts, setContacts] = useState<ContactBrief[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [contact, setContact] = useState<ContactFull | null>(null);
@@ -19,6 +21,14 @@ export function Contacts() {
   const [newType, setNewType] = useState("");
   const [interSummary, setInterSummary] = useState("");
   const [interChannel, setInterChannel] = useState("");
+
+  useEffect(() => {
+    const sel = searchParams.get("selected");
+    if (sel) {
+      setSelectedId(Number(sel));
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const loadList = useCallback(() => {
     if (!project) return;

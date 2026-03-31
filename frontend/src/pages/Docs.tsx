@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { documentsApi } from "../api";
 import type { DocumentBrief, DocumentFull } from "../api";
 import { useProject } from "../ProjectContext";
@@ -10,6 +10,7 @@ const DOC_TYPES = ["research", "playbook", "reference", "journal"];
 
 export function Docs() {
   const { active: project } = useProject();
+  const navigate = useNavigate();
   const [docs, setDocs] = useState<DocumentBrief[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [doc, setDoc] = useState<DocumentFull | null>(null);
@@ -158,7 +159,7 @@ export function Docs() {
                 <div className="docs-linked-tasks">
                   <div className="detail-section-label">Linked Tasks</div>
                   {doc.tasks.map((t) => (
-                    <div key={t.id} className="docs-task-link">
+                    <div key={t.id} className="docs-task-link clickable" onClick={() => navigate(`/tasks?selected=${t.id}`)} title="Open task">
                       <span className="task-id">{t.display_id}</span> {t.title}
                     </div>
                   ))}
