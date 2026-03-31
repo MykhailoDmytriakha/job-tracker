@@ -9,6 +9,7 @@ import { useProject } from "../ProjectContext";
 const STATUS_FILTERS = ["open", "in_progress", "waiting"];
 
 type SpecialFilter = "overdue" | "blocked" | "recurring" | "pipeline" | "attention" | null;
+const SPECIAL_FILTERS: Exclude<SpecialFilter, "pipeline" | null>[] = ["overdue", "attention", "blocked", "recurring"];
 
 function parseFilterParam(filter: string | null): { statusFilter: string | null; specialFilter: SpecialFilter } {
   if (filter === "overdue" || filter === "blocked" || filter === "recurring" || filter === "attention") {
@@ -37,13 +38,17 @@ export function Tasks() {
   const [statusFilter, setStatusFilter] = useState<string | null>(() => parseFilterParam(searchParams.get("filter")).statusFilter);
   const [specialFilter, setSpecialFilter] = useState<SpecialFilter>(() => parseFilterParam(searchParams.get("filter")).specialFilter);
 
-  // Clean up ?filter= param from URL after reading it on mount
+  // Sync active filter to URL so it survives page reloads
   useEffect(() => {
-    if (searchParams.get("filter")) {
+    const currentFilter = statusFilter || specialFilter;
+    if (currentFilter) {
+      if (searchParams.get("filter") !== currentFilter) {
+        setSearchParams({ filter: currentFilter }, { replace: true });
+      }
+    } else if (searchParams.has("filter")) {
       setSearchParams({}, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [statusFilter, specialFilter]);
 
   // Debounce search input: fire API only after 300ms of no typing
   useEffect(() => {
@@ -152,17 +157,24 @@ export function Tasks() {
             {STATUS_FILTERS.map((s) => (
               <button
                 key={s}
-                className={`filter-chip ${statusFilter === s ? "active" : ""}`}
-                onClick={() => { setStatusFilter(statusFilter === s ? null : s); setSpecialFilter(null); }}
+                className={`filter-chip ${statusFilter === s && !specialFilter ? "active" : ""}`}
+                onClick={() => { setStatusFilter(statusFilter === s && !specialFilter ? null : s); setSpecialFilter(null); }}
               >
                 {s.replace("_", " ")}
               </button>
             ))}
-            {specialFilter && specialFilter !== "pipeline" && (
-              <button className="filter-chip active" onClick={() => setSpecialFilter(null)}>
-                {specialFilter}
+            <div className="toolbar-divider" />
+            
+            {SPECIAL_FILTERS.map((f) => (
+              <button
+                key={f}
+                className={`filter-chip ${specialFilter === f ? "active" : ""}`}
+                onClick={() => { setSpecialFilter(specialFilter === f ? null : f); setStatusFilter(null); }}
+              >
+                {f}
               </button>
-            )}
+            ))}
+
             {(statusFilter || (specialFilter && specialFilter !== "pipeline")) && (
               <button className="filter-chip filter-clear" onClick={() => { setStatusFilter(null); setSpecialFilter(null); }}>
                 ×
