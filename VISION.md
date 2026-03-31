@@ -210,6 +210,32 @@ Project:
 
 **Stages:** Remain global (system defaults). Future: optional per-user custom stages.
 
+### Architecture: Contacts (Milestone 3)
+A full-fledged contact/people system linked to tasks.
+
+**Data model:**
+```
+Contact:
+  id, project_id, name, email, linkedin_url, company, role, notes
+  created_at, updated_at
+
+ContactInteraction:
+  id, contact_id, task_id (optional), type (email/linkedin/call/meeting)
+  date, summary, direction (inbound/outbound)
+
+task_contacts (many-to-many):
+  task_id, contact_id
+```
+
+**Features:**
+- Contacts page: list, search, view profile
+- Contact profile: fields + interaction timeline (messages history)
+- Link contacts to tasks ("who is involved")
+- From TaskDetail: see linked contacts, add contact, log interaction
+- Search across contacts and interactions
+
+**Why defer:** Requires its own page, interactions model, possibly import from LinkedIn/Gmail. Big scope. Categories fix is quick and unblocks real usage now.
+
 **Decision (2026-03-31):** Auth deferred until deployment/second user. Reason: single user now, architecture already prepared (user_id on Project = one column), implementing auth now adds friction without value. When ready: email+password + Google OAuth + Apple in one pass.
 
 ### Idea: Onboarding Starter Tasks

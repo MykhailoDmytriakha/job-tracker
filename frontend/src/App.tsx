@@ -3,6 +3,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Pipeline } from "./pages/Pipeline";
 import { Tasks } from "./pages/Tasks";
 import { Settings } from "./pages/Settings";
+import { Docs } from "./pages/Docs";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import { Toast } from "./components/Toast";
 import { ProjectProvider, useProject } from "./ProjectContext";
@@ -30,6 +31,7 @@ function AppInner() {
         <NavLink to="/">Dashboard</NavLink>
         <NavLink to="/pipeline">Pipeline</NavLink>
         <NavLink to="/tasks">Tasks</NavLink>
+        <NavLink to="/docs">Docs</NavLink>
         <NavLink to="/settings">Settings</NavLink>
         <div className="nav-spacer" />
         <ThemeSwitcher />
@@ -39,6 +41,7 @@ function AppInner() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/docs" element={<Docs />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

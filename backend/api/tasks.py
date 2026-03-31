@@ -577,6 +577,46 @@ def reorder_checklist(task_id: int, order: list[dict], db: Session = Depends(get
     return {"ok": True}
 
 
+# --- Task Documents ---
+
+
+@router.get("/{task_id}/documents", response_model=list[schemas.DocumentBrief])
+def get_task_documents(task_id: int, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task.documents
+
+
+@router.post("/{task_id}/documents")
+def link_document(task_id: int, body: schemas.DocumentLinkRequest, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    doc = db.query(models.Document).filter(models.Document.id == body.document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if doc in task.documents:
+        raise HTTPException(status_code=400, detail="Already linked")
+    task.documents.append(doc)
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/{task_id}/documents/{doc_id}")
+def unlink_document(task_id: int, doc_id: int, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if doc in task.documents:
+        task.documents.remove(doc)
+    db.commit()
+    return {"ok": True}
+
+
 # --- Helpers ---
 
 
@@ -658,5 +698,12 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
         blocks=[
             schemas.TaskDependencyBrief(id=d.id, title=d.title, status=d.status, display_id=d.display_id)
             for d in t.blocks
+        ],
+        documents=[
+            schemas.DocumentBrief(
+                id=d.id, project_id=d.project_id, title=d.title,
+                doc_type=d.doc_type, updated_at=d.updated_at,
+            )
+            for d in t.documents
         ],
     )

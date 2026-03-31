@@ -26,6 +26,24 @@ task_dependencies = Table(
 )
 
 
+task_documents = Table(
+    "task_documents",
+    Base.metadata,
+    Column(
+        "task_id",
+        Integer,
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "document_id",
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -37,6 +55,18 @@ class Project(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    name = Column(String, nullable=False)
+    color = Column(String, nullable=True)
+    position = Column(Integer, default=0)
+
+    project = relationship("Project", backref="categories")
 
 
 class Stage(Base):
@@ -94,6 +124,7 @@ class Task(Base):
         order_by="ChecklistItem.position",
         cascade="all, delete-orphan",
     )
+    documents = relationship("Document", secondary=task_documents, back_populates="tasks")
     blocked_by = relationship(
         "Task",
         secondary=task_dependencies,
@@ -105,6 +136,22 @@ class Task(Base):
     @property
     def display_id(self) -> str:
         return f"{self.project.short_key}-{self.sequence_num}"
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(Text, default="")
+    doc_type = Column(String, nullable=True)  # research, playbook, reference, journal
+    source_path = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    project = relationship("Project", backref="documents")
+    tasks = relationship("Task", secondary=task_documents, back_populates="documents")
 
 
 class ChecklistItem(Base):

@@ -87,6 +87,7 @@ export interface TaskFull extends TaskBrief {
   checklist_items: ChecklistItem[];
   blocked_by: TaskDependencyBrief[];
   blocks: TaskDependencyBrief[];
+  documents: DocumentBrief[];
 }
 
 export interface BoardColumn {
@@ -111,6 +112,62 @@ export interface GraphView {
   edges: [number, number][];  // [from_id, to_id]
   total: number;
 }
+
+// --- Document ---
+
+export interface DocumentBrief {
+  id: number;
+  project_id: number;
+  title: string;
+  doc_type: string | null;
+  updated_at: string | null;
+}
+
+export interface DocumentFull extends DocumentBrief {
+  content: string;
+  source_path: string | null;
+  created_at: string;
+  tasks: TaskBrief[];
+}
+
+export const documentsApi = {
+  list: (projectId: number, params?: Record<string, string>) => {
+    const p = new URLSearchParams({ project_id: String(projectId), ...params });
+    return request<DocumentBrief[]>(`/documents/?${p}`);
+  },
+  get: (id: number) => request<DocumentFull>(`/documents/${id}`),
+  create: (projectId: number, data: { title: string; content?: string; doc_type?: string }) =>
+    request<DocumentFull>(`/documents/?project_id=${projectId}`, { method: "POST", body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<DocumentFull>) =>
+    request<DocumentFull>(`/documents/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: number) =>
+    request<{ ok: boolean }>(`/documents/${id}`, { method: "DELETE" }),
+  linkToTask: (taskId: number, documentId: number) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/documents`, { method: "POST", body: JSON.stringify({ document_id: documentId }) }),
+  unlinkFromTask: (taskId: number, docId: number) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/documents/${docId}`, { method: "DELETE" }),
+};
+
+// --- Category ---
+
+export interface Category {
+  id: number;
+  project_id: number;
+  name: string;
+  color: string | null;
+  position: number;
+  task_count: number;
+}
+
+export const categoriesApi = {
+  list: (projectId: number) => request<Category[]>(`/categories/?project_id=${projectId}`),
+  create: (projectId: number, data: { name: string; color?: string }) =>
+    request<Category>(`/categories/?project_id=${projectId}`, { method: "POST", body: JSON.stringify(data) }),
+  rename: (id: number, data: { name: string }) =>
+    request<Category>(`/categories/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: number, force = false) =>
+    request<{ ok: boolean }>(`/categories/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
+};
 
 // --- Project ---
 

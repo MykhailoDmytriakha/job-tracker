@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 from backend.database import Base, get_db
 from backend.models import Stage, Project
-from backend.api import stages, tasks, board, dashboard, projects
+from backend.api import stages, tasks, board, dashboard, projects, documents, categories
 
 
 def _make_test_app():
@@ -21,6 +21,8 @@ def _make_test_app():
     test_app.include_router(tasks.router)
     test_app.include_router(board.router)
     test_app.include_router(dashboard.router)
+    test_app.include_router(documents.router)
+    test_app.include_router(categories.router)
 
     @test_app.get("/api/health")
     def health():

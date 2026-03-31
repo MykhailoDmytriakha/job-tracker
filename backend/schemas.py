@@ -112,6 +112,70 @@ class TaskDependencyBrief(BaseModel):
         from_attributes = True
 
 
+# --- Category ---
+
+
+class CategoryCreate(BaseModel):
+    name: str
+    color: Optional[str] = None
+
+
+class CategoryOut(BaseModel):
+    id: int
+    project_id: int
+    name: str
+    color: Optional[str] = None
+    position: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+# --- Document ---
+
+
+class DocumentCreate(BaseModel):
+    title: str
+    content: str = ""
+    doc_type: Optional[str] = None
+
+
+class DocumentUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    doc_type: Optional[str] = None
+
+
+class DocumentBrief(BaseModel):
+    id: int
+    project_id: int
+    title: str
+    doc_type: Optional[str] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DocumentOut(BaseModel):
+    id: int
+    project_id: int
+    title: str
+    content: str
+    doc_type: Optional[str] = None
+    source_path: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    tasks: list["TaskBrief"] = []
+
+    class Config:
+        from_attributes = True
+
+
+class DocumentLinkRequest(BaseModel):
+    document_id: int
+
+
 # --- Task ---
 
 
@@ -199,6 +263,7 @@ class TaskOut(BaseModel):
     checklist_items: list[ChecklistItemOut] = []
     blocked_by: list[TaskDependencyBrief] = []
     blocks: list[TaskDependencyBrief] = []
+    documents: list[DocumentBrief] = []
 
     class Config:
         from_attributes = True

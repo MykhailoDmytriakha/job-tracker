@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { tasksApi, ApiError } from "../api";
+import { tasksApi, categoriesApi, ApiError } from "../api";
 import type { TaskFull } from "../api";
+import { TaskDocuments } from "./TaskDocuments";
 import { ChecklistSection } from "./ChecklistSection";
 import { DependencySection } from "./DependencySection";
 import { ConfirmModal } from "./ConfirmModal";
@@ -30,19 +31,7 @@ function linkifyTaskRefs(text: string, onClick: (id: number) => void): React.Rea
     return part;
   });
 }
-const CATEGORY_OPTIONS = [
-  "Financial",
-  "Legal",
-  "Career",
-  "Career/Research",
-  "Career/Network",
-  "Career/Negotiation",
-  "Career/Government",
-  "Career/Process",
-  "Interview Prep",
-  "Documentation",
-  "Research",
-];
+// Categories loaded from API per project
 
 function formatDate(d: string | null): string {
   if (!d) return "";
@@ -68,16 +57,22 @@ export function TaskDetail({
   onNavigate: (id: number) => void;
 }) {
   const [task, setTask] = useState<TaskFull | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; message: string; canForce: boolean }>({ show: false, message: "", canForce: false });
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
   const descDivRef = useRef<HTMLDivElement>(null);
   const [descHeight, setDescHeight] = useState<number | undefined>(undefined);
 
   const load = () => {
-    tasksApi.get(taskId).then(setTask);
+    tasksApi.get(taskId).then((t) => {
+      setTask(t);
+      categoriesApi.list(t.project_id).then((cats) => setCategoryOptions(cats.map(c => c.name)));
+    });
   };
 
   useEffect(() => {
@@ -254,13 +249,28 @@ export function TaskDetail({
           <MetaSelect
             label="Category"
             value={task.category || ""}
-            options={CATEGORY_OPTIONS}
+            options={categoryOptions}
             allowEmpty
             editing={editingField === "category"}
             onEdit={() => setEditingField("category")}
             onSave={(v) => updateField("category", v || null)}
             onCancel={() => setEditingField(null)}
+            onCreateNew={() => { setEditingField(null); setShowNewCat(true); setNewCatName(""); }}
           />
+          {showNewCat && (
+            <form className="meta-create-inline" onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newCatName.trim() || !task) return;
+              await categoriesApi.create(task.project_id, { name: newCatName.trim() });
+              await updateField("category", newCatName.trim());
+              setShowNewCat(false);
+              load();
+            }}>
+              <input value={newCatName} onChange={(e) => setNewCatName(e.target.value)} placeholder="Category name..." autoFocus />
+              <button type="submit">Create</button>
+              <button type="button" onClick={() => setShowNewCat(false)}>Cancel</button>
+            </form>
+          )}
           <MetaDate
             label="Due Date"
             value={task.due_date}
@@ -386,6 +396,9 @@ export function TaskDetail({
           </form>
         </div>
 
+        {/* Documents */}
+        <TaskDocuments taskId={taskId} documents={task.documents} projectId={task.project_id} onUpdate={load} />
+
         {/* Activity: for non-recurring, show at bottom */}
         {!task.is_recurring && (
           <ActivitySection
@@ -443,6 +456,7 @@ function MetaSelect({
   onEdit,
   onSave,
   onCancel,
+  onCreateNew,
 }: {
   label: string;
   value: string;
@@ -453,6 +467,7 @@ function MetaSelect({
   onEdit: () => void;
   onSave: (v: string) => void;
   onCancel: () => void;
+  onCreateNew?: () => void;
 }) {
   return (
     <div className="meta-field" onClick={editing ? undefined : onEdit}>
@@ -462,7 +477,13 @@ function MetaSelect({
           className="inline-select"
           defaultValue={value}
           autoFocus
-          onChange={(e) => onSave(e.target.value)}
+          onChange={(e) => {
+            if (e.target.value === "__create_new__" && onCreateNew) {
+              onCreateNew();
+            } else {
+              onSave(e.target.value);
+            }
+          }}
           onBlur={onCancel}
         >
           {allowEmpty && <option value="">-</option>}
@@ -471,6 +492,7 @@ function MetaSelect({
               {o}
             </option>
           ))}
+          {onCreateNew && <option value="__create_new__">+ New...</option>}
         </select>
       ) : (
         <span className={`meta-value ${!value ? "empty" : ""} ${pillPrefix && value ? `meta-value-pill ${pillPrefix}-${value}` : ""}`}>
