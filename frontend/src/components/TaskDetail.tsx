@@ -4,6 +4,8 @@ import type { TaskFull, Stage } from "../api";
 import { TaskDocuments } from "./TaskDocuments";
 import { TaskContacts } from "./TaskContacts";
 import { TaskCompanies } from "./TaskCompanies";
+import { highlight } from "../utils/highlight";
+import { HintBubble } from "./HintBubble";
 import { ChecklistSection } from "./ChecklistSection";
 import { DependencySection } from "./DependencySection";
 import { ConfirmModal } from "./ConfirmModal";
@@ -38,6 +40,7 @@ function linkifyTaskRefs(text: string, onClick: (id: number) => void): React.Rea
 }
 // Categories loaded from API per project
 
+
 function formatDate(d: string | null): string {
   if (!d) return "";
   return new Date(d).toLocaleDateString();
@@ -56,6 +59,7 @@ export function TaskDetail({
   onNavigate,
   onOpenFull,
   isModal = false,
+  searchTerm = "",
 }: {
   taskId: number;
   onClose: () => void;
@@ -64,6 +68,7 @@ export function TaskDetail({
   onNavigate: (id: number) => void;
   onOpenFull?: () => void;
   isModal?: boolean;
+  searchTerm?: string;
 }) {
   const [task, setTask] = useState<TaskFull | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
@@ -267,7 +272,7 @@ export function TaskDetail({
               onClick={() => setEditingField("title")}
             >
               <span className="detail-id">{task.display_id}</span>
-              {" "}{task.title}
+              {" "}{highlight(task.title, searchTerm)}
               <button
                 className={`copy-link-btn${copied ? " copied" : ""}`}
                 title={copied ? "Copied!" : "Copy ID + title"}
@@ -305,6 +310,7 @@ export function TaskDetail({
                 setNoteText={setNoteText}
                 onAdd={addNote}
                 recurring
+                searchTerm={searchTerm}
               />
             )}
 
@@ -331,7 +337,7 @@ export function TaskDetail({
                     setEditingField("description");
                   }}
                 >
-                  {task.description || "Click to add description..."}
+                  {task.description ? highlight(task.description, searchTerm) : "Click to add description..."}
                 </div>
               )}
             </div>
@@ -388,6 +394,7 @@ export function TaskDetail({
                 noteText={noteText}
                 setNoteText={setNoteText}
                 onAdd={addNote}
+                searchTerm={searchTerm}
               />
             )}
           </div>
@@ -448,6 +455,7 @@ export function TaskDetail({
                 onEdit={() => setEditingField("due_date")}
                 onSave={(v) => updateField("due_date", v || null)}
                 onCancel={() => setEditingField(null)}
+                tooltip="Hard deadline — task must be done by this date or the opportunity is lost. Use for: job posting close dates, offer acceptance deadlines, legal filing dates."
               />
               <MetaDate
                 label="Follow-up"
@@ -456,6 +464,7 @@ export function TaskDetail({
                 onEdit={() => setEditingField("follow_up_date")}
                 onSave={(v) => updateField("follow_up_date", v || null)}
                 onCancel={() => setEditingField(null)}
+                tooltip="Soft reminder — come back on this date and take the next action. Nothing expires if missed. Use for: watchlist rechecks, recruiter follow-ups, waiting-on-response nudges."
               />
               <div className="meta-field" onClick={() => updateField("is_recurring", !task.is_recurring)}>
                 <span className="meta-label">Recurring</span>
@@ -536,6 +545,7 @@ export function TaskDetail({
                     onEdit={() => setEditingField("close_reason")}
                     onSave={(v) => updateField("close_reason", v || null)}
                     onCancel={() => setEditingField(null)}
+                    searchTerm={searchTerm}
                   />
                   <MetaDate
                     label="Applied"
@@ -553,6 +563,7 @@ export function TaskDetail({
                     onSave={(v) => updateField("posting_url", v || null)}
                     onCancel={() => setEditingField(null)}
                     isLink
+                    searchTerm={searchTerm}
                   />
                   <MetaText
                     label="Compensation"
@@ -561,19 +572,20 @@ export function TaskDetail({
                     onEdit={() => setEditingField("compensation")}
                     onSave={(v) => updateField("compensation", v || null)}
                     onCancel={() => setEditingField(null)}
+                    searchTerm={searchTerm}
                   />
                 </div>
               </div>
             )}
 
             {/* Documents */}
-            <TaskDocuments taskId={taskId} documents={task.documents} projectId={task.project_id} onUpdate={load} />
+            <TaskDocuments taskId={taskId} documents={task.documents} projectId={task.project_id} onUpdate={load} searchTerm={searchTerm} />
 
             {/* Companies */}
-            <TaskCompanies taskId={taskId} companies={task.companies} projectId={task.project_id} onUpdate={load} />
+            <TaskCompanies taskId={taskId} companies={task.companies} projectId={task.project_id} onUpdate={load} searchTerm={searchTerm} />
 
             {/* Contacts */}
-            <TaskContacts taskId={taskId} contacts={task.contacts} projectId={task.project_id} onUpdate={load} />
+            <TaskContacts taskId={taskId} contacts={task.contacts} projectId={task.project_id} onUpdate={load} searchTerm={searchTerm} />
           </div>
         </div>
       </div>
@@ -626,6 +638,7 @@ function MetaSelect({
   onSave,
   onCancel,
   onCreateNew,
+  searchTerm = "",
 }: {
   label: string;
   value: string;
@@ -638,12 +651,13 @@ function MetaSelect({
   onSave: (v: string) => void;
   onCancel: () => void;
   onCreateNew?: () => void;
+  searchTerm?: string;
 }) {
   return (
     <div className="meta-field" onClick={editing ? undefined : onEdit}>
       <span className="meta-label">
         {label}
-        {tooltip && <span className="meta-label-hint" title={tooltip}>?</span>}
+        {tooltip && <HintBubble text={tooltip} />}
       </span>
       {editing ? (
         <select
@@ -669,7 +683,7 @@ function MetaSelect({
         </select>
       ) : (
         <span className={`meta-value ${!value ? "empty" : ""} ${pillPrefix && value ? `meta-value-pill ${pillPrefix}-${cssSlug(value)}` : ""}`}>
-          {value || "Set..."}
+          {value ? highlight(value, searchTerm) : "Set..."}
         </span>
       )}
     </div>
@@ -683,6 +697,7 @@ function MetaDate({
   onEdit,
   onSave,
   onCancel,
+  tooltip,
 }: {
   label: string;
   value: string | null;
@@ -690,10 +705,14 @@ function MetaDate({
   onEdit: () => void;
   onSave: (v: string) => void;
   onCancel: () => void;
+  tooltip?: string;
 }) {
   return (
     <div className="meta-field" onClick={editing ? undefined : onEdit}>
-      <span className="meta-label">{label}</span>
+      <span className="meta-label">
+        {label}
+        {tooltip && <HintBubble text={tooltip} />}
+      </span>
       {editing ? (
         <input
           className="inline-input"
@@ -725,6 +744,7 @@ function MetaText({
   onSave,
   onCancel,
   isLink,
+  searchTerm = "",
 }: {
   label: string;
   value: string | null;
@@ -733,6 +753,7 @@ function MetaText({
   onSave: (v: string) => void;
   onCancel: () => void;
   isLink?: boolean;
+  searchTerm?: string;
 }) {
   return (
     <div className="meta-field" onClick={editing ? undefined : onEdit}>
@@ -754,9 +775,9 @@ function MetaText({
           {value ? (
             isLink ? (
               <a href={value} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                {value}
+                {highlight(value, searchTerm)}
               </a>
-            ) : value
+            ) : highlight(value, searchTerm)
           ) : "Set..."}
         </span>
       )}
@@ -772,12 +793,14 @@ function ActivitySection({
   setNoteText,
   onAdd,
   recurring = false,
+  searchTerm = "",
 }: {
   task: TaskFull;
   noteText: string;
   setNoteText: (v: string) => void;
   onAdd: (e: React.FormEvent) => void;
   recurring?: boolean;
+  searchTerm?: string;
 }) {
   return (
     <div className={`detail-section ${recurring ? "activity-recurring" : ""}`}>
@@ -798,7 +821,7 @@ function ActivitySection({
             <div key={a.id} className={`detail-activity ${recurring && a.action === "note_added" ? "progress-entry" : ""}`}>
               <span className={`activity-dot ${recurring && a.action === "note_added" ? "green" : ""}`} />
               <div className="activity-content">
-                <span className="activity-text">{a.detail}</span>
+                <span className="activity-text">{highlight(a.detail, searchTerm)}</span>
                 <span className="activity-time">
                   {new Date(a.timestamp).toLocaleString()}
                 </span>

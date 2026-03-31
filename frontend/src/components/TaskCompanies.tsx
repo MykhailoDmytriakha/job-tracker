@@ -2,11 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { companiesApi } from "../api";
 import type { CompanyBrief } from "../api";
+import { highlight } from "../utils/highlight";
 
 export function TaskCompanies({
-  taskId, companies, projectId, onUpdate,
+  taskId, companies, projectId, onUpdate, searchTerm = "",
 }: {
-  taskId: number; companies: CompanyBrief[]; projectId: number; onUpdate: () => void;
+  taskId: number; companies: CompanyBrief[]; projectId: number; onUpdate: () => void; searchTerm?: string;
 }) {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"idle" | "link" | "create">("idle");
@@ -41,7 +42,7 @@ export function TaskCompanies({
         <div className="task-contacts-list">
           {companies.map(co => (
             <div key={co.id} className="task-contact-item">
-              <span className="task-contact-name" onClick={() => navigate(`/companies?selected=${co.id}`)}>{co.name}</span>
+              <span className="task-contact-name" onClick={() => navigate(`/companies?selected=${co.id}`)}>{highlight(co.name, searchTerm)}</span>
               {co.domain && <span className="task-contact-company">{co.domain}</span>}
               <button className="task-doc-unlink" onClick={async () => { await companiesApi.unlinkFromTask(taskId, co.id); onUpdate(); }}>&times;</button>
             </div>

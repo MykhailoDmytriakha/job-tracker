@@ -248,22 +248,88 @@ main {
   height: 100%; overflow: hidden;
 }
 
-/* Stat cards - clickable */
+/* Stat cards - clickable, always single row */
 .dash-stats {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; flex-shrink: 0;
+  display: flex; gap: 8px; flex-shrink: 0;
 }
 .stat-card {
+  flex: 1; min-width: 0;
   background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 12px;
+  border-radius: var(--radius); padding: 10px 8px;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   cursor: pointer; transition: all var(--transition); text-align: center;
   font-family: inherit;
 }
 .stat-card:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
-.stat-value { font-size: 24px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.stat-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.2; }
 .stat-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 .stat-value.danger { color: var(--red); }
 .stat-value.warning { color: var(--orange); }
+
+/* Attention card — special variant with info button */
+.attention-card {
+  position: relative; padding: 0 !important; overflow: visible;
+  border-color: var(--border);
+}
+.attention-card.attention-card-open { border-color: var(--orange); box-shadow: 0 0 0 2px var(--orange-soft); }
+.attention-info-btn {
+  position: absolute; top: 5px; right: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--bg-muted); border: none; padding: 0;
+  font-size: 8px; font-weight: 700; line-height: 1;
+  color: var(--text-muted); cursor: pointer; user-select: none;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.attention-info-btn:hover,
+.attention-card-open .attention-info-btn {
+  transform: scale(1.3);
+  background: var(--accent); color: #fff;
+}
+.attention-main {
+  width: 100%; height: 100%; padding: 10px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+}
+.attention-main:hover .stat-value, .attention-main:hover .stat-label { opacity: 0.8; }
+
+/* Attention popover — positioned below the card via portal */
+.attention-popover {
+  position: fixed; z-index: 9999;
+  width: 300px;
+  background: var(--bg-card); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: attentionFadeIn 0.15s ease;
+}
+@keyframes attentionFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.attention-popover-header {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.attention-popover-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.attention-popover-subtitle { font-size: 11px; color: var(--text-muted); }
+.attention-conditions {
+  list-style: none; margin: 0; padding: 6px 0;
+}
+.attention-condition {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 6px 14px;
+  transition: background var(--transition);
+}
+.attention-condition:hover { background: var(--bg-hover); }
+.attention-condition-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.attention-condition-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.attention-condition-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: 1px; }
+.attention-popover-footer {
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--text-faint); font-style: italic;
+}
 
 /* 3-column layout */
 .dash-columns {
@@ -838,13 +904,34 @@ main {
 .meta-value-pill.source-cold_outreach { background: var(--orange-soft); color: var(--orange); }
 .dark .meta-value-pill.source-linkedin { background: rgba(0,119,181,0.14); color: #4db8e8; }
 
-/* Tooltip hint on meta field labels */
-.meta-label-hint {
+/* HintBubble — click-to-show hint popup */
+.hint-bubble-wrap {
+  position: relative;
+  display: inline-flex; align-items: center;
+  margin-left: 4px; vertical-align: middle; flex-shrink: 0;
+}
+.hint-bubble {
   display: inline-flex; align-items: center; justify-content: center;
   width: 13px; height: 13px; border-radius: 50%;
   background: var(--bg-muted); color: var(--text-muted);
   font-size: 8px; font-weight: 700; line-height: 1;
-  margin-left: 4px; cursor: help; vertical-align: middle; flex-shrink: 0;
+  cursor: pointer; user-select: none;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.hint-bubble:hover, .hint-bubble.active {
+  transform: scale(1.3);
+  background: var(--accent); color: #fff;
+}
+.hint-popup {
+  position: fixed;
+  transform: translateY(-100%);
+  width: 220px;
+  background: var(--bg-card); color: var(--text-secondary);
+  font-size: 11px; font-weight: 400; line-height: 1.5;
+  padding: 8px 10px; border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 9999; white-space: normal; pointer-events: auto;
 }
 .inline-title {
   flex: 1; padding: 2px 4px;
@@ -1208,6 +1295,7 @@ main {
 .activity-content { display: flex; flex-direction: column; gap: 1px; }
 .activity-text { color: var(--text-muted); }
 .activity-time { font-size: 11px; color: var(--text-faint); }
+mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px; padding: 0 1px; }
 
 .note-form { display: flex; gap: 6px; }
 .note-form input {

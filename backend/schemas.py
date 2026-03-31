@@ -493,6 +493,7 @@ class DashboardStats(BaseModel):
     overdue: int = 0
     blocked: int = 0
     recurring: int = 0
+    attention: int = 0
 
 
 class DashboardView(BaseModel):

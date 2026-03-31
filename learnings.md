@@ -4,6 +4,24 @@ Self-education log. Every bug, user correction, and design insight gets recorded
 
 ---
 
+## 2026-03-31
+
+### L028: Tooltips should be click-to-show, not hover-only
+**Context:** Meta field hints used native `title` attribute (browser tooltip on hover). User feedback: inconsistent, no visual affordance, no interactivity.
+**Fix:** Replaced with `HintBubble` component (`src/components/HintBubble.tsx`). Click `?` to toggle popup, click outside to dismiss. Hover animates the bubble (scale + accent color) to signal interactivity.
+**Rule:** Any contextual help text in the UI must use `HintBubble`, not `title`. Native tooltips are for icons only (where the label IS the tooltip).
+**Usage:**
+```tsx
+import { HintBubble } from "./HintBubble";
+// Inside a label:
+<span className="meta-label">
+  My Field
+  <HintBubble text="Explanation of what this field does." />
+</span>
+```
+
+---
+
 ## 2026-03-30
 
 ### L001: SQLAlchemy cascade must be explicit on ALL child relationships

@@ -2,11 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { contactsApi } from "../api";
 import type { ContactBrief } from "../api";
+import { highlight } from "../utils/highlight";
 
 export function TaskContacts({
-  taskId, contacts, projectId, onUpdate,
+  taskId, contacts, projectId, onUpdate, searchTerm = "",
 }: {
-  taskId: number; contacts: ContactBrief[]; projectId: number; onUpdate: () => void;
+  taskId: number; contacts: ContactBrief[]; projectId: number; onUpdate: () => void; searchTerm?: string;
 }) {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"idle" | "link" | "create">("idle");
@@ -42,7 +43,7 @@ export function TaskContacts({
         <div className="task-contacts-list">
           {contacts.map(c => (
             <div key={c.id} className="task-contact-item">
-              <span className="task-contact-name" onClick={() => navigate(`/contacts?selected=${c.id}`)}>{c.name}</span>
+              <span className="task-contact-name" onClick={() => navigate(`/contacts?selected=${c.id}`)}>{highlight(c.name, searchTerm)}</span>
               {c.company && <span className="task-contact-company">{c.company}</span>}
               {c.contact_type && <span className={`contact-type-badge small ctype-${c.contact_type}`}>{c.contact_type.replace("_"," ")}</span>}
               <button className="task-doc-unlink" onClick={async () => { await contactsApi.unlinkFromTask(taskId, c.id); onUpdate(); }}>&times;</button>

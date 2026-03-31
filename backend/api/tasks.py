@@ -76,6 +76,7 @@ def list_tasks(
     on_board: Optional[bool] = None,
     is_recurring: Optional[bool] = None,
     overdue: Optional[bool] = None,
+    attention: Optional[bool] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
@@ -126,6 +127,64 @@ def list_tasks(
             models.Task.status.notin_(["done", "closed"]),
             (models.Task.due_date < now) | (models.Task.follow_up_date < now),
         )
+    if attention:
+        now_a = datetime.now(timezone.utc)
+        tasks_raw = query.filter(
+            models.Task.status.notin_(["done", "closed"])
+        ).order_by(models.Task.created_at.desc()).all()
+        blocked_ids = _get_blocked_ids(db)
+
+        cadence_days_map = {"daily": 1, "weekly": 7, "biweekly": 14, "monthly": 30}
+
+        def _aware(dt):
+            if dt is None:
+                return None
+            return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+
+        def _is_attention(t: models.Task) -> bool:
+            la = t.activities[0].timestamp if t.activities else None
+            la_aware = _aware(la) if la else None
+            days_inactive = (now_a - la_aware).days if la_aware else 9999
+
+            # 1. Non-recurring with no dates at all
+            if not t.is_recurring and not t.due_date and not t.follow_up_date:
+                return True
+
+            # 2. Recurring that missed 3+ full cycles
+            if t.is_recurring:
+                cadence_days = cadence_days_map.get(t.cadence or "", 1)
+                ref = la_aware or (_aware(t.created_at) if hasattr(t, "created_at") and t.created_at else None)
+                if ref and (now_a - ref).days >= cadence_days * 3:
+                    return True
+
+            # 3. Waiting but follow-up date already passed (missed check-in)
+            follow = _aware(t.follow_up_date)
+            if t.status == "waiting" and follow and follow < now_a:
+                return True
+
+            # 4. In-progress frozen for 14+ days
+            if t.status == "in_progress" and days_inactive >= 14:
+                return True
+
+            # 5. High priority with no due date
+            if t.priority == "high" and not t.due_date:
+                return True
+
+            # 6. Blocked with no movement for 7+ days
+            if t.id in blocked_ids and days_inactive >= 7:
+                return True
+
+            # 7. Open, never touched (only "created" activity), 10+ days old
+            if t.status == "open" and hasattr(t, "created_at") and t.created_at:
+                age_days = (now_a - _aware(t.created_at)).days
+                if age_days >= 10:
+                    has_real_activity = any(a.action != "created" for a in t.activities)
+                    if not has_real_activity:
+                        return True
+
+            return False
+
+        return [_brief(t, t.id in blocked_ids) for t in tasks_raw if _is_attention(t)]
 
     tasks = query.order_by(models.Task.created_at.desc()).all()
     blocked_ids = _get_blocked_ids(db)

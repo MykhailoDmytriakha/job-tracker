@@ -2,17 +2,20 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { documentsApi } from "../api";
 import type { DocumentBrief } from "../api";
+import { highlight } from "../utils/highlight";
 
 export function TaskDocuments({
   taskId,
   documents,
   projectId,
   onUpdate,
+  searchTerm = "",
 }: {
   taskId: number;
   documents: DocumentBrief[];
   projectId: number;
   onUpdate: () => void;
+  searchTerm?: string;
 }) {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"idle" | "link" | "create">("idle");
@@ -94,7 +97,7 @@ export function TaskDocuments({
                 onClick={() => navigate(`/docs?selected=${d.id}`)}
                 title="Open document"
               >
-                {d.title}
+                {highlight(d.title, searchTerm)}
               </span>
               {d.doc_type && (
                 <span className={`docs-type-badge type-${d.doc_type}`}>{d.doc_type}</span>

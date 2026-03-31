@@ -8,7 +8,17 @@ import { useProject } from "../ProjectContext";
 
 const STATUS_FILTERS = ["open", "in_progress", "waiting"];
 
-type SpecialFilter = "overdue" | "blocked" | "recurring" | "pipeline" | null;
+type SpecialFilter = "overdue" | "blocked" | "recurring" | "pipeline" | "attention" | null;
+
+function parseFilterParam(filter: string | null): { statusFilter: string | null; specialFilter: SpecialFilter } {
+  if (filter === "overdue" || filter === "blocked" || filter === "recurring" || filter === "attention") {
+    return { statusFilter: null, specialFilter: filter };
+  }
+  if (filter === "open" || filter === "waiting" || filter === "in_progress") {
+    return { statusFilter: filter, specialFilter: null };
+  }
+  return { statusFilter: null, specialFilter: null };
+}
 
 export function Tasks() {
   const { active: project } = useProject();
@@ -21,27 +31,19 @@ export function Tasks() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchHints, setSearchHints] = useState<Record<string, number>>({});
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [specialFilter, setSpecialFilter] = useState<SpecialFilter>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Pick up ?filter= from URL (dashboard click-through)
+  // Initialize filters from URL param on first render only (lazy init to avoid race condition)
+  const [statusFilter, setStatusFilter] = useState<string | null>(() => parseFilterParam(searchParams.get("filter")).statusFilter);
+  const [specialFilter, setSpecialFilter] = useState<SpecialFilter>(() => parseFilterParam(searchParams.get("filter")).specialFilter);
+
+  // Clean up ?filter= param from URL after reading it on mount
   useEffect(() => {
-    const filter = searchParams.get("filter");
-    if (filter) {
-      if (filter === "overdue" || filter === "blocked" || filter === "recurring") {
-        setSpecialFilter(filter);
-        setStatusFilter(null);
-      } else if (filter === "open") {
-        setStatusFilter("open");
-        setSpecialFilter(null);
-      } else if (filter === "waiting") {
-        setStatusFilter("waiting");
-        setSpecialFilter(null);
-      }
+    if (searchParams.get("filter")) {
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Debounce search input: fire API only after 300ms of no typing
   useEffect(() => {
@@ -74,6 +76,7 @@ export function Tasks() {
     if (specialFilter === "overdue") params.overdue = "true";
     if (specialFilter === "recurring") params.is_recurring = "true";
     if (specialFilter === "pipeline") params.on_board = "true";
+    if (specialFilter === "attention") params.attention = "true";
     tasksApi.list(params).then((result) => {
       if (specialFilter === "blocked") {
         setTasks(result.filter((t) => t.is_blocked));
@@ -229,6 +232,7 @@ export function Tasks() {
           onDelete={handleDelete}
           onUpdate={load}
           onNavigate={(id) => navigate(`/tasks/${id}`)}
+          searchTerm={debouncedSearch}
         />
       )}
     </div>

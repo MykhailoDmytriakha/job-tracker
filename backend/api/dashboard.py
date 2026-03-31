@@ -8,6 +8,13 @@ from .. import models, schemas
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
+CADENCE_DAYS: dict[str, int] = {
+    "daily": 1,
+    "weekly": 7,
+    "biweekly": 14,
+    "monthly": 30,
+}
+
 
 def _aware(dt):
     if dt is None:
@@ -93,6 +100,54 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
     )
     waiting_count = sum(1 for t in active if t.status == "waiting")
 
+    # ── Attention: unified health-check function ──────────────────────────────
+    # Each task is counted ONCE even if it matches multiple conditions.
+    def _needs_attention(t: models.Task) -> bool:
+        la = _last_activity(t)
+        la_aware = _aware(la) if la else None
+        days_inactive = (now - la_aware).days if la_aware else 9999
+
+        # 1. Non-recurring with no dates at all
+        if not t.is_recurring and not t.due_date and not t.follow_up_date:
+            return True
+
+        # 2. Recurring that missed 3+ full cycles (no activity)
+        if t.is_recurring:
+            cadence_days = CADENCE_DAYS.get(t.cadence or "", 1)
+            ref = la_aware or (_aware(t.created_at) if hasattr(t, "created_at") and t.created_at else None)
+            if ref and (now - ref).days >= cadence_days * 3:
+                return True
+
+        # 3. Waiting but follow-up date already passed (missed check-in)
+        follow = _aware(t.follow_up_date)
+        if t.status == "waiting" and follow and follow < now:
+            return True
+
+        # 4. In-progress frozen for 14+ days
+        if t.status == "in_progress" and days_inactive >= 14:
+            return True
+
+        # 5. High priority with no due date (important but unscheduled)
+        if t.priority == "high" and not t.due_date:
+            return True
+
+        # 6. Blocked with no movement for 7+ days
+        if t.id in blocked_ids and days_inactive >= 7:
+            return True
+
+        # 7. Open, never touched (only "created" activity), 10+ days old
+        if t.status == "open" and hasattr(t, "created_at") and t.created_at:
+            age_days = (now - _aware(t.created_at)).days
+            if age_days >= 10:
+                has_real_activity = any(a.action != "created" for a in t.activities)
+                if not has_real_activity:
+                    return True
+
+        return False
+
+    attention_count = sum(1 for t in active if _needs_attention(t))
+
+
     def brief(t):
         return schemas.TaskBrief(
             id=t.id,
@@ -131,6 +186,7 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
             overdue=overdue_count,
             blocked=sum(1 for t in active if t.id in blocked_ids),
             recurring=len(recurring_tasks),
+            attention=attention_count,
         ),
         today=[brief(t) for t in today_tasks],
         upcoming=[brief(t) for t in upcoming_tasks],

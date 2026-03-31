@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { dashboardApi, tasksApi } from "../api";
 import type { DashboardView, TaskBrief } from "../api";
 import { useProject } from "../ProjectContext";
@@ -84,6 +85,7 @@ export function Dashboard() {
           <span className="stat-value">{stats.recurring}</span>
           <span className="stat-label">Recurring</span>
         </button>
+        <AttentionCard count={stats.attention} onNavigate={() => goToFiltered("attention")} />
       </div>
 
       {/* 3-column layout */}
@@ -225,6 +227,89 @@ function RecurringCard({ task, onClick, onLogProgress }: { task: TaskBrief; onCl
           &#10003;
         </button>
       </div>
+    </div>
+  );
+}
+
+/* === Attention stat card with info popover === */
+
+const ATTENTION_CONDITIONS = [
+  { icon: "📅", label: "No dates set", desc: "Active task with no due date and no follow-up date" },
+  { icon: "🔁", label: "Stale recurring", desc: "Recurring task with no activity for 3+ full cycles" },
+  { icon: "⏰", label: "Missed follow-up", desc: "Waiting task whose follow-up date has already passed" },
+  { icon: "🧊", label: "Frozen in-progress", desc: "In-progress task with no activity for 14+ days" },
+  { icon: "🔥", label: "High priority, no deadline", desc: "High-priority task without a due date set" },
+  { icon: "🔒", label: "Blocked, no movement", desc: "Blocked task with no activity for 7+ days" },
+  { icon: "👻", label: "Never touched", desc: "Open task created 10+ days ago with no updates" },
+];
+
+const ATTENTION_POPOVER_WIDTH = 300;
+const ATTENTION_POPOVER_MARGIN = 10;
+
+function AttentionCard({ count, onNavigate }: { count: number; onNavigate: () => void }) {
+  const [open, setOpen] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  function openInfo(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    if (cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      // Horizontal: align to card left, clamp so it doesn't overflow right edge
+      let left = rect.left;
+      const maxLeft = window.innerWidth - ATTENTION_POPOVER_WIDTH - ATTENTION_POPOVER_MARGIN;
+      left = Math.max(ATTENTION_POPOVER_MARGIN, Math.min(left, maxLeft));
+      // Vertical: below card by default; estimate height ~320px, flip above if needed
+      const estimatedHeight = 340;
+      let top = rect.bottom + 6;
+      if (top + estimatedHeight > window.innerHeight - ATTENTION_POPOVER_MARGIN) {
+        top = rect.top - estimatedHeight - 6;
+      }
+      setPos({ top, left });
+    }
+    setOpen(true);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick() { setOpen(false); }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={cardRef} className={`stat-card attention-card ${open ? "attention-card-open" : ""}`}>
+      <button className="attention-info-btn" onClick={openInfo} title="What triggers Attention?">ⓘ</button>
+      <button className="attention-main" onClick={onNavigate}>
+        <span className={`stat-value ${count > 0 ? "warning" : ""}`}>{count}</span>
+        <span className="stat-label">Attention</span>
+      </button>
+      {open && createPortal(
+        <div
+          className="attention-popover"
+          style={{ top: pos.top, left: pos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="attention-popover-header">
+            <span className="attention-popover-title">⚡ Needs Attention</span>
+            <span className="attention-popover-subtitle">Tasks matching any condition below</span>
+          </div>
+          <ul className="attention-conditions">
+            {ATTENTION_CONDITIONS.map((c) => (
+              <li key={c.label} className="attention-condition">
+                <span className="attention-condition-icon">{c.icon}</span>
+                <div>
+                  <div className="attention-condition-label">{c.label}</div>
+                  <div className="attention-condition-desc">{c.desc}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="attention-popover-footer">Click the card to view all affected tasks →</div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

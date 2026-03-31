@@ -297,6 +297,7 @@ export interface DashboardStats {
   overdue: number;
   blocked: number;
   recurring: number;
+  attention: number;
 }
 
 export interface DashboardView {
