@@ -9,24 +9,24 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { boardApi, tasksApi } from "../api";
 import type { BoardView } from "../api";
 import { Column } from "../components/Column";
+import { useProject } from "../ProjectContext";
 
 export function Pipeline() {
+  const { active: project } = useProject();
   const [board, setBoard] = useState<BoardView | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const load = () => boardApi.get().then(setBoard);
+  const load = () => {
+    if (project) boardApi.get(project.id).then(setBoard);
+  };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [project]);
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-
-    const taskId = Number(active.id);
-    const newStageId = Number(over.id);
-
-    await tasksApi.update(taskId, { stage_id: newStageId } as any);
+    await tasksApi.update(Number(active.id), { stage_id: Number(over.id) } as any);
     load();
   }
 
@@ -34,11 +34,10 @@ export function Pipeline() {
 
   return (
     <div className="board-page">
-      <h1>Pipeline</h1>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="board">
           {board.columns.map((col) => (
-            <Column key={col.stage.id} column={col} onRefresh={load} />
+            <Column key={col.stage.id} column={col} />
           ))}
         </div>
       </DndContext>

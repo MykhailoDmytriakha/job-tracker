@@ -3,6 +3,31 @@ from datetime import datetime
 from typing import Optional
 
 
+# --- Project ---
+
+
+class ProjectCreate(BaseModel):
+    name: str
+    short_key: str
+    description: str = ""
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class ProjectOut(BaseModel):
+    id: int
+    name: str
+    short_key: str
+    description: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- Stage ---
 
 
@@ -45,6 +70,48 @@ class ActivityOut(BaseModel):
         from_attributes = True
 
 
+# --- Checklist ---
+
+
+class ChecklistItemCreate(BaseModel):
+    text: str
+    position: int = 0
+
+
+class ChecklistItemUpdate(BaseModel):
+    text: Optional[str] = None
+    is_done: Optional[bool] = None
+    position: Optional[int] = None
+
+
+class ChecklistItemOut(BaseModel):
+    id: int
+    task_id: int
+    text: str
+    is_done: bool
+    position: int
+
+    class Config:
+        from_attributes = True
+
+
+# --- Dependency ---
+
+
+class DependencyCreate(BaseModel):
+    depends_on_id: int
+
+
+class TaskDependencyBrief(BaseModel):
+    id: int
+    title: str
+    status: str
+    display_id: str = ""
+
+    class Config:
+        from_attributes = True
+
+
 # --- Task ---
 
 
@@ -53,9 +120,14 @@ class TaskCreate(BaseModel):
     description: str = ""
     status: str = "open"
     priority: str = "medium"
+    category: Optional[str] = None
     stage_id: Optional[int] = None
     parent_id: Optional[int] = None
     follow_up_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+    is_recurring: bool = False
+    cadence: Optional[str] = None
+    next_checkpoint: Optional[datetime] = None
 
 
 class TaskUpdate(BaseModel):
@@ -63,21 +135,37 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
+    category: Optional[str] = None
     stage_id: Optional[int] = None
     parent_id: Optional[int] = None
     follow_up_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+    is_recurring: Optional[bool] = None
+    cadence: Optional[str] = None
+    next_checkpoint: Optional[datetime] = None
 
 
 class TaskBrief(BaseModel):
     id: int
+    display_id: str = ""
+    project_id: int = 0
     title: str
     status: str
     priority: str
+    category: Optional[str] = None
     stage_id: Optional[int] = None
     parent_id: Optional[int] = None
     follow_up_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+    is_recurring: bool = False
+    cadence: Optional[str] = None
+    next_checkpoint: Optional[datetime] = None
+    is_blocked: bool = False
     subtask_count: int = 0
     subtask_done: int = 0
+    checklist_total: int = 0
+    checklist_done: int = 0
+    last_activity_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -85,17 +173,32 @@ class TaskBrief(BaseModel):
 
 class TaskOut(BaseModel):
     id: int
+    display_id: str = ""
+    project_id: int = 0
     title: str
     description: str
     status: str
     priority: str
+    category: Optional[str] = None
     stage_id: Optional[int] = None
     parent_id: Optional[int] = None
     follow_up_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+    is_recurring: bool = False
+    cadence: Optional[str] = None
+    next_checkpoint: Optional[datetime] = None
+    is_blocked: bool = False
     created_at: datetime
     updated_at: datetime
+    subtask_count: int = 0
+    subtask_done: int = 0
+    checklist_total: int = 0
+    checklist_done: int = 0
     subtasks: list["TaskBrief"] = []
     activities: list[ActivityOut] = []
+    checklist_items: list[ChecklistItemOut] = []
+    blocked_by: list[TaskDependencyBrief] = []
+    blocks: list[TaskDependencyBrief] = []
 
     class Config:
         from_attributes = True
@@ -111,3 +214,21 @@ class BoardColumn(BaseModel):
 
 class BoardView(BaseModel):
     columns: list[BoardColumn] = []
+
+
+# --- Dashboard ---
+
+
+class DashboardStats(BaseModel):
+    total_open: int = 0
+    waiting: int = 0
+    overdue: int = 0
+    blocked: int = 0
+    recurring: int = 0
+
+
+class DashboardView(BaseModel):
+    stats: DashboardStats
+    today: list[TaskBrief] = []
+    upcoming: list[TaskBrief] = []
+    recurring: list[TaskBrief] = []

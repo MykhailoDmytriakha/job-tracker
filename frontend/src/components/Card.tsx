@@ -7,38 +7,72 @@ const priorityColor: Record<string, string> = {
   low: "#22c55e",
 };
 
+function formatShortDate(d: string | null): string {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function isOverdue(d: string | null): boolean {
+  if (!d) return false;
+  return new Date(d).getTime() < Date.now();
+}
+
 export function Card({ task }: { task: TaskBrief }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: task.id,
-  });
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({ id: task.id });
 
   const style = transform
-    ? { transform: `translate(${transform.x}px, ${transform.y}px)`, opacity: isDragging ? 0.5 : 1 }
+    ? {
+        transform: `translate(${transform.x}px, ${transform.y}px)`,
+        opacity: isDragging ? 0.4 : 1,
+      }
     : undefined;
 
-  const progress =
-    task.subtask_count > 0
-      ? `${task.subtask_done}/${task.subtask_count}`
-      : null;
+  const dateStr = task.due_date || task.follow_up_date;
+  const overdue = isOverdue(dateStr);
+  const isDone = task.status === "done" || task.status === "closed";
 
   return (
     <div
       ref={setNodeRef}
-      className="card"
+      className={`card ${task.is_blocked ? "card-blocked" : ""}`}
       style={style}
       {...listeners}
       {...attributes}
     >
-      <div className="card-priority" style={{ backgroundColor: priorityColor[task.priority] || "#94a3b8" }} />
-      <div className="card-body">
-        <div className="card-title">{task.title}</div>
-        <div className="card-meta">
-          {progress && <span className="card-progress">{progress}</span>}
-          {task.follow_up_date && (
-            <span className="card-date">
-              {new Date(task.follow_up_date).toLocaleDateString()}
-            </span>
-          )}
+      <div className="card-inner">
+        <div
+          className="card-priority"
+          style={{
+            backgroundColor:
+              priorityColor[task.priority] || "var(--text-faint)",
+          }}
+        />
+        <div className="card-body">
+          <div className="card-title">{task.title}</div>
+          <div className="card-meta">
+            {task.category && (
+              <span className="badge badge-category">{task.category}</span>
+            )}
+            {task.is_blocked && (
+              <span className="badge badge-blocked">blocked</span>
+            )}
+            {task.status === "waiting" && (
+              <span className="badge badge-waiting">waiting</span>
+            )}
+            {task.subtask_count > 0 && (
+              <span className="badge badge-progress">
+                {task.subtask_done}/{task.subtask_count}
+              </span>
+            )}
+            {dateStr && !isDone && (
+              <span
+                className={`badge ${overdue ? "badge-overdue" : "badge-date"}`}
+              >
+                {formatShortDate(dateStr)}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

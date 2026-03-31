@@ -1,11 +1,24 @@
 const BASE = "http://localhost:8000/api";
 
+export class ApiError extends Error {
+  status: number;
+  body: string;
+  constructor(status: number, statusText: string, body: string) {
+    super(`${status} ${statusText}`);
+    this.status = status;
+    this.body = body;
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new ApiError(res.status, res.statusText, body);
+  }
   return res.json();
 }
 
@@ -22,14 +35,25 @@ export interface Stage {
 
 export interface TaskBrief {
   id: number;
+  display_id: string;
+  project_id: number;
   title: string;
   status: string;
   priority: string;
+  category: string | null;
   stage_id: number | null;
   parent_id: number | null;
   follow_up_date: string | null;
+  due_date: string | null;
+  is_recurring: boolean;
+  cadence: string | null;
+  next_checkpoint: string | null;
+  is_blocked: boolean;
   subtask_count: number;
   subtask_done: number;
+  checklist_total: number;
+  checklist_done: number;
+  last_activity_at: string | null;
 }
 
 export interface Activity {
@@ -40,12 +64,29 @@ export interface Activity {
   timestamp: string;
 }
 
+export interface ChecklistItem {
+  id: number;
+  task_id: number;
+  text: string;
+  is_done: boolean;
+  position: number;
+}
+
+export interface TaskDependencyBrief {
+  id: number;
+  title: string;
+  status: string;
+}
+
 export interface TaskFull extends TaskBrief {
   description: string;
   created_at: string;
   updated_at: string;
   subtasks: TaskBrief[];
   activities: Activity[];
+  checklist_items: ChecklistItem[];
+  blocked_by: TaskDependencyBrief[];
+  blocks: TaskDependencyBrief[];
 }
 
 export interface BoardColumn {
@@ -57,10 +98,66 @@ export interface BoardView {
   columns: BoardColumn[];
 }
 
+export interface GraphNode {
+  id: number;
+  title: string;
+  status: string;
+  is_current: boolean;
+  layer: number;
+}
+
+export interface GraphView {
+  nodes: GraphNode[];
+  edges: [number, number][];  // [from_id, to_id]
+  total: number;
+}
+
+// --- Project ---
+
+export interface Project {
+  id: number;
+  name: string;
+  short_key: string;
+  description: string;
+  created_at: string;
+}
+
+export const projectsApi = {
+  list: () => request<Project[]>("/projects/"),
+  create: (data: { name: string; short_key: string; description?: string }) =>
+    request<Project>("/projects/", { method: "POST", body: JSON.stringify(data) }),
+  get: (id: number) => request<Project>(`/projects/${id}`),
+  update: (id: number, data: Partial<Project>) =>
+    request<Project>(`/projects/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: number) =>
+    request<{ ok: boolean }>(`/projects/${id}`, { method: "DELETE" }),
+};
+
+export interface DashboardStats {
+  total_open: number;
+  waiting: number;
+  overdue: number;
+  blocked: number;
+  recurring: number;
+}
+
+export interface DashboardView {
+  stats: DashboardStats;
+  today: TaskBrief[];
+  upcoming: TaskBrief[];
+  recurring: TaskBrief[];
+}
+
 // --- Board ---
 
 export const boardApi = {
-  get: () => request<BoardView>("/board/"),
+  get: (projectId?: number) => request<BoardView>(`/board/${projectId ? `?project_id=${projectId}` : ""}`),
+};
+
+// --- Dashboard ---
+
+export const dashboardApi = {
+  get: (projectId?: number) => request<DashboardView>(`/dashboard/${projectId ? `?project_id=${projectId}` : ""}`),
 };
 
 // --- Tasks ---
@@ -71,16 +168,52 @@ export const tasksApi = {
     return request<TaskBrief[]>(`/tasks/${qs}`);
   },
   get: (id: number) => request<TaskFull>(`/tasks/${id}`),
-  create: (data: Partial<TaskFull>) =>
-    request<TaskFull>("/tasks/", { method: "POST", body: JSON.stringify(data) }),
+  create: (data: Partial<TaskFull>, projectId: number) =>
+    request<TaskFull>(`/tasks/?project_id=${projectId}`, { method: "POST", body: JSON.stringify(data) }),
   update: (id: number, data: Partial<TaskFull>) =>
     request<TaskFull>(`/tasks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  delete: (id: number) =>
-    request<{ ok: boolean }>(`/tasks/${id}`, { method: "DELETE" }),
+  delete: (id: number, force = false) =>
+    request<{ ok: boolean }>(`/tasks/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
   addNote: (id: number, text: string) =>
     request<{ ok: boolean }>(`/tasks/${id}/note`, {
       method: "POST",
       body: JSON.stringify({ text }),
+    }),
+
+  // Dependencies & Chain
+  getChain: (id: number) => request<GraphView>(`/tasks/${id}/chain`),
+  getDependencies: (id: number) =>
+    request<{ blocked_by: TaskDependencyBrief[]; blocks: TaskDependencyBrief[] }>(
+      `/tasks/${id}/dependencies`
+    ),
+  addDependency: (id: number, dependsOnId: number) =>
+    request<{ ok: boolean }>(`/tasks/${id}/dependencies`, {
+      method: "POST",
+      body: JSON.stringify({ depends_on_id: dependsOnId }),
+    }),
+  removeDependency: (id: number, depId: number) =>
+    request<{ ok: boolean }>(`/tasks/${id}/dependencies/${depId}`, {
+      method: "DELETE",
+    }),
+
+  // Checklist
+  addChecklistItem: (taskId: number, text: string, position?: number) =>
+    request<ChecklistItem>(`/tasks/${taskId}/checklist`, {
+      method: "POST",
+      body: JSON.stringify({ text, position: position ?? 0 }),
+    }),
+  updateChecklistItem: (
+    taskId: number,
+    itemId: number,
+    data: Partial<ChecklistItem>
+  ) =>
+    request<ChecklistItem>(`/tasks/${taskId}/checklist/${itemId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  deleteChecklistItem: (taskId: number, itemId: number) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/checklist/${itemId}`, {
+      method: "DELETE",
     }),
 };
 

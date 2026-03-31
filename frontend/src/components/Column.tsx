@@ -2,7 +2,7 @@ import { useDroppable } from "@dnd-kit/core";
 import type { BoardColumn } from "../api";
 import { Card } from "./Card";
 
-export function Column({ column, onRefresh }: { column: BoardColumn; onRefresh: () => void }) {
+export function Column({ column }: { column: BoardColumn }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.stage.id });
 
   return (

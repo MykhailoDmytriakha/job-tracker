@@ -6,12 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import engine
 from . import models
 from .seed import seed_default_stages
-from .api import stages, tasks, board
+from .migrations import run_migrations
+from .api import stages, tasks, board, dashboard, projects
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     models.Base.metadata.create_all(bind=engine)
+    run_migrations(engine)
     seed_default_stages()
     yield
 
@@ -20,15 +22,17 @@ app = FastAPI(title="Job Tracker", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(projects.router)
 app.include_router(stages.router)
 app.include_router(tasks.router)
 app.include_router(board.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/api/health")
