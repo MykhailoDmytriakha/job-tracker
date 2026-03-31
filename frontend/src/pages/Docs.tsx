@@ -159,7 +159,7 @@ export function Docs() {
                 <div className="docs-linked-tasks">
                   <div className="detail-section-label">Linked Tasks</div>
                   {doc.tasks.map((t) => (
-                    <div key={t.id} className="docs-task-link clickable" onClick={() => navigate(`/tasks?selected=${t.id}`)} title="Open task">
+                    <div key={t.id} className="docs-task-link clickable" onClick={() => navigate(`/tasks/${t.id}`)} title="Open task">
                       <span className="task-id">{t.display_id}</span> {t.title}
                     </div>
                   ))}

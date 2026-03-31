@@ -47,7 +47,7 @@ export function Dashboard() {
   }, [project]);
 
   function goToTask(id: number) {
-    navigate(`/tasks?selected=${id}`);
+    navigate(`/tasks/${id}`);
   }
 
   function goToFiltered(filter: string) {

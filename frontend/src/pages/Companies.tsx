@@ -117,7 +117,7 @@ export function Companies() {
             <div className="detail-section">
               <div className="detail-section-label">Tasks <span className="docs-count-badge">{company.tasks.length}</span></div>
               {company.tasks.map((t) => (
-                <div key={t.id} className="docs-task-link clickable" onClick={() => navigate(`/tasks?selected=${t.id}`)}>
+                <div key={t.id} className="docs-task-link clickable" onClick={() => navigate(`/tasks/${t.id}`)}>
                   <span className="task-id">{t.display_id}</span> {t.title}
                 </div>
               ))}

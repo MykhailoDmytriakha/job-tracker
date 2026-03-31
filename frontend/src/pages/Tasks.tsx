@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { tasksApi } from "../api";
 import type { TaskBrief } from "../api";
 import { TaskItem } from "../components/TaskItem";
@@ -8,25 +8,24 @@ import { useProject } from "../ProjectContext";
 
 const STATUS_FILTERS = ["open", "in_progress", "waiting"];
 
-type SpecialFilter = "overdue" | "blocked" | "recurring" | null;
+type SpecialFilter = "overdue" | "blocked" | "recurring" | "pipeline" | null;
 
 export function Tasks() {
   const { active: project } = useProject();
+  const { taskId } = useParams<{ taskId?: string }>();
+  const navigate = useNavigate();
+  const selectedId = taskId ? Number(taskId) : null;
   const [tasks, setTasks] = useState<TaskBrief[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [specialFilter, setSpecialFilter] = useState<SpecialFilter>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Pick up ?selected= or ?filter= from URL (dashboard click-through)
+  // Pick up ?filter= from URL (dashboard click-through)
   useEffect(() => {
-    const sel = searchParams.get("selected");
     const filter = searchParams.get("filter");
-    if (sel) {
-      setSelectedId(Number(sel));
-    }
     if (filter) {
       if (filter === "overdue" || filter === "blocked" || filter === "recurring") {
         setSpecialFilter(filter);
@@ -38,8 +37,6 @@ export function Tasks() {
         setStatusFilter("waiting");
         setSpecialFilter(null);
       }
-    }
-    if (sel || filter) {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -51,6 +48,7 @@ export function Tasks() {
     if (statusFilter) params.status = statusFilter;
     if (specialFilter === "overdue") params.overdue = "true";
     if (specialFilter === "recurring") params.is_recurring = "true";
+    if (specialFilter === "pipeline") params.on_board = "true";
     tasksApi.list(params).then((result) => {
       if (specialFilter === "blocked") {
         setTasks(result.filter((t) => t.is_blocked));
@@ -69,12 +67,13 @@ export function Tasks() {
     if (!title.trim() || !project) return;
     const created = await tasksApi.create({ title: title.trim() } as any, project.id);
     setTitle("");
+    setShowCreate(false);
     load();
-    setSelectedId(created.id);
+    navigate(`/tasks/${created.id}`);
   }
 
-  function handleDelete(id: number) {
-    if (selectedId === id) setSelectedId(null);
+  function handleDelete() {
+    navigate("/tasks");
     load();
   }
 
@@ -88,50 +87,63 @@ export function Tasks() {
   return (
     <div className={`tasks-layout ${selectedId ? "has-detail" : ""}`}>
       <div className="tasks-list-panel">
-        <form onSubmit={handleCreate} className="task-form">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="New task..."
-            autoFocus
-          />
-          <button type="submit">Add</button>
-        </form>
-
-        <div className="filter-bar">
-          <input
-            className="filter-search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tasks..."
-          />
-          {STATUS_FILTERS.map((s) => (
-            <button
-              key={s}
-              className={`filter-chip ${statusFilter === s ? "active" : ""}`}
-              onClick={() => setStatusFilter(statusFilter === s ? null : s)}
-            >
-              {s.replace("_", " ")}
+        <div className="tasks-toolbar">
+          <div className="tasks-toolbar-row1">
+            <input
+              className="filter-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search tasks..."
+            />
+            <button className="new-task-btn" onClick={() => setShowCreate(true)}>
+              + New
             </button>
-          ))}
-          {specialFilter && (
+          </div>
+          <div className="tasks-toolbar-row2">
+            {STATUS_FILTERS.map((s) => (
+              <button
+                key={s}
+                className={`filter-chip ${statusFilter === s ? "active" : ""}`}
+                onClick={() => { setStatusFilter(statusFilter === s ? null : s); setSpecialFilter(null); }}
+              >
+                {s.replace("_", " ")}
+              </button>
+            ))}
+            {specialFilter && specialFilter !== "pipeline" && (
+              <button className="filter-chip active" onClick={() => setSpecialFilter(null)}>
+                {specialFilter}
+              </button>
+            )}
+            {(statusFilter || (specialFilter && specialFilter !== "pipeline")) && (
+              <button className="filter-chip filter-clear" onClick={() => { setStatusFilter(null); setSpecialFilter(null); }}>
+                ×
+              </button>
+            )}
+            <div className="toolbar-divider" />
             <button
-              className={`filter-chip active`}
-              onClick={() => setSpecialFilter(null)}
+              className={`filter-chip pipeline-chip ${specialFilter === "pipeline" ? "active" : ""}`}
+              onClick={() => { setSpecialFilter(specialFilter === "pipeline" ? null : "pipeline"); setStatusFilter(null); }}
+              title="Show only pipeline tasks"
             >
-              {specialFilter}
+              pipeline
             </button>
-          )}
-          {(statusFilter || specialFilter) && (
-            <button
-              className="filter-chip"
-              onClick={() => { setStatusFilter(null); setSpecialFilter(null); }}
-              style={{ fontStyle: "italic" }}
-            >
-              clear
-            </button>
-          )}
+          </div>
         </div>
+
+        {showCreate && (
+          <form onSubmit={handleCreate} className="task-form task-form-inline">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Task title..."
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Escape") { setShowCreate(false); setTitle(""); } }}
+              onBlur={() => { if (!title.trim()) { setShowCreate(false); } }}
+            />
+            <button type="submit">Add</button>
+            <button type="button" className="cancel-btn" onClick={() => { setShowCreate(false); setTitle(""); }}>✕</button>
+          </form>
+        )}
 
         <div className="task-list">
           {active.map((t) => (
@@ -139,9 +151,9 @@ export function Tasks() {
               key={t.id}
               task={t}
               selected={t.id === selectedId}
-              onSelect={setSelectedId}
+              onSelect={(id) => navigate(`/tasks/${id}`)}
               onUpdate={load}
-              onNavigate={setSelectedId}
+              onNavigate={(id) => navigate(`/tasks/${id}`)}
             />
           ))}
         </div>
@@ -155,7 +167,7 @@ export function Tasks() {
                   key={t.id}
                   task={t}
                   selected={t.id === selectedId}
-                  onSelect={setSelectedId}
+                  onSelect={(id) => navigate(`/tasks/${id}`)}
                   onUpdate={load}
                 />
               ))}
@@ -167,10 +179,10 @@ export function Tasks() {
       {selectedId && (
         <TaskDetail
           taskId={selectedId}
-          onClose={() => setSelectedId(null)}
-          onDelete={() => handleDelete(selectedId!)}
+          onClose={() => navigate("/tasks")}
+          onDelete={handleDelete}
           onUpdate={load}
-          onNavigate={setSelectedId}
+          onNavigate={(id) => navigate(`/tasks/${id}`)}
         />
       )}
     </div>

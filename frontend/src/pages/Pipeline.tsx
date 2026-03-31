@@ -39,7 +39,7 @@ export function Pipeline() {
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="board">
           {board.columns.map((col) => (
-            <Column key={col.stage.id} column={col} onSelectTask={(id) => navigate(`/tasks?selected=${id}`)} />
+            <Column key={col.stage.id} column={col} onSelectTask={(id) => navigate(`/tasks/${id}`)} />
           ))}
         </div>
       </DndContext>
