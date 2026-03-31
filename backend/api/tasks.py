@@ -357,6 +357,35 @@ def update_task(
             f"{db_task.priority} -> {changes['priority']}",
         )
 
+    if "title" in changes and changes["title"] != db_task.title:
+        log_activity(db, task_id, "title_changed", f'"{db_task.title}" -> "{changes["title"]}"')
+
+    def _fmt_date(d):
+        return d.strftime("%Y-%m-%d") if d else "none"
+
+    if "due_date" in changes and changes["due_date"] != db_task.due_date:
+        log_activity(db, task_id, "due_date_changed",
+                     f"{_fmt_date(db_task.due_date)} -> {_fmt_date(changes['due_date'])}")
+
+    if "follow_up_date" in changes and changes["follow_up_date"] != db_task.follow_up_date:
+        log_activity(db, task_id, "follow_up_date_changed",
+                     f"{_fmt_date(db_task.follow_up_date)} -> {_fmt_date(changes['follow_up_date'])}")
+
+    if "pipeline_heat" in changes and changes["pipeline_heat"] != db_task.pipeline_heat:
+        log_activity(db, task_id, "heat_changed",
+                     f"{db_task.pipeline_heat or '-'} -> {changes['pipeline_heat'] or '-'}")
+
+    if "outreach_status" in changes and changes["outreach_status"] != db_task.outreach_status:
+        log_activity(db, task_id, "outreach_changed",
+                     f"{db_task.outreach_status or '-'} -> {changes['outreach_status'] or '-'}")
+
+    if "close_reason" in changes and changes["close_reason"] != db_task.close_reason:
+        log_activity(db, task_id, "close_reason_set", f"Reason: {changes['close_reason']}")
+
+    if "applied_at" in changes and changes["applied_at"] != db_task.applied_at:
+        if changes["applied_at"]:
+            log_activity(db, task_id, "applied", f"Applied: {_fmt_date(changes['applied_at'])}")
+
     db_task.updated_at = datetime.now(timezone.utc)
     for key, value in changes.items():
         setattr(db_task, key, value)
@@ -703,6 +732,7 @@ def link_document(task_id: int, body: schemas.DocumentLinkRequest, db: Session =
     if doc in task.documents:
         raise HTTPException(status_code=400, detail="Already linked")
     task.documents.append(doc)
+    log_activity(db, task_id, "document_linked", doc.title)
     db.commit()
     return {"ok": True}
 
@@ -717,6 +747,7 @@ def unlink_document(task_id: int, doc_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Document not found")
     if doc in task.documents:
         task.documents.remove(doc)
+        log_activity(db, task_id, "document_unlinked", doc.title)
     db.commit()
     return {"ok": True}
 
@@ -743,6 +774,7 @@ def link_contact(task_id: int, body: schemas.ContactLinkRequest, db: Session = D
     if contact in task.contacts:
         raise HTTPException(status_code=400, detail="Already linked")
     task.contacts.append(contact)
+    log_activity(db, task_id, "contact_linked", contact.name)
     db.commit()
     return {"ok": True}
 
@@ -755,6 +787,7 @@ def unlink_contact(task_id: int, contact_id: int, db: Session = Depends(get_db))
     contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
     if contact and contact in task.contacts:
         task.contacts.remove(contact)
+        log_activity(db, task_id, "contact_unlinked", contact.name)
     db.commit()
     return {"ok": True}
 
@@ -773,6 +806,7 @@ def link_company(task_id: int, body: schemas.CompanyLinkRequest, db: Session = D
     if company in task.companies:
         raise HTTPException(status_code=400, detail="Already linked")
     task.companies.append(company)
+    log_activity(db, task_id, "company_linked", company.name)
     db.commit()
     return {"ok": True}
 
@@ -785,6 +819,7 @@ def unlink_company(task_id: int, company_id: int, db: Session = Depends(get_db))
     company = db.query(models.Company).filter(models.Company.id == company_id).first()
     if company and company in task.companies:
         task.companies.remove(company)
+        log_activity(db, task_id, "company_unlinked", company.name)
     db.commit()
     return {"ok": True}
 
