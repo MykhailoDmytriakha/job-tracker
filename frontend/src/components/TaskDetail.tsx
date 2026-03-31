@@ -11,6 +11,7 @@ import { ChecklistSection } from "./ChecklistSection";
 import { DependencySection } from "./DependencySection";
 import { ConfirmModal } from "./ConfirmModal";
 import { SubtaskItem } from "./SubtaskItem";
+import { CustomDatePicker } from "./CustomDatePicker";
 
 const STATUS_OPTIONS = ["open", "in_progress", "waiting", "done", "closed"];
 const PRIORITY_OPTIONS = ["high", "medium", "low"];
@@ -146,10 +147,6 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString();
 }
 
-function toInputDate(d: string | null): string {
-  if (!d) return "";
-  return new Date(d).toISOString().slice(0, 10);
-}
 
 export function TaskDetail({
   taskId,
@@ -810,31 +807,24 @@ function MetaDate({
   onCancel: () => void;
   tooltip?: string;
 }) {
+  const fieldRef = useRef<HTMLDivElement>(null);
   return (
-    <div className="meta-field" onClick={editing ? undefined : onEdit}>
+    <div className="meta-field" onClick={editing ? undefined : onEdit} ref={fieldRef}>
       <span className="meta-label">
         {label}
         {tooltip && <HintBubble text={tooltip} />}
       </span>
-      {editing ? (
-        <input
-          className="inline-input"
-          type="date"
-          defaultValue={toInputDate(value)}
-          autoFocus
-          onBlur={(e) => {
-            const v = e.target.value;
-            onSave(v ? new Date(v + "T00:00:00Z").toISOString() : "");
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") onCancel();
-          }}
+      {editing && (
+        <CustomDatePicker
+          value={value}
+          onSave={onSave}
+          onCancel={onCancel}
+          anchorRef={fieldRef}
         />
-      ) : (
-        <span className={`meta-value ${!value ? "empty" : ""}`}>
-          {formatDate(value) || "Set date..."}
-        </span>
       )}
+      <span className={`meta-value ${!value ? "empty" : ""} ${editing ? "active" : ""}`}>
+        {formatDate(value) || "Set date..."}
+      </span>
     </div>
   );
 }

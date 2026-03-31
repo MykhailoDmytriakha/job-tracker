@@ -150,145 +150,151 @@ export function Settings() {
     <div className="settings-page">
       <h2 className="settings-title">Settings</h2>
 
-      {/* Pipeline Stages */}
-      <div className="settings-section">
-        <div className="settings-section-label">Pipeline Stages</div>
-        <div className="settings-categories">
-          {stages.map((s, idx) => (
-            <div key={s.id} className="settings-cat-item">
-              <span className="settings-stage-arrows">
-                <button
-                  className="settings-arrow-btn"
-                  onClick={() => moveStage(idx, -1)}
-                  disabled={idx === 0}
-                  title="Move up"
-                >&uarr;</button>
-                <button
-                  className="settings-arrow-btn"
-                  onClick={() => moveStage(idx, 1)}
-                  disabled={idx === stages.length - 1}
-                  title="Move down"
-                >&darr;</button>
-              </span>
-              {editingStageId === s.id ? (
+      <div className="settings-grid">
+        <div className="settings-column">
+          {/* Pipeline Stages */}
+          <div className="settings-section">
+            <div className="settings-section-label">Pipeline Stages</div>
+            <div className="settings-categories">
+              {stages.map((s, idx) => (
+                <div key={s.id} className="settings-cat-item">
+                  <span className="settings-stage-arrows">
+                    <button
+                      className="settings-arrow-btn"
+                      onClick={() => moveStage(idx, -1)}
+                      disabled={idx === 0}
+                      title="Move up"
+                    >&uarr;</button>
+                    <button
+                      className="settings-arrow-btn"
+                      onClick={() => moveStage(idx, 1)}
+                      disabled={idx === stages.length - 1}
+                      title="Move down"
+                    >&darr;</button>
+                  </span>
+                  {editingStageId === s.id ? (
+                    <input
+                      className="settings-cat-rename"
+                      value={editStageName}
+                      onChange={(e) => setEditStageName(e.target.value)}
+                      onBlur={() => saveStageRename(s.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveStageRename(s.id);
+                        if (e.key === "Escape") setEditingStageId(null);
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="settings-cat-name" onClick={() => startStageRename(s)} title="Click to rename">
+                      {s.name}
+                    </span>
+                  )}
+                  {s.is_default && <span className="settings-cat-count" title="Default stage">default</span>}
+                  {!s.is_default && (
+                    <button
+                      className="settings-cat-delete"
+                      onClick={() => deleteStage(s)}
+                      title="Delete stage"
+                    >&times;</button>
+                  )}
+                </div>
+              ))}
+              <form className="settings-cat-form" onSubmit={addStage}>
                 <input
-                  className="settings-cat-rename"
-                  value={editStageName}
-                  onChange={(e) => setEditStageName(e.target.value)}
-                  onBlur={() => saveStageRename(s.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") saveStageRename(s.id);
-                    if (e.key === "Escape") setEditingStageId(null);
-                  }}
-                  autoFocus
+                  value={newStageName}
+                  onChange={(e) => setNewStageName(e.target.value)}
+                  placeholder="New stage..."
                 />
-              ) : (
-                <span className="settings-cat-name" onClick={() => startStageRename(s)} title="Click to rename">
-                  {s.name}
-                </span>
-              )}
-              {s.is_default && <span className="settings-cat-count" title="Default stage">default</span>}
-              {!s.is_default && (
-                <button
-                  className="settings-cat-delete"
-                  onClick={() => deleteStage(s)}
-                  title="Delete stage"
-                >&times;</button>
-              )}
+                <button type="submit">Add</button>
+              </form>
             </div>
-          ))}
-          <form className="settings-cat-form" onSubmit={addStage}>
-            <input
-              value={newStageName}
-              onChange={(e) => setNewStageName(e.target.value)}
-              placeholder="New stage..."
-            />
-            <button type="submit">Add</button>
-          </form>
-        </div>
-      </div>
-
-      {/* Categories */}
-      <div className="settings-section">
-        <div className="settings-section-label">Categories</div>
-        <div className="settings-categories">
-          {categories.map((c) => (
-            <div key={c.id} className="settings-cat-item">
-              {editingId === c.id ? (
-                <input
-                  className="settings-cat-rename"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onBlur={() => saveRename(c.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") saveRename(c.id);
-                    if (e.key === "Escape") setEditingId(null);
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <span className="settings-cat-name" onClick={() => startRename(c)} title="Click to rename">
-                  {c.name}
-                </span>
-              )}
-              <span className="settings-cat-count" title={`${c.task_count} task(s) use this category`}>
-                {c.task_count}
-              </span>
-              <button
-                className="settings-cat-delete"
-                onClick={() => handleDelete(c)}
-                title="Delete category"
-              >
-                &times;
-              </button>
-            </div>
-          ))}
-          {categories.length === 0 && (
-            <div className="settings-cat-empty">No categories yet</div>
-          )}
-          <form className="settings-cat-form" onSubmit={addCategory}>
-            <input
-              value={newCat}
-              onChange={(e) => setNewCat(e.target.value)}
-              placeholder="New category..."
-            />
-            <button type="submit">Add</button>
-          </form>
-        </div>
-      </div>
-
-      {/* Date & Calendar */}
-      <div className="settings-section">
-        <div className="settings-section-label">Date & Calendar</div>
-        <div className="settings-row">
-          <div className="settings-row-info">
-            <div className="settings-row-title">Week starts on</div>
-            <div className="settings-row-desc">Choose which day begins your week</div>
           </div>
-          <div className="settings-row-control">
-            <button
-              className={`settings-toggle-btn ${weekStart === "monday" ? "active" : ""}`}
-              onClick={() => handleWeekStart("monday")}
-            >
-              Monday
-            </button>
-            <button
-              className={`settings-toggle-btn ${weekStart === "sunday" ? "active" : ""}`}
-              onClick={() => handleWeekStart("sunday")}
-            >
-              Sunday
-            </button>
+
+          {/* Date & Calendar */}
+          <div className="settings-section">
+            <div className="settings-section-label">Date & Calendar</div>
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <div className="settings-row-title">Week starts on</div>
+                <div className="settings-row-desc">Choose which day begins your week</div>
+              </div>
+              <div className="settings-row-control">
+                <button
+                  className={`settings-toggle-btn ${weekStart === "monday" ? "active" : ""}`}
+                  onClick={() => handleWeekStart("monday")}
+                >
+                  Monday
+                </button>
+                <button
+                  className={`settings-toggle-btn ${weekStart === "sunday" ? "active" : ""}`}
+                  onClick={() => handleWeekStart("sunday")}
+                >
+                  Sunday
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* About */}
-      <div className="settings-section">
-        <div className="settings-section-label">About</div>
-        <div className="settings-row">
-          <div className="settings-row-info">
-            <div className="settings-row-title">Job Tracker</div>
-            <div className="settings-row-desc">Task management with dependencies, documents, and pipeline tracking.</div>
+        <div className="settings-column">
+          {/* Categories */}
+          <div className="settings-section">
+            <div className="settings-section-label">Categories</div>
+            <div className="settings-categories">
+              {categories.map((c) => (
+                <div key={c.id} className="settings-cat-item">
+                  {editingId === c.id ? (
+                    <input
+                      className="settings-cat-rename"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onBlur={() => saveRename(c.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveRename(c.id);
+                        if (e.key === "Escape") setEditingId(null);
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="settings-cat-name" onClick={() => startRename(c)} title="Click to rename">
+                      {c.name}
+                    </span>
+                  )}
+                  <span className="settings-cat-count" title={`${c.task_count} task(s) use this category`}>
+                    {c.task_count}
+                  </span>
+                  <button
+                    className="settings-cat-delete"
+                    onClick={() => handleDelete(c)}
+                    title="Delete category"
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+              {categories.length === 0 && (
+                <div className="settings-cat-empty">No categories yet</div>
+              )}
+              <form className="settings-cat-form" onSubmit={addCategory}>
+                <input
+                  value={newCat}
+                  onChange={(e) => setNewCat(e.target.value)}
+                  placeholder="New category..."
+                />
+                <button type="submit">Add</button>
+              </form>
+            </div>
+          </div>
+
+          {/* About */}
+          <div className="settings-section">
+            <div className="settings-section-label">About</div>
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <div className="settings-row-title">Job Tracker</div>
+                <div className="settings-row-desc">Task management with dependencies, documents, and pipeline tracking.</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

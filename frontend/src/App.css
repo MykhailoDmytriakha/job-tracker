@@ -1370,8 +1370,28 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
    ============================================================ */
 
 .settings-page {
-  max-width: 560px;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
   display: flex; flex-direction: column; gap: 24px;
+  overflow-y: auto;
+  padding: 0 16px 64px;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+@media (max-width: 768px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .settings-title {
   font-size: 16px; font-weight: 600; color: var(--text); margin: 0;
@@ -1838,3 +1858,94 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   background: var(--bg-hover);
 }
 
+/* ============================================================
+   CUSTOM DATE PICKER
+   ============================================================ */
+.dp-popover {
+  position: absolute;
+  z-index: 10000;
+  width: 240px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 12px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  animation: attentionFadeIn 0.15s ease;
+}
+.dp-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.dp-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.dp-title-btn {
+  background: none; border: none; cursor: pointer; padding: 4px 8px;
+  border-radius: var(--radius-sm); font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text);
+  transition: background var(--transition);
+}
+.dp-title-btn:hover { background: var(--bg-hover); }
+
+.dp-arrow {
+  background: none; border: none; cursor: pointer; color: var(--text-muted);
+  font-size: 14px; line-height: 1; padding: 2px 6px; border-radius: var(--radius-sm);
+}
+.dp-arrow:hover { background: var(--bg-muted); color: var(--text); }
+.dp-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+  text-align: center;
+}
+.dp-weekdays {
+  font-size: 10px; font-weight: 700; color: var(--text-faint); margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.dp-months-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px 0;
+}
+.dp-month-btn {
+  background: none; border: 1px solid transparent; border-radius: var(--radius-sm);
+  padding: 12px 0; font-size: 12px; font-weight: 500; color: var(--text); cursor: pointer;
+  transition: all var(--transition);
+}
+.dp-month-btn:hover:not(.current) { background: var(--bg-hover); }
+.dp-month-btn.current { background: var(--accent); color: white; font-weight: 600; }
+
+.dp-slider {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+.dp-slider::-webkit-scrollbar { display: none; }
+.dp-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+}
+
+.dp-day {
+  background: none; border: 1px solid transparent; border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--text); padding: 6px 0; cursor: pointer;
+  transition: all var(--transition);
+}
+.dp-day:hover:not(.selected) { background: var(--bg-hover); }
+.dp-day.selected { background: var(--accent); color: white; font-weight: 600; }
+.dp-day.today { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.dp-empty { display: block; }
+.dp-footer {
+  display: flex; justify-content: space-between;
+  margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px;
+}
+.dp-btn {
+  background: none; border: none; font-size: 11px; font-weight: 600;
+  cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.dp-btn-clear { color: var(--text-muted); }
+.dp-btn-clear:hover { background: var(--bg-hover); color: var(--text); }
+.dp-btn-today { color: var(--accent); background: var(--accent-soft); }
+.dp-btn-today:hover { color: white; background: var(--accent); }
