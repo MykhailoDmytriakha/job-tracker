@@ -6,21 +6,19 @@ import type { DashboardView, TaskBrief } from "../api";
 import { useProject } from "../ProjectContext";
 import { TaskModal } from "../components/TaskModal";
 
+import { calculateDaysDiff, isDateOverdue } from "../utils/date";
+
 function daysAgo(dateStr: string | null): string {
   if (!dateStr) return "never";
-  const diff = Math.round(
-    (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (diff <= 0) return "today";
-  if (diff === 1) return "1d ago";
-  return `${diff}d ago`;
+  const diff = calculateDaysDiff(dateStr);
+  if (diff >= 0) return "today";
+  if (diff === -1) return "1d ago";
+  return `${Math.abs(diff)}d ago`;
 }
 
 function daysUntil(dateStr: string | null): string {
   if (!dateStr) return "";
-  const diff = Math.round(
-    (new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-  );
+  const diff = calculateDaysDiff(dateStr);
   if (diff < 0) return `${Math.abs(diff)}d overdue`;
   if (diff === 0) return "today";
   if (diff === 1) return "tomorrow";
@@ -28,14 +26,12 @@ function daysUntil(dateStr: string | null): string {
 }
 
 function isOverdue(dateStr: string | null): boolean {
-  return !!dateStr && new Date(dateStr).getTime() < Date.now();
+  return isDateOverdue(dateStr);
 }
 
 function staleDays(dateStr: string | null): number {
   if (!dateStr) return 999;
-  return Math.round(
-    (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
-  );
+  return -calculateDaysDiff(dateStr);
 }
 
 export function Dashboard() {

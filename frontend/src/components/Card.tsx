@@ -14,14 +14,19 @@ const heatColor: Record<string, string> = {
   archived: "#6b7280",
 };
 
+import { calculateDaysDiff, isDateOverdue, formatShortDateUTC } from "../utils/date";
+
 function formatShortDate(d: string | null): string {
   if (!d) return "";
-  return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const diffDays = calculateDaysDiff(d);
+  if (diffDays === 0) return "today";
+  if (diffDays === 1) return "tomorrow";
+  if (diffDays === -1) return "yesterday";
+  return formatShortDateUTC(d);
 }
 
 function isOverdue(d: string | null): boolean {
-  if (!d) return false;
-  return new Date(d).getTime() < Date.now();
+  return isDateOverdue(d);
 }
 
 export function Card({ task, onSelect }: { task: TaskBrief; onSelect?: (id: number) => void }) {

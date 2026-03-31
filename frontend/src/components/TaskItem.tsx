@@ -2,16 +2,19 @@ import { tasksApi, ApiError } from "../api";
 import type { TaskBrief } from "../api";
 import { showToast } from "./Toast";
 
+import { calculateDaysDiff, isDateOverdue, formatShortDateUTC } from "../utils/date";
+
 function formatShortDate(d: string | null): string {
   if (!d) return "";
-  return new Date(d).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+  const diffDays = calculateDaysDiff(d);
+  if (diffDays === 0) return "today";
+  if (diffDays === 1) return "tomorrow";
+  if (diffDays === -1) return "yesterday";
+  return formatShortDateUTC(d);
 }
 
 function isOverdue(d: string | null): boolean {
-  return !!d && new Date(d).getTime() < Date.now();
+  return isDateOverdue(d);
 }
 
 export function TaskItem({
