@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { tasksApi, categoriesApi, stagesApi, ApiError } from "../api";
 import type { TaskFull, Stage } from "../api";
 import { TaskDocuments } from "./TaskDocuments";
@@ -13,6 +14,105 @@ import { SubtaskItem } from "./SubtaskItem";
 
 const STATUS_OPTIONS = ["open", "in_progress", "waiting", "done", "closed"];
 const PRIORITY_OPTIONS = ["high", "medium", "low"];
+const CADENCE_DAYS: Record<string, number> = { daily: 1, weekly: 7, biweekly: 14, monthly: 30 };
+
+/** Compute specific attention reasons for a task. Mirrors backend _needs_attention logic. */
+function getAttentionReasons(task: TaskFull): string[] {
+  const now = new Date();
+  const reasons: string[] = [];
+  const la = task.last_activity_at ? new Date(task.last_activity_at) : null;
+  const daysInactive = la ? Math.floor((now.getTime() - la.getTime()) / 86400000) : 9999;
+  const isDone = task.status === "done" || task.status === "closed";
+  if (isDone) return [];
+
+  if (!task.is_recurring && !task.due_date && !task.follow_up_date)
+    reasons.push("No due date or follow-up date — task is floating with no timeline");
+
+  if (task.is_recurring) {
+    const days = CADENCE_DAYS[task.cadence || ""] ?? 1;
+    if (daysInactive >= days * 3)
+      reasons.push(`Stale recurring — no activity for ${daysInactive}d (cadence: ${task.cadence ?? "daily"}, threshold: ${days * 3}d)`);
+  }
+
+  if (task.status === "waiting" && task.follow_up_date && new Date(task.follow_up_date) < now)
+    reasons.push("Follow-up date has passed — check-in is overdue");
+
+  if (task.status === "in_progress" && daysInactive >= 14)
+    reasons.push(`In-progress but no activity for ${daysInactive} days — might be stuck`);
+
+  if (task.priority === "high" && !task.due_date)
+    reasons.push("High priority without a due date — when does this need to be done?");
+
+  if (task.is_blocked && daysInactive >= 7)
+    reasons.push(`Blocked with no movement for ${daysInactive} days`);
+
+  if (task.status === "open") {
+    const ageDays = Math.floor((now.getTime() - new Date(task.created_at).getTime()) / 86400000);
+    const hasRealActivity = task.activities?.some(a => a.action !== "created");
+    if (ageDays >= 10 && !hasRealActivity)
+      reasons.push(`Created ${ageDays} days ago but never updated`);
+  }
+
+  return reasons;
+}
+
+/** Small ⚡ badge: subtle at rest, animates on hover, shows reasons on click */
+function AttentionBadge({ reasons }: { reasons: string[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  function onClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      const popW = 280, margin = 10;
+      let left = r.left;
+      left = Math.max(margin, Math.min(left, window.innerWidth - popW - margin));
+      const top = r.bottom + 6;
+      setPos({ top, left });
+    }
+    setOpen(true);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={ref}
+        className={`attention-badge${open ? " attention-badge--open" : ""}`}
+        onClick={onClick}
+        title="This task needs attention — click to see why"
+      >
+        ⚡
+      </button>
+      {open && createPortal(
+        <div
+          className="attention-badge-popover"
+          style={{ top: pos.top, left: pos.left }}
+          onMouseDown={e => e.stopPropagation()}
+          onMouseUp={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="attention-badge-popover-title">Needs attention</div>
+          <ul className="attention-badge-reasons">
+            {reasons.map((r, i) => (
+              <li key={i} className="attention-badge-reason">⚡ {r}</li>
+            ))}
+          </ul>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
 
 /** Sanitize value string to a valid CSS class slug */
 const cssSlug = (v: string) => v.toLowerCase().replace(/[^a-z0-9_]+/g, '-');
@@ -155,13 +255,15 @@ export function TaskDetail({
   }
 
   const isDone = task.status === "done" || task.status === "closed";
+  const attentionReasons = getAttentionReasons(task);
+  const hasAttention = attentionReasons.length > 0;
   const subtaskProgress =
     task.subtask_count > 0
       ? Math.round((task.subtask_done / task.subtask_count) * 100)
       : null;
 
   return (
-    <div className={`detail-panel${isModal ? " detail-panel--modal" : ""}`}>
+    <div className={`detail-panel${isModal ? " detail-panel--modal" : ""}${hasAttention ? " detail-panel--attention" : ""}`}>
       <div className={`detail-header${isModal ? " detail-header--modal" : ""}`}>
         {isModal ? (
           <span className="detail-modal-id">{task.display_id}</span>
@@ -271,6 +373,7 @@ export function TaskDetail({
               className={`detail-title-text ${isDone ? "title-done" : ""}`}
               onClick={() => setEditingField("title")}
             >
+              {hasAttention && <AttentionBadge reasons={attentionReasons} />}
               <span className="detail-id">{task.display_id}</span>
               {" "}{highlight(task.title, searchTerm)}
               <button

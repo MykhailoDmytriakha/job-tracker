@@ -522,7 +522,7 @@ main {
   display: flex; align-items: center; gap: 6px;
 }
 .tasks-toolbar-row2 {
-  display: flex; align-items: center; gap: 5px; flex-wrap: nowrap;
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
 }
 .toolbar-divider {
   width: 1px; height: 16px; background: var(--border);
@@ -582,6 +582,7 @@ main {
   border-radius: var(--radius-sm); background: var(--bg-card);
   color: var(--text-muted); font-size: 12px; font-weight: 500;
   cursor: pointer; transition: all var(--transition);
+  white-space: nowrap; flex-shrink: 0;
 }
 .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
 .filter-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
@@ -717,7 +718,7 @@ main {
 .task-checkbox.checked:hover {
   background: var(--green); border-color: var(--green); color: white; opacity: 0.85;
 }
-.task-checkbox.checkbox-lg { width: 24px; height: 24px; margin-top: 3px; flex-shrink: 0; }
+.task-checkbox.checkbox-lg { width: 24px; height: 24px; margin-top: 4px; flex-shrink: 0; }
 
 /* ============================================================
    DETAIL PANEL — clean sections, clear affordances
@@ -728,7 +729,59 @@ main {
   animation: slideIn 180ms ease;
   display: flex; flex-direction: column;
   overflow: hidden;
+  border-left: 2px solid transparent;
+  transition: border-color 0.2s ease;
 }
+/* Amber left border when task has attention issues — passive, unobtrusive */
+.detail-panel--attention {
+  border-left-color: var(--orange);
+  padding-left: 14px; /* compensate for 2px border */
+}
+
+/* ── Attention badge: ⚡ next to display_id in title row ── */
+.attention-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  vertical-align: text-bottom; margin-bottom: 2px; margin-right: 6px;
+  width: 18px; height: 18px; border-radius: 5px;
+  background: var(--orange-soft);
+  border: 1.5px solid var(--orange);
+  padding: 0; font-size: 11px; line-height: 1;
+  color: var(--orange); cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.detail-title-text:hover .attention-badge,
+.attention-badge:hover,
+.attention-badge--open {
+  opacity: 1;
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px var(--orange-soft);
+}
+
+/* ── Attention badge popover ── */
+.attention-badge-popover {
+  position: fixed; z-index: 9999;
+  width: 280px;
+  background: var(--bg-card); border: 1px solid var(--orange);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: attentionFadeIn 0.15s ease;
+}
+.attention-badge-popover-title {
+  padding: 8px 12px 6px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--orange);
+  border-bottom: 1px solid var(--border);
+}
+.attention-badge-reasons {
+  list-style: none; margin: 0; padding: 6px 0;
+}
+.attention-badge-reason {
+  padding: 5px 12px;
+  font-size: 12px; line-height: 1.5; color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.attention-badge-reason:last-child { border-bottom: none; }
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(12px); }
   to { opacity: 1; transform: translateX(0); }

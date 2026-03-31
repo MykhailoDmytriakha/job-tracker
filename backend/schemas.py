@@ -432,6 +432,7 @@ class TaskOut(BaseModel):
     subtask_done: int = 0
     checklist_total: int = 0
     checklist_done: int = 0
+    last_activity_at: Optional[datetime] = None
     subtasks: list["TaskBrief"] = []
     activities: list[ActivityOut] = []
     checklist_items: list[ChecklistItemOut] = []

@@ -46,6 +46,8 @@ export function HintBubble({ text }: { text: string }) {
         <span
           className="hint-popup"
           style={{ top: pos.top, left: pos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
           {text}

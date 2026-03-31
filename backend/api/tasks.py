@@ -102,8 +102,28 @@ def list_tasks(
     if is_recurring is not None:
         query = query.filter(models.Task.is_recurring == is_recurring)
     if search:
-        pattern = f"%{search}%"
+        search_clean = search.strip()
+        pattern = f"%{search_clean}%"
         from sqlalchemy import or_
+
+        filter_conditions = [
+            models.Task.title.ilike(pattern),
+            models.Task.description.ilike(pattern),
+            models.Task.compensation.ilike(pattern),
+            models.Contact.name.ilike(pattern),
+            models.Company.name.ilike(pattern),
+            models.Activity.detail.ilike(pattern),
+        ]
+
+        if search_clean.isdigit():
+            filter_conditions.append(models.Task.id == int(search_clean))
+            filter_conditions.append(models.Task.sequence_num == int(search_clean))
+        else:
+            import re
+            m = re.match(r'^[A-Za-z0-9]+-(\d+)$', search_clean)
+            if m:
+                filter_conditions.append(models.Task.sequence_num == int(m.group(1)))
+
         query = (
             query
             .outerjoin(models.task_contacts, models.Task.id == models.task_contacts.c.task_id)
@@ -111,14 +131,7 @@ def list_tasks(
             .outerjoin(models.task_companies, models.Task.id == models.task_companies.c.task_id)
             .outerjoin(models.Company, models.Company.id == models.task_companies.c.company_id)
             .outerjoin(models.Activity, models.Activity.task_id == models.Task.id)
-            .filter(or_(
-                models.Task.title.ilike(pattern),
-                models.Task.description.ilike(pattern),
-                models.Task.compensation.ilike(pattern),
-                models.Contact.name.ilike(pattern),
-                models.Company.name.ilike(pattern),
-                models.Activity.detail.ilike(pattern),
-            ))
+            .filter(or_(*filter_conditions))
             .distinct()
         )
     if overdue:
@@ -849,6 +862,7 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
         subtask_done=sum(1 for s in t.subtasks if s.status == "done"),
         checklist_total=len(t.checklist_items),
         checklist_done=sum(1 for c in t.checklist_items if c.is_done),
+        last_activity_at=_last_activity(t),
         subtasks=[_brief(s) for s in t.subtasks],
         activities=[
             schemas.ActivityOut(

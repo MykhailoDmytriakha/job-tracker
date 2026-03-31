@@ -1,19 +1,22 @@
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { documentsApi } from "../api";
 import type { DocumentBrief, DocumentFull } from "../api";
 import { useProject } from "../ProjectContext";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 const DOC_TYPES = ["research", "playbook", "reference", "journal"];
 
 export function Docs() {
   const { active: project } = useProject();
+  const { docId } = useParams<{ docId?: string }>();
   const navigate = useNavigate();
+  const selectedId = docId ? Number(docId) : null;
   const [docs, setDocs] = useState<DocumentBrief[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [doc, setDoc] = useState<DocumentFull | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; message: string }>({ show: false, message: "" });
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -22,15 +25,14 @@ export function Docs() {
   const [editType, setEditType] = useState("");
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const sel = searchParams.get("selected");
     if (sel) {
-      setSelectedId(Number(sel));
-      setSearchParams({}, { replace: true });
+      navigate(`/docs/${sel}`, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, navigate]);
 
   const loadList = useCallback(() => {
     if (!project) return;
@@ -58,7 +60,7 @@ export function Docs() {
     setNewTitle("");
     setCreating(false);
     loadList();
-    setSelectedId(created.id);
+    navigate(`/docs/${created.id}`);
     setEditing(true);
   }
 
@@ -86,7 +88,8 @@ export function Docs() {
   async function handleDelete() {
     if (!doc) return;
     await documentsApi.delete(doc.id);
-    setSelectedId(null);
+    setDeleteConfirm({ show: false, message: "" });
+    navigate("/docs");
     loadList();
   }
 
@@ -128,7 +131,7 @@ export function Docs() {
             <div
               key={d.id}
               className={`docs-item ${d.id === selectedId ? "selected" : ""}`}
-              onClick={() => setSelectedId(d.id)}
+              onClick={() => navigate(`/docs/${d.id}`)}
             >
               <span className="docs-item-title">{d.title}</span>
               {d.doc_type && <span className={`docs-type-badge type-${d.doc_type}`}>{d.doc_type}</span>}
@@ -140,9 +143,24 @@ export function Docs() {
 
       {selectedId && doc && (
         <div className="docs-detail-panel">
-          <div className="docs-detail-header">
-            <button className="detail-delete" onClick={handleDelete}>Delete</button>
-            <button className="detail-close" onClick={() => setSelectedId(null)}>&times;</button>
+          <div className="detail-header">
+            <button className="detail-close" onClick={() => navigate("/docs")} title="Back to list">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                className="detail-delete"
+                onClick={() => setDeleteConfirm({ show: true, message: `Delete "${doc.title}"? This cannot be undone.` })}
+                title="Delete document"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           {!editing ? (
@@ -190,6 +208,17 @@ export function Docs() {
             </div>
           )}
         </div>
+      )}
+
+      {deleteConfirm.show && (
+        <ConfirmModal
+          title="Delete document?"
+          message={deleteConfirm.message}
+          confirmLabel="Delete"
+          danger
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteConfirm({ show: false, message: "" })}
+        />
       )}
     </div>
   );

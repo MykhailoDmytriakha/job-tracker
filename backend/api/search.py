@@ -28,15 +28,30 @@ def global_search(
 
     # --- Tasks ---
     task_hits: list[schemas.SearchHit] = []
+    
+    q_clean = q.strip()
+    
+    task_conditions = [
+        models.Task.title.ilike(f"%{q_clean}%"),
+        models.Task.description.ilike(f"%{q_clean}%"),
+        models.Task.compensation.ilike(f"%{q_clean}%"),
+        models.Task.close_reason.ilike(f"%{q_clean}%"),
+        models.Task.posting_url.ilike(f"%{q_clean}%"),
+    ]
+    
+    if q_clean.isdigit():
+        task_conditions.append(models.Task.id == int(q_clean))
+        task_conditions.append(models.Task.sequence_num == int(q_clean))
+    else:
+        import re
+        m = re.match(r'^[A-Za-z0-9]+-(\d+)$', q_clean)
+        if m:
+            task_conditions.append(models.Task.sequence_num == int(m.group(1)))
+            
+    from sqlalchemy import or_
     tasks = db.query(models.Task).filter(
         models.Task.project_id == project_id,
-        (
-            models.Task.title.ilike(f"%{q}%")
-            | models.Task.description.ilike(f"%{q}%")
-            | models.Task.compensation.ilike(f"%{q}%")
-            | models.Task.close_reason.ilike(f"%{q}%")
-            | models.Task.posting_url.ilike(f"%{q}%")
-        ),
+        or_(*task_conditions),
     ).all()
     for t in tasks:
         fields = _matched_fields(t, ["title", "description", "compensation", "close_reason", "posting_url"], q)
