@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   DndContext,
   PointerSensor,
@@ -13,6 +14,7 @@ import { useProject } from "../ProjectContext";
 
 export function Pipeline() {
   const { active: project } = useProject();
+  const navigate = useNavigate();
   const [board, setBoard] = useState<BoardView | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -37,7 +39,7 @@ export function Pipeline() {
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="board">
           {board.columns.map((col) => (
-            <Column key={col.stage.id} column={col} />
+            <Column key={col.stage.id} column={col} onSelectTask={(id) => navigate(`/tasks?selected=${id}`)} />
           ))}
         </div>
       </DndContext>

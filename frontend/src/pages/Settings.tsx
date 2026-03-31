@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { categoriesApi, ApiError } from "../api";
-import type { Category } from "../api";
+import { categoriesApi, stagesApi, ApiError } from "../api";
+import type { Category, Stage } from "../api";
 import { useProject } from "../ProjectContext";
 import { ConfirmModal } from "../components/ConfirmModal";
 
@@ -32,6 +32,61 @@ export function Settings() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; cat: Category | null; message: string }>({ show: false, cat: null, message: "" });
+
+  // --- Stages ---
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [newStageName, setNewStageName] = useState("");
+  const [editingStageId, setEditingStageId] = useState<number | null>(null);
+  const [editStageName, setEditStageName] = useState("");
+
+  function loadStages() {
+    stagesApi.list().then(setStages);
+  }
+
+  useEffect(() => { loadStages(); }, []);
+
+  async function addStage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newStageName.trim()) return;
+    await stagesApi.create({ name: newStageName.trim(), position: stages.length });
+    setNewStageName("");
+    loadStages();
+  }
+
+  function startStageRename(stage: Stage) {
+    setEditingStageId(stage.id);
+    setEditStageName(stage.name);
+  }
+
+  async function saveStageRename(id: number) {
+    if (!editStageName.trim()) return;
+    await stagesApi.update(id, { name: editStageName.trim() });
+    setEditingStageId(null);
+    loadStages();
+    flashSaved();
+  }
+
+  async function deleteStage(stage: Stage) {
+    if (stage.is_default) return;
+    try {
+      await stagesApi.delete(stage.id);
+      loadStages();
+    } catch (e) {
+      if (e instanceof ApiError) {
+        alert(e.body);
+      }
+    }
+  }
+
+  async function moveStage(idx: number, dir: -1 | 1) {
+    const target = idx + dir;
+    if (target < 0 || target >= stages.length) return;
+    const newOrder = [...stages];
+    [newOrder[idx], newOrder[target]] = [newOrder[target], newOrder[idx]];
+    const ids = newOrder.map((s) => s.id);
+    await stagesApi.reorder(ids);
+    loadStages();
+  }
 
   function handleWeekStart(value: WeekStart) {
     setWeekStart(value);
@@ -94,6 +149,64 @@ export function Settings() {
   return (
     <div className="settings-page">
       <h2 className="settings-title">Settings</h2>
+
+      {/* Pipeline Stages */}
+      <div className="settings-section">
+        <div className="settings-section-label">Pipeline Stages</div>
+        <div className="settings-categories">
+          {stages.map((s, idx) => (
+            <div key={s.id} className="settings-cat-item">
+              <span className="settings-stage-arrows">
+                <button
+                  className="settings-arrow-btn"
+                  onClick={() => moveStage(idx, -1)}
+                  disabled={idx === 0}
+                  title="Move up"
+                >&uarr;</button>
+                <button
+                  className="settings-arrow-btn"
+                  onClick={() => moveStage(idx, 1)}
+                  disabled={idx === stages.length - 1}
+                  title="Move down"
+                >&darr;</button>
+              </span>
+              {editingStageId === s.id ? (
+                <input
+                  className="settings-cat-rename"
+                  value={editStageName}
+                  onChange={(e) => setEditStageName(e.target.value)}
+                  onBlur={() => saveStageRename(s.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveStageRename(s.id);
+                    if (e.key === "Escape") setEditingStageId(null);
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <span className="settings-cat-name" onClick={() => startStageRename(s)} title="Click to rename">
+                  {s.name}
+                </span>
+              )}
+              {s.is_default && <span className="settings-cat-count" title="Default stage">default</span>}
+              {!s.is_default && (
+                <button
+                  className="settings-cat-delete"
+                  onClick={() => deleteStage(s)}
+                  title="Delete stage"
+                >&times;</button>
+              )}
+            </div>
+          ))}
+          <form className="settings-cat-form" onSubmit={addStage}>
+            <input
+              value={newStageName}
+              onChange={(e) => setNewStageName(e.target.value)}
+              placeholder="New stage..."
+            />
+            <button type="submit">Add</button>
+          </form>
+        </div>
+      </div>
 
       {/* Categories */}
       <div className="settings-section">

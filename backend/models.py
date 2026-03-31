@@ -135,6 +135,14 @@ class Task(Base):
     is_recurring = Column(Boolean, default=False)
     cadence = Column(String, nullable=True)
     next_checkpoint = Column(DateTime, nullable=True)
+    # Pipeline fields (visible when stage_id is set)
+    pipeline_heat = Column(String, nullable=True)  # hot, warm, cold, archived
+    lead_source = Column(String, nullable=True)  # job_board, linkedin, referral, direct, cold_outreach
+    posting_url = Column(String, nullable=True)
+    applied_at = Column(DateTime, nullable=True)
+    compensation = Column(String, nullable=True)
+    outreach_status = Column(String, nullable=True)  # not_started, searching, contacted, replied, connected, dead_end
+    close_reason = Column(String, nullable=True)  # skipped, not_a_fit, rejected, ghosted, withdrawn, duplicate
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,

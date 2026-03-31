@@ -2,7 +2,7 @@ import { useDroppable } from "@dnd-kit/core";
 import type { BoardColumn } from "../api";
 import { Card } from "./Card";
 
-export function Column({ column }: { column: BoardColumn }) {
+export function Column({ column, onSelectTask }: { column: BoardColumn; onSelectTask?: (id: number) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.stage.id });
 
   return (
@@ -16,7 +16,7 @@ export function Column({ column }: { column: BoardColumn }) {
       </div>
       <div className="column-cards">
         {column.tasks.map((task) => (
-          <Card key={task.id} task={task} />
+          <Card key={task.id} task={task} onSelect={onSelectTask} />
         ))}
       </div>
     </div>

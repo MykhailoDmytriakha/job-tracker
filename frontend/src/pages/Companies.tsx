@@ -95,7 +95,7 @@ export function Companies() {
           <div className="contacts-fields">
             <CompanyField label="Type" value={company.company_type} onSave={(v) => updateField("company_type", v)} />
             <CompanyField label="Domain" value={company.domain} onSave={(v) => updateField("domain", v)} />
-            <CompanyField label="Lane" value={company.strategic_lane} onSave={(v) => updateField("strategic_lane", v)} />
+            <CompanyField label="Lane" value={company.strategic_lane} onSave={(v) => updateField("strategic_lane", v)} hint="Comma-separated, e.g. Healthcare IT, Payer" />
             <CompanyField label="Location" value={company.location} onSave={(v) => updateField("location", v)} />
             <CompanyField label="Website" value={company.website} onSave={(v) => updateField("website", v)} link={company.website || undefined} />
           </div>
@@ -140,8 +140,8 @@ export function Companies() {
   );
 }
 
-function CompanyField({ label, value, onSave, link }: {
-  label: string; value: string | null; onSave: (v: string) => void; link?: string;
+function CompanyField({ label, value, onSave, link, hint }: {
+  label: string; value: string | null; onSave: (v: string) => void; link?: string; hint?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(value || "");
@@ -158,7 +158,10 @@ function CompanyField({ label, value, onSave, link }: {
   }
   return (
     <div className="contact-field" onClick={() => { setVal(value || ""); setEditing(true); }}>
-      <span className="contact-field-label">{label}</span>
+      <span className="contact-field-label">
+        {label}
+        {hint && <span className="field-hint-icon" title={hint}>&#9432;</span>}
+      </span>
       {value ? (link ? <a className="contact-field-value link" href={link} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}>{value}</a> : <span className="contact-field-value">{value}</span>) : <span className="contact-field-value empty">Set...</span>}
     </div>
   );

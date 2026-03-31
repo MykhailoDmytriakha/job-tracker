@@ -17,8 +17,10 @@ def seed_default_stages():
         ("HUMAN LANE", 4),
         ("WAITING", 5),
         ("RESPONSE", 6),
-        ("OFFER", 7),
-        ("CLOSED", 8),
+        ("INTERVIEW", 7),
+        ("OFFER", 8),
+        ("ACCEPTED", 9),
+        ("CLOSED", 10),
     ]
 
     for name, position in default_stages:

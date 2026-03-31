@@ -8,6 +8,8 @@ import { useProject } from "../ProjectContext";
 
 const STATUS_FILTERS = ["open", "in_progress", "waiting"];
 
+type SpecialFilter = "overdue" | "blocked" | "recurring" | null;
+
 export function Tasks() {
   const { active: project } = useProject();
   const [tasks, setTasks] = useState<TaskBrief[]>([]);
@@ -15,13 +17,29 @@ export function Tasks() {
   const [title, setTitle] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [specialFilter, setSpecialFilter] = useState<SpecialFilter>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Pick up ?selected= from URL (dashboard click-through)
+  // Pick up ?selected= or ?filter= from URL (dashboard click-through)
   useEffect(() => {
     const sel = searchParams.get("selected");
+    const filter = searchParams.get("filter");
     if (sel) {
       setSelectedId(Number(sel));
+    }
+    if (filter) {
+      if (filter === "overdue" || filter === "blocked" || filter === "recurring") {
+        setSpecialFilter(filter);
+        setStatusFilter(null);
+      } else if (filter === "open") {
+        setStatusFilter("open");
+        setSpecialFilter(null);
+      } else if (filter === "waiting") {
+        setStatusFilter("waiting");
+        setSpecialFilter(null);
+      }
+    }
+    if (sel || filter) {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -31,8 +49,16 @@ export function Tasks() {
     const params: Record<string, string> = { root_only: "true", project_id: String(project.id) };
     if (search.trim()) params.search = search.trim();
     if (statusFilter) params.status = statusFilter;
-    tasksApi.list(params).then(setTasks);
-  }, [search, statusFilter, project]);
+    if (specialFilter === "overdue") params.overdue = "true";
+    if (specialFilter === "recurring") params.is_recurring = "true";
+    tasksApi.list(params).then((result) => {
+      if (specialFilter === "blocked") {
+        setTasks(result.filter((t) => t.is_blocked));
+      } else {
+        setTasks(result);
+      }
+    });
+  }, [search, statusFilter, specialFilter, project]);
 
   useEffect(() => {
     load();
@@ -88,10 +114,18 @@ export function Tasks() {
               {s.replace("_", " ")}
             </button>
           ))}
-          {statusFilter && (
+          {specialFilter && (
+            <button
+              className={`filter-chip active`}
+              onClick={() => setSpecialFilter(null)}
+            >
+              {specialFilter}
+            </button>
+          )}
+          {(statusFilter || specialFilter) && (
             <button
               className="filter-chip"
-              onClick={() => setStatusFilter(null)}
+              onClick={() => { setStatusFilter(null); setSpecialFilter(null); }}
               style={{ fontStyle: "italic" }}
             >
               clear

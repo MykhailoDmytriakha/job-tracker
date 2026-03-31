@@ -47,7 +47,7 @@ describe("API client", () => {
       });
       const result = await tasksApi.create({ title: "New task" }, 1);
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/tasks/",
+        "http://localhost:8000/api/tasks/?project_id=1",
         expect.objectContaining({ method: "POST" })
       );
       expect(result.title).toBe("New task");
@@ -191,10 +191,9 @@ describe("API client", () => {
         json: () =>
           Promise.resolve({
             stats: { total_open: 0, waiting: 0, overdue: 0, blocked: 0, recurring: 0 },
-            overdue: [],
-            waiting: [],
+            today: [],
+            upcoming: [],
             recurring: [],
-            recent: [],
           }),
       });
       const result = await dashboardApi.get();

@@ -338,6 +338,13 @@ class TaskCreate(BaseModel):
     is_recurring: bool = False
     cadence: Optional[str] = None
     next_checkpoint: Optional[datetime] = None
+    pipeline_heat: Optional[str] = None
+    lead_source: Optional[str] = None
+    posting_url: Optional[str] = None
+    applied_at: Optional[datetime] = None
+    compensation: Optional[str] = None
+    outreach_status: Optional[str] = None
+    close_reason: Optional[str] = None
 
 
 class TaskUpdate(BaseModel):
@@ -353,6 +360,13 @@ class TaskUpdate(BaseModel):
     is_recurring: Optional[bool] = None
     cadence: Optional[str] = None
     next_checkpoint: Optional[datetime] = None
+    pipeline_heat: Optional[str] = None
+    lead_source: Optional[str] = None
+    posting_url: Optional[str] = None
+    applied_at: Optional[datetime] = None
+    compensation: Optional[str] = None
+    outreach_status: Optional[str] = None
+    close_reason: Optional[str] = None
 
 
 class TaskBrief(BaseModel):
@@ -370,6 +384,13 @@ class TaskBrief(BaseModel):
     is_recurring: bool = False
     cadence: Optional[str] = None
     next_checkpoint: Optional[datetime] = None
+    pipeline_heat: Optional[str] = None
+    lead_source: Optional[str] = None
+    posting_url: Optional[str] = None
+    applied_at: Optional[datetime] = None
+    compensation: Optional[str] = None
+    outreach_status: Optional[str] = None
+    close_reason: Optional[str] = None
     is_blocked: bool = False
     subtask_count: int = 0
     subtask_done: int = 0
@@ -397,6 +418,13 @@ class TaskOut(BaseModel):
     is_recurring: bool = False
     cadence: Optional[str] = None
     next_checkpoint: Optional[datetime] = None
+    pipeline_heat: Optional[str] = None
+    lead_source: Optional[str] = None
+    posting_url: Optional[str] = None
+    applied_at: Optional[datetime] = None
+    compensation: Optional[str] = None
+    outreach_status: Optional[str] = None
+    close_reason: Optional[str] = None
     is_blocked: bool = False
     created_at: datetime
     updated_at: datetime

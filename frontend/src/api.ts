@@ -48,6 +48,13 @@ export interface TaskBrief {
   is_recurring: boolean;
   cadence: string | null;
   next_checkpoint: string | null;
+  pipeline_heat: string | null;
+  lead_source: string | null;
+  posting_url: string | null;
+  applied_at: string | null;
+  compensation: string | null;
+  outreach_status: string | null;
+  close_reason: string | null;
   is_blocked: boolean;
   subtask_count: number;
   subtask_done: number;
@@ -76,6 +83,7 @@ export interface TaskDependencyBrief {
   id: number;
   title: string;
   status: string;
+  display_id: string;
 }
 
 export interface TaskFull extends TaskBrief {
@@ -377,4 +385,9 @@ export const stagesApi = {
     request<Stage>(`/stages/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   delete: (id: number) =>
     request<{ ok: boolean }>(`/stages/${id}`, { method: "DELETE" }),
+  reorder: (ids: number[]) =>
+    request<{ ok: boolean }>("/stages/reorder", {
+      method: "POST",
+      body: JSON.stringify(ids.map((id, i) => ({ id, position: i }))),
+    }),
 };

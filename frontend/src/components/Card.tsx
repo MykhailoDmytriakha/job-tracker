@@ -7,6 +7,13 @@ const priorityColor: Record<string, string> = {
   low: "#22c55e",
 };
 
+const heatColor: Record<string, string> = {
+  hot: "#ef4444",
+  warm: "#f59e0b",
+  cold: "#3b82f6",
+  archived: "#6b7280",
+};
+
 function formatShortDate(d: string | null): string {
   if (!d) return "";
   return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -17,7 +24,7 @@ function isOverdue(d: string | null): boolean {
   return new Date(d).getTime() < Date.now();
 }
 
-export function Card({ task }: { task: TaskBrief }) {
+export function Card({ task, onSelect }: { task: TaskBrief; onSelect?: (id: number) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: task.id });
 
@@ -36,7 +43,8 @@ export function Card({ task }: { task: TaskBrief }) {
     <div
       ref={setNodeRef}
       className={`card ${task.is_blocked ? "card-blocked" : ""}`}
-      style={style}
+      style={{ ...style, cursor: onSelect ? "pointer" : undefined }}
+      onClick={() => onSelect?.(task.id)}
       {...listeners}
       {...attributes}
     >
@@ -59,6 +67,16 @@ export function Card({ task }: { task: TaskBrief }) {
             )}
             {task.status === "waiting" && (
               <span className="badge badge-waiting">waiting</span>
+            )}
+            {task.pipeline_heat && (
+              <span className="badge" style={{ color: heatColor[task.pipeline_heat] || "inherit" }}>
+                {task.pipeline_heat}
+              </span>
+            )}
+            {task.close_reason && (
+              <span className="badge" style={{ color: "#6b7280" }}>
+                {task.close_reason}
+              </span>
             )}
             {task.subtask_count > 0 && (
               <span className="badge badge-progress">

@@ -29,6 +29,19 @@ def run_migrations(engine):
             ("next_checkpoint", "DATETIME"),
             ("project_id", "INTEGER"),
             ("sequence_num", "INTEGER DEFAULT 0"),
+            ("temperature", "TEXT"),
+            ("source", "TEXT"),
+            ("job_url", "TEXT"),
+            ("applied_date", "DATETIME"),
+            ("salary_range", "TEXT"),
+            ("human_lane_status", "TEXT"),
+            ("pipeline_heat", "TEXT"),
+            ("lead_source", "TEXT"),
+            ("posting_url", "TEXT"),
+            ("applied_at", "DATETIME"),
+            ("compensation", "TEXT"),
+            ("outreach_status", "TEXT"),
+            ("close_reason", "TEXT"),
         ]
         with engine.begin() as conn:
             for col_name, col_type in migrations:
