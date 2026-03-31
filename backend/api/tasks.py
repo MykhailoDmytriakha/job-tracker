@@ -101,7 +101,25 @@ def list_tasks(
     if is_recurring is not None:
         query = query.filter(models.Task.is_recurring == is_recurring)
     if search:
-        query = query.filter(models.Task.title.ilike(f"%{search}%"))
+        pattern = f"%{search}%"
+        from sqlalchemy import or_
+        query = (
+            query
+            .outerjoin(models.task_contacts, models.Task.id == models.task_contacts.c.task_id)
+            .outerjoin(models.Contact, models.Contact.id == models.task_contacts.c.contact_id)
+            .outerjoin(models.task_companies, models.Task.id == models.task_companies.c.task_id)
+            .outerjoin(models.Company, models.Company.id == models.task_companies.c.company_id)
+            .outerjoin(models.Activity, models.Activity.task_id == models.Task.id)
+            .filter(or_(
+                models.Task.title.ilike(pattern),
+                models.Task.description.ilike(pattern),
+                models.Task.compensation.ilike(pattern),
+                models.Contact.name.ilike(pattern),
+                models.Company.name.ilike(pattern),
+                models.Activity.detail.ilike(pattern),
+            ))
+            .distinct()
+        )
     if overdue:
         now = datetime.now(timezone.utc)
         query = query.filter(
@@ -131,6 +149,7 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 def create_task(
     task: schemas.TaskCreate,
     project_id: int = Query(..., description="Project to create the task in"),
+    force: bool = Query(False, description="Skip duplicate title check"),
     db: Session = Depends(get_db),
 ):
     # Validate project exists
@@ -143,6 +162,19 @@ def create_task(
         raise HTTPException(
             status_code=422, detail="Waiting tasks must have a follow_up_date"
         )
+
+    # Duplicate title check (case-insensitive, same project)
+    if not force:
+        existing = db.query(models.Task).filter(
+            models.Task.project_id == project_id,
+            models.Task.title.ilike(data["title"].strip()),
+        ).first()
+        if existing:
+            display = getattr(existing, "display_id", None) or f"#{existing.id}"
+            raise HTTPException(
+                status_code=409,
+                detail=f"Duplicate title: task '{existing.title}' already exists as {display} (status={existing.status}). Use ?force=true to create anyway.",
+            )
 
     # Auto-increment sequence within project
     from sqlalchemy import func

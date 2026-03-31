@@ -74,8 +74,8 @@ export function Card({ task, onSelect }: { task: TaskBrief; onSelect?: (id: numb
               </span>
             )}
             {task.close_reason && (
-              <span className="badge" style={{ color: "#6b7280" }}>
-                {task.close_reason}
+              <span className="badge badge-close-reason" title={task.close_reason}>
+                {task.close_reason.length > 28 ? task.close_reason.slice(0, 28).trimEnd() + "…" : task.close_reason}
               </span>
             )}
             {task.subtask_count > 0 && (

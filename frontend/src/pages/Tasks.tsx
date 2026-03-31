@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { tasksApi } from "../api";
+import { tasksApi, searchApi } from "../api";
 import type { TaskBrief } from "../api";
 import { TaskItem } from "../components/TaskItem";
 import { TaskDetail } from "../components/TaskDetail";
@@ -19,6 +19,8 @@ export function Tasks() {
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchHints, setSearchHints] = useState<Record<string, number>>({});
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [specialFilter, setSpecialFilter] = useState<SpecialFilter>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,10 +43,33 @@ export function Tasks() {
     }
   }, [searchParams, setSearchParams]);
 
+  // Debounce search input: fire API only after 300ms of no typing
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Cross-entity search hints (contacts, companies, docs)
+  useEffect(() => {
+    if (!project || debouncedSearch.length < 2) {
+      setSearchHints({});
+      return;
+    }
+    searchApi.search(project.id, debouncedSearch).then((res) => {
+      const hints: Record<string, number> = {};
+      for (const g of res.groups) {
+        if (g.entity_type !== "task" && g.entity_type !== "activity" && g.count > 0) {
+          hints[g.entity_type] = g.count;
+        }
+      }
+      setSearchHints(hints);
+    }).catch(() => setSearchHints({}));
+  }, [debouncedSearch, project]);
+
   const load = useCallback(() => {
     if (!project) return;
     const params: Record<string, string> = { root_only: "true", project_id: String(project.id) };
-    if (search.trim()) params.search = search.trim();
+    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
     if (statusFilter) params.status = statusFilter;
     if (specialFilter === "overdue") params.overdue = "true";
     if (specialFilter === "recurring") params.is_recurring = "true";
@@ -56,7 +81,7 @@ export function Tasks() {
         setTasks(result);
       }
     });
-  }, [search, statusFilter, specialFilter, project]);
+  }, [debouncedSearch, statusFilter, specialFilter, project]);
 
   useEffect(() => {
     load();
@@ -89,16 +114,37 @@ export function Tasks() {
       <div className="tasks-list-panel">
         <div className="tasks-toolbar">
           <div className="tasks-toolbar-row1">
-            <input
-              className="filter-search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search tasks..."
-            />
+            <div className="search-wrap">
+              <input
+                className="filter-search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search tasks..."
+                style={search ? { paddingRight: 30 } : undefined}
+              />
+              {search && (
+                <button className="search-clear" onClick={() => setSearch("")} title="Clear search" aria-label="Clear search">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
             <button className="new-task-btn" onClick={() => setShowCreate(true)}>
               + New
             </button>
           </div>
+          {Object.keys(searchHints).length > 0 && (
+            <div className="search-hints">
+              Also in:&nbsp;
+              {Object.entries(searchHints).map(([type, count], i, arr) => (
+                <span key={type}>
+                  <span className="search-hint-chip">{count} {type}{count !== 1 ? "s" : ""}</span>
+                  {i < arr.length - 1 && " "}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="tasks-toolbar-row2">
             {STATUS_FILTERS.map((s) => (
               <button

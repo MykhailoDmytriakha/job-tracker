@@ -381,6 +381,7 @@ main {
 .badge-category { background: var(--accent-soft); color: var(--accent); text-transform: none; font-weight: 500; }
 .badge-date { background: var(--bg-muted); color: var(--text-muted); font-weight: 500; text-transform: none; }
 .badge-progress { background: var(--bg-muted); color: var(--text-muted); font-weight: 500; }
+.badge-close-reason { background: var(--bg-muted); color: var(--text-faint); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; }
 
 /* ============================================================
    PIPELINE (Kanban)
@@ -480,6 +481,10 @@ main {
 .filter-bar {
   display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; align-items: center;
 }
+.search-wrap {
+  position: relative; flex: 1; min-width: 120px; display: flex; align-items: center;
+}
+.search-wrap .filter-search { width: 100%; }
 .filter-search {
   flex: 1; min-width: 120px; padding: 7px 10px;
   background: var(--bg-card); border: 1px solid var(--border);
@@ -487,6 +492,25 @@ main {
 }
 .filter-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .filter-search::placeholder { color: var(--text-placeholder); }
+.search-hints {
+  font-size: 11px; color: var(--text-muted);
+  padding: 4px 2px 0;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+}
+.search-hint-chip {
+  color: var(--accent); font-weight: 600;
+  background: var(--accent-soft); border-radius: 4px;
+  padding: 1px 6px;
+}
+.search-clear {
+  position: absolute; right: 8px;
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--bg-muted); border: none; cursor: pointer;
+  color: var(--text-muted); padding: 0; flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+.search-clear:hover { background: var(--border-strong); color: var(--text); }
 .filter-chip {
   padding: 5px 10px; border: 1px solid var(--border);
   border-radius: var(--radius-sm); background: var(--bg-card);
@@ -763,14 +787,65 @@ main {
   display: inline-block; font-size: 12px; font-weight: 600;
   padding: 2px 10px; border-radius: 99px;
 }
+
+/* Status */
 .meta-value-pill.status-done { background: var(--green-soft); color: var(--green); }
 .meta-value-pill.status-open { background: var(--bg-muted); color: var(--text-secondary); }
 .meta-value-pill.status-in_progress { background: var(--accent-soft); color: var(--accent); }
 .meta-value-pill.status-waiting { background: var(--orange-soft); color: var(--orange); }
 .meta-value-pill.status-closed { background: var(--bg-muted); color: var(--text-faint); }
+
+/* Priority — red > amber > slate (semantic intensity) */
 .meta-value-pill.priority-high { background: var(--red-soft); color: var(--red); }
-.meta-value-pill.priority-medium { background: var(--bg-muted); color: var(--text-secondary); }
+.meta-value-pill.priority-medium { background: var(--orange-soft); color: var(--orange); }
 .meta-value-pill.priority-low { background: var(--bg-muted); color: var(--text-faint); }
+
+/* Heat — pipeline temperature */
+.meta-value-pill.heat-hot { background: var(--red-soft); color: var(--red); }
+.meta-value-pill.heat-warm { background: var(--orange-soft); color: var(--orange); }
+.meta-value-pill.heat-cold { background: rgba(100,116,139,0.08); color: #64748b; }
+.meta-value-pill.heat-archived { background: var(--bg-muted); color: var(--text-faint); text-decoration: line-through; }
+.dark .meta-value-pill.heat-cold { background: rgba(100,116,139,0.15); color: #94a3b8; }
+
+/* Stage — pipeline position (uppercase names from API) */
+.meta-value-pill[class*=" stage-"],
+.meta-value-pill[class^="meta-value-pill stage-"] {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px;
+}
+.meta-value-pill.stage-inbox,
+.meta-value-pill.stage-triaged { background: var(--bg-muted); color: var(--text-secondary); }
+.meta-value-pill.stage-to-apply { background: var(--orange-soft); color: var(--orange); }
+.meta-value-pill.stage-submitted { background: var(--accent-soft); color: var(--accent); }
+.meta-value-pill.stage-human-lane { background: var(--purple-soft); color: var(--purple); }
+.meta-value-pill.stage-waiting { background: var(--orange-soft); color: var(--orange); }
+.meta-value-pill.stage-response { background: var(--green-soft); color: var(--green); }
+.meta-value-pill.stage-offer { background: var(--green-soft); color: var(--green); font-weight: 800; }
+.meta-value-pill.stage-closed { background: var(--bg-muted); color: var(--text-faint); }
+
+/* Outreach — progress along contact funnel */
+.meta-value-pill.outreach-not_started { background: var(--bg-muted); color: var(--text-faint); }
+.meta-value-pill.outreach-searching { background: var(--accent-soft); color: var(--accent); }
+.meta-value-pill.outreach-contacted { background: var(--orange-soft); color: var(--orange); }
+.meta-value-pill.outreach-replied { background: var(--green-soft); color: var(--green); }
+.meta-value-pill.outreach-connected { background: var(--green-soft); color: var(--green); }
+.meta-value-pill.outreach-dead_end { background: var(--red-soft); color: var(--red); }
+
+/* Lead source */
+.meta-value-pill.source-linkedin { background: rgba(0,119,181,0.08); color: #0077b5; }
+.meta-value-pill.source-job_board { background: var(--accent-soft); color: var(--accent); }
+.meta-value-pill.source-referral { background: var(--green-soft); color: var(--green); }
+.meta-value-pill.source-direct { background: var(--purple-soft); color: var(--purple); }
+.meta-value-pill.source-cold_outreach { background: var(--orange-soft); color: var(--orange); }
+.dark .meta-value-pill.source-linkedin { background: rgba(0,119,181,0.14); color: #4db8e8; }
+
+/* Tooltip hint on meta field labels */
+.meta-label-hint {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--bg-muted); color: var(--text-muted);
+  font-size: 8px; font-weight: 700; line-height: 1;
+  margin-left: 4px; cursor: help; vertical-align: middle; flex-shrink: 0;
+}
 .inline-title {
   flex: 1; padding: 2px 4px;
   background: none; border: 1px solid var(--accent);

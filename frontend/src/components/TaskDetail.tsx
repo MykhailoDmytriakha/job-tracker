@@ -12,6 +12,9 @@ import { SubtaskItem } from "./SubtaskItem";
 const STATUS_OPTIONS = ["open", "in_progress", "waiting", "done", "closed"];
 const PRIORITY_OPTIONS = ["high", "medium", "low"];
 
+/** Sanitize value string to a valid CSS class slug */
+const cssSlug = (v: string) => v.toLowerCase().replace(/[^a-z0-9_]+/g, '-');
+
 /** Turn "#123 Some title" references into clickable links */
 function linkifyTaskRefs(text: string, onClick: (id: number) => void): React.ReactNode {
   const parts = text.split(/(#\d+)/g);
@@ -449,6 +452,7 @@ export function TaskDetail({
                     label="Stage"
                     value={allStages.find((s) => s.id === task.stage_id)?.name || ""}
                     options={allStages.map((s) => s.name)}
+                    pillPrefix="stage"
                     editing={editingField === "stage_id"}
                     onEdit={() => setEditingField("stage_id")}
                     onSave={(v) => { const stage = allStages.find((s) => s.name === v); if (stage) updateField("stage_id", stage.id); }}
@@ -460,6 +464,7 @@ export function TaskDetail({
                     options={["hot", "warm", "cold", "archived"]}
                     allowEmpty
                     pillPrefix="heat"
+                    tooltip="Pipeline temperature — how actively you're pursuing this opportunity. hot = top priority now, warm = active, cold = passive/watching, archived = closed."
                     editing={editingField === "pipeline_heat"}
                     onEdit={() => setEditingField("pipeline_heat")}
                     onSave={(v) => updateField("pipeline_heat", v || null)}
@@ -470,6 +475,7 @@ export function TaskDetail({
                     value={task.lead_source || ""}
                     options={["job_board", "linkedin", "referral", "direct", "cold_outreach"]}
                     allowEmpty
+                    pillPrefix="source"
                     editing={editingField === "lead_source"}
                     onEdit={() => setEditingField("lead_source")}
                     onSave={(v) => updateField("lead_source", v || null)}
@@ -480,6 +486,7 @@ export function TaskDetail({
                     value={task.outreach_status || ""}
                     options={["not_started", "searching", "contacted", "replied", "connected", "dead_end"]}
                     allowEmpty
+                    pillPrefix="outreach"
                     editing={editingField === "outreach_status"}
                     onEdit={() => setEditingField("outreach_status")}
                     onSave={(v) => updateField("outreach_status", v || null)}
@@ -578,6 +585,7 @@ function MetaSelect({
   options,
   allowEmpty,
   pillPrefix,
+  tooltip,
   editing,
   onEdit,
   onSave,
@@ -589,6 +597,7 @@ function MetaSelect({
   options: string[];
   allowEmpty?: boolean;
   pillPrefix?: string;
+  tooltip?: string;
   editing: boolean;
   onEdit: () => void;
   onSave: (v: string) => void;
@@ -597,7 +606,10 @@ function MetaSelect({
 }) {
   return (
     <div className="meta-field" onClick={editing ? undefined : onEdit}>
-      <span className="meta-label">{label}</span>
+      <span className="meta-label">
+        {label}
+        {tooltip && <span className="meta-label-hint" title={tooltip}>?</span>}
+      </span>
       {editing ? (
         <select
           className="inline-select"
@@ -621,7 +633,7 @@ function MetaSelect({
           {onCreateNew && <option value="__create_new__">+ New...</option>}
         </select>
       ) : (
-        <span className={`meta-value ${!value ? "empty" : ""} ${pillPrefix && value ? `meta-value-pill ${pillPrefix}-${value}` : ""}`}>
+        <span className={`meta-value ${!value ? "empty" : ""} ${pillPrefix && value ? `meta-value-pill ${pillPrefix}-${cssSlug(value)}` : ""}`}>
           {value || "Set..."}
         </span>
       )}

@@ -457,6 +457,33 @@ class BoardView(BaseModel):
     columns: list[BoardColumn] = []
 
 
+# --- Global Search ---
+
+
+class SearchHit(BaseModel):
+    entity_type: str          # "task" | "contact" | "company" | "document" | "activity" | "interaction"
+    id: int
+    title: str                # Primary display text
+    subtitle: Optional[str] = None
+    matched_fields: list[str] = []
+    display_id: Optional[str] = None   # task display_id e.g. "EJS-42"
+    task_id: Optional[int] = None      # activity → owning task
+    contact_id: Optional[int] = None   # interaction → owning contact
+    linked_task_ids: list[int] = []    # contact/company/document → linked task ids
+
+
+class SearchResultGroup(BaseModel):
+    entity_type: str
+    count: int
+    hits: list[SearchHit]
+
+
+class SearchResponse(BaseModel):
+    query: str
+    total: int
+    groups: list[SearchResultGroup]
+
+
 # --- Dashboard ---
 
 

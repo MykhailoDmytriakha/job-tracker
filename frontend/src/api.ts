@@ -375,6 +375,37 @@ export const tasksApi = {
     }),
 };
 
+// --- Global Search ---
+
+export interface SearchHit {
+  entity_type: string;
+  id: number;
+  title: string;
+  subtitle: string | null;
+  matched_fields: string[];
+  display_id: string | null;
+  task_id: number | null;
+  contact_id: number | null;
+  linked_task_ids: number[];
+}
+
+export interface SearchResultGroup {
+  entity_type: string;
+  count: number;
+  hits: SearchHit[];
+}
+
+export interface SearchResponse {
+  query: string;
+  total: number;
+  groups: SearchResultGroup[];
+}
+
+export const searchApi = {
+  search: (projectId: number, q: string) =>
+    request<SearchResponse>(`/search/?project_id=${projectId}&q=${encodeURIComponent(q)}`),
+};
+
 // --- Stages ---
 
 export const stagesApi = {
