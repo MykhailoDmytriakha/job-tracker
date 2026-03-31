@@ -36,14 +36,26 @@ export function Pipeline() {
 
   if (!board) return <div className="loading">Loading board...</div>;
 
+  const activeColumns = board.columns.filter((col) => col.stage.name.toLowerCase() !== "closed");
+  const closedColumns = board.columns.filter((col) => col.stage.name.toLowerCase() === "closed");
+
   return (
     <div className="board-page">
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="board">
-          {board.columns.map((col) => (
-            <Column key={col.stage.id} column={col} onSelectTask={(id) => setSelectedTaskId(id)} />
-          ))}
+        <div className="board-active-area">
+          <div className="board">
+            {activeColumns.map((col) => (
+              <Column key={col.stage.id} column={col} onSelectTask={(id) => setSelectedTaskId(id)} />
+            ))}
+          </div>
         </div>
+        {closedColumns.length > 0 && (
+          <div className="board-closed-area">
+            {closedColumns.map((col) => (
+              <Column key={col.stage.id} column={col} onSelectTask={(id) => setSelectedTaskId(id)} isHorizontal />
+            ))}
+          </div>
+        )}
       </DndContext>
       
       {selectedTaskId && (
