@@ -11,11 +11,13 @@ import { boardApi, tasksApi } from "../api";
 import type { BoardView } from "../api";
 import { Column } from "../components/Column";
 import { useProject } from "../ProjectContext";
+import { TaskModal } from "../components/TaskModal";
 
 export function Pipeline() {
   const { active: project } = useProject();
   const navigate = useNavigate();
   const [board, setBoard] = useState<BoardView | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -39,10 +41,24 @@ export function Pipeline() {
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="board">
           {board.columns.map((col) => (
-            <Column key={col.stage.id} column={col} onSelectTask={(id) => navigate(`/tasks/${id}`)} />
+            <Column key={col.stage.id} column={col} onSelectTask={(id) => setSelectedTaskId(id)} />
           ))}
         </div>
       </DndContext>
+      
+      {selectedTaskId && (
+        <TaskModal
+          taskId={selectedTaskId}
+          onClose={() => setSelectedTaskId(null)}
+          onNavigate={(id) => navigate(`/tasks/${id}`)}
+          onOpenFull={() => navigate(`/tasks/${selectedTaskId}`)}
+          onUpdate={load}
+          onDelete={() => {
+            setSelectedTaskId(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }

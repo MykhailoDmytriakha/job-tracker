@@ -1623,3 +1623,77 @@ main {
   from { opacity: 0; transform: translateX(-50%) translateY(12px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* ============================================================
+   TASK MODAL — full detail panel in a centered overlay
+   (ConfirmModal uses .modal-overlay / .modal-box above)
+   ============================================================ */
+
+.task-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.14s ease;
+}
+
+.task-modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.14), 0 4px 16px rgba(0,0,0,0.07);
+  width: 100%; max-width: 980px;
+  height: 88vh; max-height: 860px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: taskModalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes taskModalIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* Override panel styles inside modal */
+.task-modal-content .detail-panel {
+  flex: 1; min-height: 0;
+  padding: 16px 20px;
+  animation: none;
+}
+.task-modal-content .detail-panel--modal {
+  padding-left: 20px;
+}
+.task-modal-content .detail-body {
+  flex: 1; min-height: 0;
+  overflow: hidden;
+}
+
+/* Modal-specific header */
+.detail-header--modal {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.detail-modal-id {
+  font-size: 12px; font-weight: 700;
+  color: var(--accent); opacity: 0.75;
+  letter-spacing: 0.02em;
+  padding: 3px 6px;
+  background: var(--accent-soft);
+  border-radius: 4px;
+}
+.detail-modal-close {
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none;
+  color: var(--text-faint);
+  padding: 6px; border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+.detail-modal-close:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+

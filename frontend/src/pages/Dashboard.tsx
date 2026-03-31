@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { dashboardApi, tasksApi } from "../api";
 import type { DashboardView, TaskBrief } from "../api";
 import { useProject } from "../ProjectContext";
+import { TaskModal } from "../components/TaskModal";
 
 function daysAgo(dateStr: string | null): string {
   if (!dateStr) return "never";
@@ -39,6 +40,7 @@ function staleDays(dateStr: string | null): number {
 export function Dashboard() {
   const { active: project } = useProject();
   const [data, setData] = useState<DashboardView | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export function Dashboard() {
   }, [project]);
 
   function goToTask(id: number) {
-    navigate(`/tasks/${id}`);
+    setSelectedTaskId(id);
   }
 
   function goToFiltered(filter: string) {
@@ -134,6 +136,22 @@ export function Dashboard() {
           )}
         </div>
       </div>
+      
+      {selectedTaskId && (
+        <TaskModal
+          taskId={selectedTaskId}
+          onClose={() => setSelectedTaskId(null)}
+          onNavigate={(id) => navigate(`/tasks/${id}`)}
+          onOpenFull={() => navigate(`/tasks/${selectedTaskId}`)}
+          onUpdate={() => {
+            if (project) dashboardApi.get(project.id).then(setData);
+          }}
+          onDelete={() => {
+            setSelectedTaskId(null);
+            if (project) dashboardApi.get(project.id).then(setData);
+          }}
+        />
+      )}
     </div>
   );
 }

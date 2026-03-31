@@ -54,12 +54,16 @@ export function TaskDetail({
   onDelete,
   onUpdate,
   onNavigate,
+  onOpenFull,
+  isModal = false,
 }: {
   taskId: number;
   onClose: () => void;
   onDelete: () => void;
   onUpdate: () => void;
   onNavigate: (id: number) => void;
+  onOpenFull?: () => void;
+  isModal?: boolean;
 }) {
   const [task, setTask] = useState<TaskFull | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
@@ -152,23 +156,54 @@ export function TaskDetail({
       : null;
 
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <button className="detail-close" onClick={onClose} title="Back to list">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          Back
-        </button>
-        <button
-          className="detail-delete"
-          onClick={() => setDeleteConfirm({ show: true, message: `Delete "${task.title}"? This cannot be undone.`, canForce: true })}
-          title="Delete task"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
+    <div className={`detail-panel${isModal ? " detail-panel--modal" : ""}`}>
+      <div className={`detail-header${isModal ? " detail-header--modal" : ""}`}>
+        {isModal ? (
+          <span className="detail-modal-id">{task.display_id}</span>
+        ) : (
+          <button className="detail-close" onClick={onClose} title="Back to list">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back
+          </button>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {onOpenFull && (
+            <button
+              className="detail-expand"
+              onClick={onOpenFull}
+              title="Open full page"
+              style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', color: 'var(--text-faint)', padding: '6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-faint)'; e.currentTarget.style.background = 'none'; }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M14 8v6a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1h6M10 2h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
+          <button
+            className="detail-delete"
+            onClick={() => setDeleteConfirm({ show: true, message: `Delete "${task.title}"? This cannot be undone.`, canForce: true })}
+            title="Delete task"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {isModal && (
+            <button
+              className="detail-modal-close"
+              onClick={onClose}
+              title="Close (Esc)"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="detail-body">
