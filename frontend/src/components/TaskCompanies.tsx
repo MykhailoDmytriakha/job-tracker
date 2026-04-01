@@ -42,7 +42,7 @@ export function TaskCompanies({
         <div className="task-contacts-list">
           {companies.map(co => (
             <div key={co.id} className="task-contact-item">
-              <span className="task-contact-name" onClick={() => navigate(`/companies?selected=${co.id}`)}>{highlight(co.name, searchTerm)}</span>
+              <span className="task-contact-name" onClick={() => navigate(`/companies/${co.id}`)}>{highlight(co.name, searchTerm)}</span>
               {co.domain && <span className="task-contact-company">{co.domain}</span>}
               <button className="task-doc-unlink" onClick={async () => { await companiesApi.unlinkFromTask(taskId, co.id); onUpdate(); }}>&times;</button>
             </div>

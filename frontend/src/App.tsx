@@ -49,7 +49,9 @@ function AppInner() {
           <Route path="/docs" element={<Docs />} />
           <Route path="/docs/:docId" element={<Docs />} />
           <Route path="/companies" element={<Companies />} />
+          <Route path="/companies/:companyId" element={<Companies />} />
           <Route path="/contacts" element={<Contacts />} />
+          <Route path="/contacts/:contactId" element={<Contacts />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

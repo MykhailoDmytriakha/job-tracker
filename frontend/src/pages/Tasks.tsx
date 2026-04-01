@@ -6,6 +6,53 @@ import { TaskItem } from "../components/TaskItem";
 import { TaskDetail } from "../components/TaskDetail";
 import { useProject } from "../ProjectContext";
 
+type SortKey = "created" | "updated" | "due_date" | "follow_up" | "priority" | "title";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "created",   label: "Newest"     },
+  { key: "updated",   label: "Updated"    },
+  { key: "due_date",  label: "Due date"   },
+  { key: "follow_up", label: "Follow-up"  },
+  { key: "priority",  label: "Priority"   },
+  { key: "title",     label: "Title A→Z"  },
+];
+
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+function sortTasks(tasks: TaskBrief[], sortBy: SortKey): TaskBrief[] {
+  return [...tasks].sort((a, b) => {
+    switch (sortBy) {
+      case "created":   return b.id - a.id;
+      case "updated": {
+        const ta = a.last_activity_at ?? "";
+        const tb = b.last_activity_at ?? "";
+        return tb.localeCompare(ta);
+      }
+      case "due_date": {
+        if (!a.due_date && !b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date.localeCompare(b.due_date);
+      }
+      case "follow_up": {
+        if (!a.follow_up_date && !b.follow_up_date) return 0;
+        if (!a.follow_up_date) return 1;
+        if (!b.follow_up_date) return -1;
+        return a.follow_up_date.localeCompare(b.follow_up_date);
+      }
+      case "priority": {
+        const pa = PRIORITY_ORDER[a.priority] ?? 99;
+        const pb = PRIORITY_ORDER[b.priority] ?? 99;
+        return pa - pb;
+      }
+      case "title":
+        return a.title.localeCompare(b.title);
+      default:
+        return 0;
+    }
+  });
+}
+
 const STATUS_FILTERS = ["open", "in_progress", "waiting"];
 
 type SpecialFilter = "overdue" | "blocked" | "recurring" | "pipeline" | "attention" | null;
@@ -37,6 +84,7 @@ export function Tasks() {
   // Initialize filters from URL param on first render only (lazy init to avoid race condition)
   const [statusFilter, setStatusFilter] = useState<string | null>(() => parseFilterParam(searchParams.get("filter")).statusFilter);
   const [specialFilter, setSpecialFilter] = useState<SpecialFilter>(() => parseFilterParam(searchParams.get("filter")).specialFilter);
+  const [sortBy, setSortBy] = useState<SortKey>("created");
 
   // Sync active filter to URL so it survives page reloads
   useEffect(() => {
@@ -114,11 +162,13 @@ export function Tasks() {
     load();
   }
 
-  const active = tasks.filter(
-    (t) => t.status !== "done" && t.status !== "closed"
+  const active = sortTasks(
+    tasks.filter((t) => t.status !== "done" && t.status !== "closed"),
+    sortBy
   );
-  const done = tasks.filter(
-    (t) => t.status === "done" || t.status === "closed"
+  const done = sortTasks(
+    tasks.filter((t) => t.status === "done" || t.status === "closed"),
+    sortBy
   );
 
   return (
@@ -192,6 +242,21 @@ export function Tasks() {
             >
               pipeline
             </button>
+            <div className="toolbar-divider" />
+            <div className="sort-control">
+              <svg className="sort-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 3h8M3 6h6M4 9h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              <select
+                className="sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortKey)}
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

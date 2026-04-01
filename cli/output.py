@@ -4,12 +4,12 @@ import sys
 
 def print_json(data) -> None:
     """Print data as JSON to stdout."""
-    print(json.dumps(data, indent=2, default=str))
+    print(json.dumps(data, indent=2, default=str, ensure_ascii=False))
 
 
 def print_compact(data) -> None:
     """Print data as compact single-line JSON to stdout."""
-    print(json.dumps(data, default=str))
+    print(json.dumps(data, default=str, ensure_ascii=False))
 
 
 def print_error(status: int, detail: str, hint: str = "") -> None:
@@ -17,7 +17,7 @@ def print_error(status: int, detail: str, hint: str = "") -> None:
     err = {"error": detail, "status": status}
     if hint:
         err["hint"] = hint
-    print(json.dumps(err), file=sys.stderr)
+    print(json.dumps(err, ensure_ascii=False), file=sys.stderr)
 
 
 def filter_fields(data, fields: str):

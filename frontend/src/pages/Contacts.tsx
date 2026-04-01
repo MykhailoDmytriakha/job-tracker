@@ -1,20 +1,46 @@
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
-import { contactsApi } from "../api";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { contactsApi, searchApi } from "../api";
 import type { ContactBrief, ContactFull } from "../api";
 import { useProject } from "../ProjectContext";
 
 const CONTACT_TYPES = ["colleague", "recruiter", "manager", "reference", "hiring_manager"];
 const CHANNELS = ["email", "linkedin", "teams", "phone", "in_person"];
 
+type SortKey = "name" | "company" | "updated" | "type";
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "name",    label: "Name A→Z"  },
+  { key: "company", label: "Company"   },
+  { key: "updated", label: "Updated"   },
+  { key: "type",    label: "Type"      },
+];
+
+function sortContacts(contacts: ContactBrief[], sortBy: SortKey): ContactBrief[] {
+  return [...contacts].sort((a, b) => {
+    switch (sortBy) {
+      case "name":    return a.name.localeCompare(b.name);
+      case "company": return (a.company || "").localeCompare(b.company || "");
+      case "updated": return (b.updated_at || "").localeCompare(a.updated_at || "");
+      case "type":    return (a.contact_type || "").localeCompare(b.contact_type || "");
+      default:        return 0;
+    }
+  });
+}
+
 export function Contacts() {
   const { active: project } = useProject();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { contactId } = useParams<{ contactId?: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const selectedId = contactId ? Number(contactId) : null;
+
   const [contacts, setContacts] = useState<ContactBrief[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [contact, setContact] = useState<ContactFull | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchHints, setSearchHints] = useState<Record<string, number>>({});
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortKey>("name");
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCompany, setNewCompany] = useState("");
@@ -22,30 +48,45 @@ export function Contacts() {
   const [interSummary, setInterSummary] = useState("");
   const [interChannel, setInterChannel] = useState("");
 
+  // Backward compat: ?selected= → /contacts/:id
   useEffect(() => {
     const sel = searchParams.get("selected");
-    if (sel) {
-      setSelectedId(Number(sel));
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+    if (sel) navigate(`/contacts/${sel}`, { replace: true });
+  }, [searchParams, navigate]);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Cross-entity search hints
+  useEffect(() => {
+    if (!project || debouncedSearch.length < 2) { setSearchHints({}); return; }
+    searchApi.search(project.id, debouncedSearch).then((res) => {
+      const hints: Record<string, number> = {};
+      for (const g of res.groups) {
+        if (g.entity_type !== "contact" && g.entity_type !== "activity" && g.count > 0) {
+          hints[g.entity_type] = g.count;
+        }
+      }
+      setSearchHints(hints);
+    }).catch(() => setSearchHints({}));
+  }, [debouncedSearch, project]);
 
   const loadList = useCallback(() => {
     if (!project) return;
     const params: Record<string, string> = {};
-    if (search.trim()) params.q = search.trim();
+    if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
     if (typeFilter) params.contact_type = typeFilter;
     contactsApi.list(project.id, params).then(setContacts);
-  }, [project, search, typeFilter]);
+  }, [project, debouncedSearch, typeFilter]);
 
   useEffect(() => { loadList(); }, [loadList]);
 
   useEffect(() => {
-    if (selectedId) {
-      contactsApi.get(selectedId).then(setContact);
-    } else {
-      setContact(null);
-    }
+    if (selectedId) contactsApi.get(selectedId).then(setContact);
+    else setContact(null);
   }, [selectedId]);
 
   async function handleCreate(e: React.FormEvent) {
@@ -58,7 +99,7 @@ export function Contacts() {
     setNewName(""); setNewCompany(""); setNewType("");
     setCreating(false);
     loadList();
-    setSelectedId(c.id);
+    navigate(`/contacts/${c.id}`);
   }
 
   async function updateField(field: string, value: unknown) {
@@ -85,24 +126,75 @@ export function Contacts() {
   async function handleDelete() {
     if (!contact) return;
     await contactsApi.delete(contact.id);
-    setSelectedId(null);
     loadList();
+    navigate("/contacts");
   }
+
+  const sorted = sortContacts(contacts, sortBy);
 
   return (
     <div className={`contacts-layout ${selectedId ? "has-detail" : ""}`}>
       <div className="contacts-list-panel">
-        <div className="docs-toolbar">
-          <input className="filter-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contacts..." />
-          <button className="docs-new-btn" onClick={() => setCreating(true)}>+ New</button>
+        <div className="tasks-toolbar">
+          <div className="tasks-toolbar-row1">
+            <div className="search-wrap">
+              <input
+                className="filter-search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search contacts..."
+                style={search ? { paddingRight: 30 } : undefined}
+              />
+              {search && (
+                <button className="search-clear" onClick={() => setSearch("")} title="Clear search" aria-label="Clear search">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+            <button className="docs-new-btn" onClick={() => setCreating(true)}>+ New</button>
+          </div>
+
+          {Object.keys(searchHints).length > 0 && (
+            <div className="search-hints">
+              Also in:&nbsp;
+              {Object.entries(searchHints).map(([type, count], i, arr) => (
+                <span key={type}>
+                  <span className="search-hint-chip">{count} {type}{count !== 1 ? "s" : ""}</span>
+                  {i < arr.length - 1 && " "}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="tasks-toolbar-row2">
+            {CONTACT_TYPES.map((t) => (
+              <button
+                key={t}
+                className={`filter-chip ${typeFilter === t ? "active" : ""}`}
+                onClick={() => setTypeFilter(typeFilter === t ? null : t)}
+              >
+                {t.replace("_", " ")}
+              </button>
+            ))}
+            {typeFilter && (
+              <button className="filter-chip filter-clear" onClick={() => setTypeFilter(null)}>×</button>
+            )}
+            <div className="toolbar-divider" />
+            <div className="sort-control">
+              <svg className="sort-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 3h8M3 6h6M4 9h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              <select className="sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)}>
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
-        <div className="docs-type-filter">
-          {CONTACT_TYPES.map((t) => (
-            <button key={t} className={`filter-chip ${typeFilter === t ? "active" : ""}`} onClick={() => setTypeFilter(typeFilter === t ? null : t)}>
-              {t.replace("_", " ")}
-            </button>
-          ))}
-        </div>
+
         {creating && (
           <form className="docs-create-form" onSubmit={handleCreate}>
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" autoFocus />
@@ -115,9 +207,14 @@ export function Contacts() {
             <button type="button" onClick={() => setCreating(false)}>Cancel</button>
           </form>
         )}
+
         <div className="docs-list">
-          {contacts.map((c) => (
-            <div key={c.id} className={`contacts-item ${c.id === selectedId ? "selected" : ""}`} onClick={() => setSelectedId(c.id)}>
+          {sorted.map((c) => (
+            <div
+              key={c.id}
+              className={`contacts-item ${c.id === selectedId ? "selected" : ""}`}
+              onClick={() => navigate(`/contacts/${c.id}`)}
+            >
               <div className="contacts-item-info">
                 <span className="contacts-item-name">{c.name}</span>
                 {c.company && <span className="contacts-item-company">{c.company}</span>}
@@ -125,18 +222,22 @@ export function Contacts() {
               {c.contact_type && <span className={`contact-type-badge ctype-${c.contact_type}`}>{c.contact_type.replace("_", " ")}</span>}
             </div>
           ))}
-          {contacts.length === 0 && <div className="docs-empty">No contacts yet</div>}
+          {sorted.length === 0 && <div className="docs-empty">No contacts yet</div>}
         </div>
       </div>
 
       {selectedId && contact && (
         <div className="contacts-detail-panel">
           <div className="docs-detail-header">
+            <button className="detail-close" onClick={() => navigate("/contacts")} title="Back to list">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back
+            </button>
             <button className="detail-delete" onClick={handleDelete}>Delete</button>
-            <button className="detail-close" onClick={() => setSelectedId(null)}>&times;</button>
           </div>
 
-          {/* Profile fields */}
           <h2 className="contacts-detail-name">{contact.name}</h2>
           {contact.contact_type && <span className={`contact-type-badge ctype-${contact.contact_type}`}>{contact.contact_type.replace("_", " ")}</span>}
 
@@ -150,7 +251,6 @@ export function Contacts() {
             <ContactField label="Department" value={contact.department} onSave={(v) => updateField("department", v)} />
           </div>
 
-          {/* Notes */}
           <div className="detail-section">
             <div className="detail-section-label">Notes</div>
             <div
@@ -164,7 +264,6 @@ export function Contacts() {
             </div>
           </div>
 
-          {/* Interactions timeline */}
           <div className="detail-section">
             <div className="detail-section-label">
               Interactions
@@ -190,12 +289,11 @@ export function Contacts() {
             ))}
           </div>
 
-          {/* Linked tasks */}
           {contact.tasks.length > 0 && (
             <div className="detail-section">
               <div className="detail-section-label">Linked Tasks</div>
               {contact.tasks.map((t) => (
-                <div key={t.id} className="docs-task-link">
+                <div key={t.id} className="docs-task-link clickable" onClick={() => navigate(`/tasks/${t.id}`)}>
                   <span className="task-id">{t.display_id}</span> {t.title}
                 </div>
               ))}

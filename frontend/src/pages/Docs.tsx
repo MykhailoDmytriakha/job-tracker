@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { documentsApi } from "../api";
+import { documentsApi, searchApi } from "../api";
 import type { DocumentBrief, DocumentFull } from "../api";
 import { useProject } from "../ProjectContext";
 import Markdown from "react-markdown";
@@ -8,6 +8,24 @@ import remarkGfm from "remark-gfm";
 import { ConfirmModal } from "../components/ConfirmModal";
 
 const DOC_TYPES = ["research", "playbook", "reference", "journal"];
+
+type SortKey = "title" | "updated" | "type";
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "updated", label: "Updated"  },
+  { key: "title",   label: "Title A→Z"},
+  { key: "type",    label: "Type"     },
+];
+
+function sortDocs(docs: DocumentBrief[], sortBy: SortKey): DocumentBrief[] {
+  return [...docs].sort((a, b) => {
+    switch (sortBy) {
+      case "title":   return a.title.localeCompare(b.title);
+      case "updated": return (b.updated_at || "").localeCompare(a.updated_at || "");
+      case "type":    return (a.doc_type || "").localeCompare(b.doc_type || "");
+      default:        return 0;
+    }
+  });
+}
 
 export function Docs() {
   const { active: project } = useProject();
@@ -18,7 +36,10 @@ export function Docs() {
   const [doc, setDoc] = useState<DocumentFull | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; message: string }>({ show: false, message: "" });
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchHints, setSearchHints] = useState<Record<string, number>>({});
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortKey>("updated");
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -34,13 +55,33 @@ export function Docs() {
     }
   }, [searchParams, navigate]);
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Cross-entity search hints
+  useEffect(() => {
+    if (!project || debouncedSearch.length < 2) { setSearchHints({}); return; }
+    searchApi.search(project.id, debouncedSearch).then((res) => {
+      const hints: Record<string, number> = {};
+      for (const g of res.groups) {
+        if (g.entity_type !== "document" && g.entity_type !== "activity" && g.count > 0) {
+          hints[g.entity_type] = g.count;
+        }
+      }
+      setSearchHints(hints);
+    }).catch(() => setSearchHints({}));
+  }, [debouncedSearch, project]);
+
   const loadList = useCallback(() => {
     if (!project) return;
     const params: Record<string, string> = {};
-    if (search.trim()) params.q = search.trim();
+    if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
     if (typeFilter) params.doc_type = typeFilter;
     documentsApi.list(project.id, params).then(setDocs);
-  }, [project, search, typeFilter]);
+  }, [project, debouncedSearch, typeFilter]);
 
   useEffect(() => { loadList(); }, [loadList]);
 
@@ -96,26 +137,64 @@ export function Docs() {
   return (
     <div className={`docs-layout ${selectedId ? "has-detail" : ""}`}>
       <div className="docs-list-panel">
-        <div className="docs-toolbar">
-          <input
-            className="filter-search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search docs..."
-          />
-          <button className="docs-new-btn" onClick={() => setCreating(true)}>+ New</button>
-        </div>
+        <div className="tasks-toolbar">
+          <div className="tasks-toolbar-row1">
+            <div className="search-wrap">
+              <input
+                className="filter-search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search docs..."
+                style={search ? { paddingRight: 30 } : undefined}
+              />
+              {search && (
+                <button className="search-clear" onClick={() => setSearch("")} title="Clear search" aria-label="Clear search">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+            <button className="docs-new-btn" onClick={() => setCreating(true)}>+ New</button>
+          </div>
 
-        <div className="docs-type-filter">
-          {DOC_TYPES.map((t) => (
-            <button
-              key={t}
-              className={`filter-chip ${typeFilter === t ? "active" : ""}`}
-              onClick={() => setTypeFilter(typeFilter === t ? null : t)}
-            >
-              {t}
-            </button>
-          ))}
+          {Object.keys(searchHints).length > 0 && (
+            <div className="search-hints">
+              Also in:&nbsp;
+              {Object.entries(searchHints).map(([type, count], i, arr) => (
+                <span key={type}>
+                  <span className="search-hint-chip">{count} {type}{count !== 1 ? "s" : ""}</span>
+                  {i < arr.length - 1 && " "}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="tasks-toolbar-row2">
+            {DOC_TYPES.map((t) => (
+              <button
+                key={t}
+                className={`filter-chip ${typeFilter === t ? "active" : ""}`}
+                onClick={() => setTypeFilter(typeFilter === t ? null : t)}
+              >
+                {t}
+              </button>
+            ))}
+            {typeFilter && (
+              <button className="filter-chip filter-clear" onClick={() => setTypeFilter(null)}>×</button>
+            )}
+            <div className="toolbar-divider" />
+            <div className="sort-control">
+              <svg className="sort-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 3h8M3 6h6M4 9h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              <select className="sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)}>
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         {creating && (
@@ -127,7 +206,7 @@ export function Docs() {
         )}
 
         <div className="docs-list">
-          {docs.map((d) => (
+          {sortDocs(docs, sortBy).map((d) => (
             <div
               key={d.id}
               className={`docs-item ${d.id === selectedId ? "selected" : ""}`}

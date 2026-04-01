@@ -43,7 +43,7 @@ export function TaskContacts({
         <div className="task-contacts-list">
           {contacts.map(c => (
             <div key={c.id} className="task-contact-item">
-              <span className="task-contact-name" onClick={() => navigate(`/contacts?selected=${c.id}`)}>{highlight(c.name, searchTerm)}</span>
+              <span className="task-contact-name" onClick={() => navigate(`/contacts/${c.id}`)}>{highlight(c.name, searchTerm)}</span>
               {c.company && <span className="task-contact-company">{c.company}</span>}
               {c.contact_type && <span className={`contact-type-badge small ctype-${c.contact_type}`}>{c.contact_type.replace("_"," ")}</span>}
               <button className="task-doc-unlink" onClick={async () => { await contactsApi.unlinkFromTask(taskId, c.id); onUpdate(); }}>&times;</button>

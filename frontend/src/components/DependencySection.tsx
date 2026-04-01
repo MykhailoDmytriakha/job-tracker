@@ -55,8 +55,16 @@ export function DependencySection({
   const linkedIds = new Set([taskId, ...blockedBy.map(d => d.id), ...blocks.map(d => d.id)]);
   const filtered = allTasks
     .filter((t) => !linkedIds.has(t.id))
-    .filter((t) => !search.trim() || t.title.toLowerCase().includes(search.toLowerCase()))
-    .slice(0, 12);
+    .filter((t) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase().replace(/^#/, "");
+      return (
+        t.title.toLowerCase().includes(q) ||
+        t.id.toString().includes(q) ||
+        (t.display_id && t.display_id.toLowerCase().includes(q))
+      );
+    })
+    .slice(0, 50);
 
   async function addFromPicker(otherId: number) {
     if (pickerMode === "blocked-by") {
