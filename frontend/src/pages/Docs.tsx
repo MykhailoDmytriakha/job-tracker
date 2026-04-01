@@ -171,7 +171,12 @@ export function Docs() {
                 <button className="docs-edit-btn" onClick={startEdit}>Edit</button>
               </div>
               <div className="docs-markdown">
-                <Markdown remarkPlugins={[remarkGfm]}>{doc.content || "*No content yet. Click Edit to add.*"}</Markdown>
+                <Markdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}
+                >
+                  {doc.content || "*No content yet. Click Edit to add.*"}
+                </Markdown>
               </div>
               {doc.tasks.length > 0 && (
                 <div className="docs-linked-tasks">

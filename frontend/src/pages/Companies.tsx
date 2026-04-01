@@ -131,7 +131,7 @@ export function Companies() {
               const n = prompt("Notes (markdown):", company.notes || "");
               if (n !== null) updateField("notes", n);
             }} style={{ cursor: "text", minHeight: 40 }}>
-              {company.notes ? <Markdown remarkPlugins={[remarkGfm]}>{company.notes}</Markdown> : <span style={{ color: "var(--text-placeholder)" }}>Click to add notes...</span>}
+              {company.notes ? <Markdown remarkPlugins={[remarkGfm]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>{company.notes}</Markdown> : <span style={{ color: "var(--text-placeholder)" }}>Click to add notes...</span>}
             </div>
           </div>
         </div>

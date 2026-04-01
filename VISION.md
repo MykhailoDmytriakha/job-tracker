@@ -253,6 +253,15 @@ Documents currently store markdown text in DB. Need to support binary file attac
 
 **Decision (2026-03-31):** Auth deferred until deployment/second user. Reason: single user now, architecture already prepared (user_id on Project = one column), implementing auth now adds friction without value. When ready: email+password + Google OAuth + Apple in one pass.
 
+### Architecture: Document Chunk Editing (Agent-Friendly)
+To support autonomous AI agents editing large markdown documents without rewriting the entire file, the API needs a "patch" or text-replacement mechanism. This mirrors how agents edit code files locally.
+
+**Approach:**
+- `PATCH /api/documents/{id}/replace` endpoint for targeted text replacement.
+- **Exact Match:** `{ "target_content": "old", "replacement_content": "new" }` (Backend does standard substring replacement).
+- **Line-based:** `{ "start_line": 10, "end_line": 15, "replacement_content": "new text" }` (Backend slices by `\n`).
+- **Impact:** Significantly reduces API payload size, minimizes agent context/token usage, and prevents data loss from LLMs hallucinating parts of a large document during a full rewrite.
+
 ### Idea: Onboarding Starter Tasks
 When a new user creates an account, pre-populate their task list with a typical layoff/job-search action plan as a starting template. Examples:
 - Calculate finances (runway, severance, savings)
