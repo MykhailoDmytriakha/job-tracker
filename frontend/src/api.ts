@@ -342,8 +342,8 @@ export const tasksApi = {
     request<TaskFull>(`/tasks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   delete: (id: number, force = false) =>
     request<{ ok: boolean }>(`/tasks/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
-  addNote: (id: number, text: string) =>
-    request<{ ok: boolean }>(`/tasks/${id}/note`, {
+  addLog: (id: number, text: string) =>
+    request<{ ok: boolean }>(`/tasks/${id}/log`, {
       method: "POST",
       body: JSON.stringify({ text }),
     }),

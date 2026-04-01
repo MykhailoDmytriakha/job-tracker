@@ -127,7 +127,7 @@ export function Dashboard() {
           ) : (
             data.recurring.map((t) => (
               <RecurringCard key={t.id} task={t} onClick={() => goToTask(t.id)} onLogProgress={async (id) => {
-                await tasksApi.addNote(id, "Progress logged");
+                await tasksApi.addLog(id, "Progress logged");
                 if (project) dashboardApi.get(project.id).then(setData);
               }} />
             ))

@@ -455,8 +455,8 @@ def delete_task(
 # --- Notes ---
 
 
-@router.post("/{task_id}/note")
-def add_note(task_id: int, body: dict, db: Session = Depends(get_db)):
+@router.post("/{task_id}/log")
+def add_log(task_id: int, body: dict, db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")

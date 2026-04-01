@@ -240,10 +240,10 @@ export function TaskDetail({
     await updateField("status", newStatus);
   }
 
-  async function addNote(e: React.FormEvent) {
+  async function addLog(e: React.FormEvent) {
     e.preventDefault();
     if (!noteText.trim()) return;
-    await tasksApi.addNote(taskId, noteText.trim());
+    await tasksApi.addLog(taskId, noteText.trim());
     setNoteText("");
     load();
   }
@@ -422,7 +422,7 @@ export function TaskDetail({
                 task={task}
                 noteText={noteText}
                 setNoteText={setNoteText}
-                onAdd={addNote}
+                onAdd={addLog}
                 recurring
                 searchTerm={searchTerm}
               />
@@ -507,7 +507,7 @@ export function TaskDetail({
                 task={task}
                 noteText={noteText}
                 setNoteText={setNoteText}
-                onAdd={addNote}
+                onAdd={addLog}
                 searchTerm={searchTerm}
               />
             )}

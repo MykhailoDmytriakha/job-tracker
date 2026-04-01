@@ -282,6 +282,6 @@ class Activity(Base):
     )
     action = Column(String, nullable=False)
     detail = Column(Text, default="")
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     task = relationship("Task", back_populates="activities")

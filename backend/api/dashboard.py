@@ -60,8 +60,8 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
     recurring_tasks = []
 
     for t in active:
-        due_d = t.due_date.date() if t.due_date else None
-        follow_d = t.follow_up_date.date() if t.follow_up_date else None
+        due_d = t.due_date if t.due_date else None
+        follow_d = t.follow_up_date if t.follow_up_date else None
         earliest_d = due_d or follow_d
 
         # Recurring: separate column, sorted by last activity (stale first)
@@ -77,8 +77,8 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
             upcoming_tasks.append(t)
 
     _far = date_type(9999, 12, 31)
-    today_tasks.sort(key=lambda t: (t.due_date.date() if t.due_date else None) or (t.follow_up_date.date() if t.follow_up_date else None) or _far)
-    upcoming_tasks.sort(key=lambda t: (t.due_date.date() if t.due_date else None) or (t.follow_up_date.date() if t.follow_up_date else None) or _far)
+    today_tasks.sort(key=lambda t: t.due_date or t.follow_up_date or _far)
+    upcoming_tasks.sort(key=lambda t: t.due_date or t.follow_up_date or _far)
     # Recurring by last activity (stale first = no activity or oldest activity)
     def _staleness(t):
         la = _last_activity(t)
@@ -90,8 +90,8 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
     # Stats
     overdue_count = sum(
         1 for t in active if not t.is_recurring and (
-            (t.due_date and t.due_date.date() < today)
-            or (t.follow_up_date and t.follow_up_date.date() < today)
+            (t.due_date and t.due_date < today)
+            or (t.follow_up_date and t.follow_up_date < today)
         )
     )
     waiting_count = sum(1 for t in active if t.status == "waiting")
@@ -115,8 +115,7 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
                 return True
 
         # 3. Waiting but follow-up date already passed (missed check-in)
-        follow = _aware(t.follow_up_date)
-        if t.status == "waiting" and follow and follow < now:
+        if t.status == "waiting" and t.follow_up_date and t.follow_up_date < today:
             return True
 
         # 4. In-progress frozen for 14+ days

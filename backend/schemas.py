@@ -70,6 +70,23 @@ class ActivityOut(BaseModel):
         from_attributes = True
 
 
+class ActivityJournalItem(BaseModel):
+    id: int
+    task_id: int
+    task_title: str
+    action: str
+    detail: str
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ActivityJournalPage(BaseModel):
+    items: list[ActivityJournalItem]
+    total: int
+
+
 # --- Checklist ---
 
 
