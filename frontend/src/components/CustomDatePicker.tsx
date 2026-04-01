@@ -20,7 +20,12 @@ export function CustomDatePicker({
 }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
   
-  const initialDate = value ? new Date(value) : new Date();
+  // Parse date string as local (split YYYY-MM-DD to avoid UTC midnight offset)
+  const parseLocalDate = (s: string) => {
+    const [y, m, d] = s.split("T")[0].split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const initialDate = value ? parseLocalDate(value) : new Date();
   
   // 25-month runway around `baseDate`. 12 is center.
   const [baseDate, setBaseDate] = useState(() => new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
@@ -123,7 +128,7 @@ export function CustomDatePicker({
   const selectDay = (selYear: number, selMonth: number, day: number) => {
     const m = String(selMonth + 1).padStart(2, "0");
     const d = String(day).padStart(2, "0");
-    onSave(`${selYear}-${m}-${d}T00:00:00Z`);
+    onSave(`${selYear}-${m}-${d}`);
   };
 
   return createPortal(
@@ -199,7 +204,7 @@ export function CustomDatePicker({
                       const day = i + 1;
                       let isSelected = false;
                       if (value) {
-                        const vDate = new Date(value);
+                        const vDate = parseLocalDate(value);
                         if (
                           vDate.getFullYear() === mYear &&
                           vDate.getMonth() === mM &&
@@ -243,9 +248,9 @@ export function CustomDatePicker({
           onClick={(e) => {
             e.stopPropagation();
             const now = new Date();
-             const m = String(now.getMonth() + 1).padStart(2, "0");
-             const d = String(now.getDate()).padStart(2, "0");
-             onSave(`${now.getFullYear()}-${m}-${d}T00:00:00Z`);
+            const m = String(now.getMonth() + 1).padStart(2, "0");
+            const d = String(now.getDate()).padStart(2, "0");
+            onSave(`${now.getFullYear()}-${m}-${d}`);
           }}
           className="dp-btn dp-btn-today"
         >

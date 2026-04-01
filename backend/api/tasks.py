@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional
 
 from ..database import get_db
@@ -135,13 +135,14 @@ def list_tasks(
             .distinct()
         )
     if overdue:
-        now = datetime.now(timezone.utc)
+        today = date.today()
         query = query.filter(
             models.Task.status.notin_(["done", "closed"]),
-            (models.Task.due_date < now) | (models.Task.follow_up_date < now),
+            (models.Task.due_date < today) | (models.Task.follow_up_date < today),
         )
     if attention:
         now_a = datetime.now(timezone.utc)
+        today = date.today()
         tasks_raw = query.filter(
             models.Task.status.notin_(["done", "closed"])
         ).order_by(models.Task.created_at.desc()).all()
@@ -171,9 +172,8 @@ def list_tasks(
                     return True
 
             # 3. Waiting but follow-up date already passed (missed check-in)
-            # Compare dates only — follow-up is overdue when the day has fully passed
-            follow = _aware(t.follow_up_date)
-            if t.status == "waiting" and follow and follow.date() < now_a.date():
+            # Compare local dates — overdue only when the follow-up day has fully passed
+            if t.status == "waiting" and t.follow_up_date and t.follow_up_date < today:
                 return True
 
             # 4. In-progress frozen for 14+ days

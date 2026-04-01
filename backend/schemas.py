@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 
 
@@ -361,15 +361,15 @@ class TaskCreate(BaseModel):
     category: Optional[str] = None
     stage_id: Optional[int] = None
     parent_id: Optional[int] = None
-    follow_up_date: Optional[datetime] = None
-    due_date: Optional[datetime] = None
+    follow_up_date: Optional[date] = None
+    due_date: Optional[date] = None
     is_recurring: bool = False
     cadence: Optional[str] = None
-    next_checkpoint: Optional[datetime] = None
+    next_checkpoint: Optional[date] = None
     pipeline_heat: Optional[str] = None
     lead_source: Optional[str] = None
     posting_url: Optional[str] = None
-    applied_at: Optional[datetime] = None
+    applied_at: Optional[date] = None
     compensation: Optional[str] = None
     outreach_status: Optional[str] = None
     close_reason: Optional[str] = None
@@ -383,15 +383,15 @@ class TaskUpdate(BaseModel):
     category: Optional[str] = None
     stage_id: Optional[int] = None
     parent_id: Optional[int] = None
-    follow_up_date: Optional[datetime] = None
-    due_date: Optional[datetime] = None
+    follow_up_date: Optional[date] = None
+    due_date: Optional[date] = None
     is_recurring: Optional[bool] = None
     cadence: Optional[str] = None
-    next_checkpoint: Optional[datetime] = None
+    next_checkpoint: Optional[date] = None
     pipeline_heat: Optional[str] = None
     lead_source: Optional[str] = None
     posting_url: Optional[str] = None
-    applied_at: Optional[datetime] = None
+    applied_at: Optional[date] = None
     compensation: Optional[str] = None
     outreach_status: Optional[str] = None
     close_reason: Optional[str] = None
@@ -407,15 +407,15 @@ class TaskBrief(BaseModel):
     category: Optional[str] = None
     stage_id: Optional[int] = None
     parent_id: Optional[int] = None
-    follow_up_date: Optional[datetime] = None
-    due_date: Optional[datetime] = None
+    follow_up_date: Optional[date] = None
+    due_date: Optional[date] = None
     is_recurring: bool = False
     cadence: Optional[str] = None
-    next_checkpoint: Optional[datetime] = None
+    next_checkpoint: Optional[date] = None
     pipeline_heat: Optional[str] = None
     lead_source: Optional[str] = None
     posting_url: Optional[str] = None
-    applied_at: Optional[datetime] = None
+    applied_at: Optional[date] = None
     compensation: Optional[str] = None
     outreach_status: Optional[str] = None
     close_reason: Optional[str] = None
@@ -441,15 +441,15 @@ class TaskOut(BaseModel):  # noqa: F811
     category: Optional[str] = None
     stage_id: Optional[int] = None
     parent_id: Optional[int] = None
-    follow_up_date: Optional[datetime] = None
-    due_date: Optional[datetime] = None
+    follow_up_date: Optional[date] = None
+    due_date: Optional[date] = None
     is_recurring: bool = False
     cadence: Optional[str] = None
-    next_checkpoint: Optional[datetime] = None
+    next_checkpoint: Optional[date] = None
     pipeline_heat: Optional[str] = None
     lead_source: Optional[str] = None
     posting_url: Optional[str] = None
-    applied_at: Optional[datetime] = None
+    applied_at: Optional[date] = None
     compensation: Optional[str] = None
     outreach_status: Optional[str] = None
     close_reason: Optional[str] = None

@@ -20,6 +20,16 @@ def run_migrations(engine):
                 conn.execute(text("ALTER TABLE contacts ADD COLUMN company_id INTEGER REFERENCES companies(id)"))
 
     if "tasks" in tables:
+        # Normalize date-only columns: strip time component from any datetime strings
+        # (e.g. "2026-04-01 00:00:00.000000" → "2026-04-01") so SQLAlchemy Date type can parse them
+        date_columns = ["follow_up_date", "due_date", "next_checkpoint", "applied_at"]
+        with engine.begin() as conn:
+            for col in date_columns:
+                conn.execute(text(
+                    f"UPDATE tasks SET {col} = substr({col}, 1, 10)"
+                    f" WHERE {col} IS NOT NULL AND length({col}) > 10"
+                ))
+
         existing = {col["name"] for col in inspector.get_columns("tasks")}
         migrations = [
             ("category", "TEXT"),

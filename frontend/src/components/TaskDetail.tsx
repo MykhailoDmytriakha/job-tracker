@@ -17,8 +17,14 @@ const STATUS_OPTIONS = ["open", "in_progress", "waiting", "done", "closed"];
 const PRIORITY_OPTIONS = ["high", "medium", "low"];
 const CADENCE_DAYS: Record<string, number> = { daily: 1, weekly: 7, biweekly: 14, monthly: 30 };
 
-/** Parse API datetime strings as UTC (backend stores naive datetimes treated as UTC via _aware()). */
-function parseUtc(s: string | null): Date | null {
+/** Parse date-only strings (YYYY-MM-DD) as local midnight — no timezone ambiguity. */
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split("T")[0].split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Parse datetime strings from API as UTC (activity timestamps etc). */
+function parseUtcDatetime(s: string | null): Date | null {
   if (!s) return null;
   const normalized = s.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(s) ? s : s + "Z";
   return new Date(normalized);
@@ -28,7 +34,7 @@ function parseUtc(s: string | null): Date | null {
 function getAttentionReasons(task: TaskFull): string[] {
   const now = new Date();
   const reasons: string[] = [];
-  const la = parseUtc(task.last_activity_at);
+  const la = parseUtcDatetime(task.last_activity_at);
   const daysInactive = la ? Math.floor((now.getTime() - la.getTime()) / 86400000) : 9999;
   const isDone = task.status === "done" || task.status === "closed";
   if (isDone) return [];
@@ -43,10 +49,9 @@ function getAttentionReasons(task: TaskFull): string[] {
   }
 
   if (task.status === "waiting" && task.follow_up_date) {
-    const followDay = parseUtc(task.follow_up_date)!;
-    // Compare dates only (UTC) — overdue only when the day has fully passed
-    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    if (followDay < todayUtc)
+    // Local today at midnight — matches backend date.today()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (parseLocalDate(task.follow_up_date) < today)
       reasons.push("Follow-up date has passed — check-in is overdue");
   }
 
@@ -60,7 +65,7 @@ function getAttentionReasons(task: TaskFull): string[] {
     reasons.push(`Blocked with no movement for ${daysInactive} days`);
 
   if (task.status === "open") {
-    const ageDays = Math.floor((now.getTime() - parseUtc(task.created_at)!.getTime()) / 86400000);
+    const ageDays = Math.floor((now.getTime() - parseUtcDatetime(task.created_at)!.getTime()) / 86400000);
     const hasRealActivity = task.activities?.some(a => a.action !== "created");
     if (ageDays >= 10 && !hasRealActivity)
       reasons.push(`Created ${ageDays} days ago but never updated`);
@@ -156,7 +161,7 @@ function linkifyTaskRefs(text: string, onClick: (id: number) => void): React.Rea
 
 function formatDate(d: string | null): string {
   if (!d) return "";
-  return new Date(d).toLocaleDateString();
+  return parseLocalDate(d).toLocaleDateString();
 }
 
 
