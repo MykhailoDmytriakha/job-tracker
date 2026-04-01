@@ -6,7 +6,7 @@ from ..output import print_json, print_error, filter_fields, brief_task
 # ---------- key=value parser ----------
 
 _INT_FIELDS = {
-    "stage_id", "parent_id", "project_id",
+    "stage_id", "parent_id", "project_id", "position",
 }
 _BOOL_FIELDS = {
     "is_recurring", "is_blocked",
@@ -154,10 +154,14 @@ def up_cmd(ctx, task_id, kvs):
       jt up 180 status=done
       jt up 180 stage_id=4 pipeline_heat=hot
       jt up 180 follow_up_date=2026-04-15 status=waiting
+      jt up 180 description="..." note="Changed Next Step from X to Y"
     """
     client = ctx.obj["client"]
     body = parse_kvs(kvs)
+    note_text = body.pop("note", None)
     data = client.put(f"/api/tasks/{task_id}", json=body)
+    if note_text:
+        client.post(f"/api/tasks/{task_id}/log", json={"text": note_text})
     print_json(data)
 
 

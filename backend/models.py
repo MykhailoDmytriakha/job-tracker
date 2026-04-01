@@ -172,6 +172,12 @@ class Task(Base):
         order_by="ChecklistItem.position",
         cascade="all, delete-orphan",
     )
+    meetings = relationship(
+        "Meeting",
+        back_populates="task",
+        order_by="Meeting.position",
+        cascade="all, delete-orphan",
+    )
     documents = relationship("Document", secondary=task_documents, back_populates="tasks")
     contacts = relationship("Contact", secondary=task_contacts, back_populates="tasks")
     companies = relationship("Company", secondary=task_companies, back_populates="tasks")
@@ -271,6 +277,32 @@ class SubtaskItem(Base):
     position = Column(Integer, default=0)
 
     task = relationship("Task", back_populates="subtask_items")
+
+
+class Meeting(Base):
+    __tablename__ = "meetings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    meeting_type = Column(String, nullable=False)  # phone_screen | technical | behavioral | panel | onsite | other
+    scheduled_at = Column(DateTime, nullable=True)
+    interviewer = Column(String, nullable=True)
+    platform = Column(String, nullable=True)  # teams | zoom | phone | onsite | other
+    join_url = Column(String, nullable=True)
+    status = Column(String, default="scheduled")  # scheduled | completed | cancelled | rescheduled | no_show
+    result = Column(String, nullable=True)  # passed | failed | pending | unknown
+    brief_doc_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    notes_doc_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    notes = Column(Text, nullable=True)
+    position = Column(Integer, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    task = relationship("Task", back_populates="meetings")
 
 
 class Activity(Base):

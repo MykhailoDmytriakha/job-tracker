@@ -38,16 +38,15 @@ def make_entity_group(
         task_link_body_key: Body key when linking to task (e.g. "contact_id")
     """
 
-    @click.group(name)
+    @click.group(name, help=f"Manage {name}s (ls / get / new / up / del).")
     def group():
         pass
 
     # -- ls --
-    @group.command("ls")
+    @group.command("ls", help=f"List {name}s.")
     @click.option("--search", "q", default=None, help="Search query")
     @click.pass_context
     def ls_cmd(ctx, q):
-        f"""List {name}s."""
         client = ctx.obj["client"]
         params = {}
         if q:
@@ -56,28 +55,26 @@ def make_entity_group(
         print_json(data)
 
     # -- get --
-    @group.command("get")
+    @group.command("get", help=f"Get full {name} detail.")
     @click.argument("entity_id", type=int)
     @click.pass_context
     def get_cmd(ctx, entity_id):
-        f"""Get full {name} detail."""
         client = ctx.obj["client"]
         data = client.get(f"{api_prefix}/{entity_id}")
         print_json(data)
 
     # -- new --
-    @group.command("new")
+    new_examples = (
+        f"Examples:\n"
+        f"  jt {name} new name=\"John Smith\" role=\"Recruiter\"\n"
+        f"  jt {name} new name=\"HCSC\" domain=\"healthcare\" --link-task=180"
+    )
+
+    @group.command("new", help=f"Create a new {name}. Fields via key=value pairs.", epilog=new_examples)
     @click.argument("kvs", nargs=-1, required=True)
     @click.option("--link-task", type=int, default=None, help="Link to task by ID")
     @click.pass_context
     def new_cmd(ctx, kvs, link_task):
-        f"""Create a new {name}. Fields via key=value pairs.
-
-        \b
-        Examples:
-          jt {name} new name="John Smith" role="Recruiter" company="HCSC"
-          jt {name} new name="HCSC" domain="healthcare" --link-task=180
-        """
         client = ctx.obj["client"]
         body = _parse_kvs(kvs)
         entity = client.post(f"{api_prefix}/", json=body)
@@ -93,28 +90,23 @@ def make_entity_group(
         print_json(entity)
 
     # -- up --
-    @group.command("up")
+    up_example = f"Example:\n  jt {name} up 31 email=\"john@example.com\" notes=\"Met at conference\""
+
+    @group.command("up", help=f"Update {name} fields.", epilog=up_example)
     @click.argument("entity_id", type=int)
     @click.argument("kvs", nargs=-1, required=True)
     @click.pass_context
     def up_cmd(ctx, entity_id, kvs):
-        f"""Update {name} fields.
-
-        \b
-        Example:
-          jt {name} up 31 email="john@hcsc.com" notes="Met at conference"
-        """
         client = ctx.obj["client"]
         body = _parse_kvs(kvs)
         data = client.put(f"{api_prefix}/{entity_id}", json=body)
         print_json(data)
 
     # -- del --
-    @group.command("del")
+    @group.command("del", help=f"Delete a {name}.")
     @click.argument("entity_id", type=int)
     @click.pass_context
     def del_cmd(ctx, entity_id):
-        f"""Delete a {name}."""
         client = ctx.obj["client"]
         data = client.delete(f"{api_prefix}/{entity_id}")
         print_json(data)

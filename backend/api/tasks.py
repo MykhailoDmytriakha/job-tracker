@@ -340,7 +340,8 @@ def update_task(
         )
 
     if "description" in changes and changes["description"] != db_task.description:
-        log_activity(db, task_id, "description_updated", "Description updated")
+        old_desc = db_task.description or ""
+        log_activity(db, task_id, "description_updated", f"[old]\n{old_desc}")
 
     if "category" in changes and changes["category"] != db_task.category:
         log_activity(
@@ -857,6 +858,8 @@ def _brief(t: models.Task, is_blocked: bool = False) -> schemas.TaskBrief:
         subtask_done=sum(1 for s in t.subtask_items if s.is_done),
         checklist_total=len(t.checklist_items),
         checklist_done=sum(1 for c in t.checklist_items if c.is_done),
+        meetings_total=len(t.meetings),
+        meetings_upcoming=sum(1 for m in t.meetings if m.status == "scheduled"),
         last_activity_at=_last_activity(t),
     )
 
@@ -891,7 +894,20 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
         subtask_done=sum(1 for s in t.subtask_items if s.is_done),
         checklist_total=len(t.checklist_items),
         checklist_done=sum(1 for c in t.checklist_items if c.is_done),
+        meetings_total=len(t.meetings),
+        meetings_upcoming=sum(1 for m in t.meetings if m.status == "scheduled"),
         last_activity_at=_last_activity(t),
+        meetings=[
+            schemas.MeetingOut(
+                id=m.id, task_id=m.task_id, meeting_type=m.meeting_type,
+                scheduled_at=m.scheduled_at, interviewer=m.interviewer,
+                platform=m.platform, join_url=m.join_url, status=m.status,
+                result=m.result, brief_doc_id=m.brief_doc_id,
+                notes_doc_id=m.notes_doc_id, notes=m.notes,
+                position=m.position, created_at=m.created_at, updated_at=m.updated_at,
+            )
+            for m in t.meetings
+        ],
         subtask_items=[
             schemas.SubtaskItemOut(
                 id=s.id, task_id=s.task_id, title=s.title,
@@ -993,4 +1009,71 @@ def delete_subtask_item(task_id: int, item_id: int, db: Session = Depends(get_db
         raise HTTPException(status_code=404, detail="Subtask item not found")
     db.delete(db_item)
     db.commit()
+    return {"ok": True}
+
+
+# --- Meetings ---
+
+
+@router.post("/{task_id}/meetings", response_model=schemas.MeetingOut, status_code=201)
+def add_meeting(task_id: int, meeting: schemas.MeetingCreate, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    max_pos = max((m.position for m in task.meetings), default=-1)
+    db_meeting = models.Meeting(
+        task_id=task_id,
+        meeting_type=meeting.meeting_type,
+        scheduled_at=meeting.scheduled_at,
+        interviewer=meeting.interviewer,
+        platform=meeting.platform,
+        join_url=meeting.join_url,
+        status=meeting.status,
+        result=meeting.result,
+        brief_doc_id=meeting.brief_doc_id,
+        notes_doc_id=meeting.notes_doc_id,
+        notes=meeting.notes,
+        position=max_pos + 1,
+    )
+    db.add(db_meeting)
+    db.commit()
+    db.refresh(db_meeting)
+    log_activity(db, task_id, "meeting_added", f"type={meeting.meeting_type} status={meeting.status}")
+    return db_meeting
+
+
+@router.get("/{task_id}/meetings", response_model=list[schemas.MeetingOut])
+def list_meetings(task_id: int, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task.meetings
+
+
+@router.put("/{task_id}/meetings/{meeting_id}", response_model=schemas.MeetingOut)
+def update_meeting(task_id: int, meeting_id: int, meeting: schemas.MeetingUpdate, db: Session = Depends(get_db)):
+    db_meeting = db.query(models.Meeting).filter(
+        models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
+    ).first()
+    if not db_meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    for field, value in meeting.model_dump(exclude_unset=True).items():
+        setattr(db_meeting, field, value)
+    db.commit()
+    db.refresh(db_meeting)
+    log_activity(db, task_id, "meeting_updated", f"meeting_id={meeting_id}")
+    return db_meeting
+
+
+@router.delete("/{task_id}/meetings/{meeting_id}")
+def delete_meeting(task_id: int, meeting_id: int, db: Session = Depends(get_db)):
+    db_meeting = db.query(models.Meeting).filter(
+        models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
+    ).first()
+    if not db_meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    mtype = db_meeting.meeting_type
+    db.delete(db_meeting)
+    db.commit()
+    log_activity(db, task_id, "meeting_deleted", f"meeting_id={meeting_id} type={mtype}")
     return {"ok": True}

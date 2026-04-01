@@ -9,6 +9,7 @@ import { highlight } from "../utils/highlight";
 import { HintBubble } from "./HintBubble";
 import { ChecklistSection } from "./ChecklistSection";
 import { DependencySection } from "./DependencySection";
+import { MeetingSection } from "./MeetingSection";
 import { ConfirmModal } from "./ConfirmModal";
 import { SubtaskItem } from "./SubtaskItem";
 import { CustomDatePicker } from "./CustomDatePicker";
@@ -455,6 +456,14 @@ export function TaskDetail({
                 </div>
               )}
             </div>
+
+            {/* Meetings */}
+            <MeetingSection
+              taskId={taskId}
+              projectId={task.project_id}
+              meetings={task.meetings ?? []}
+              onUpdate={load}
+            />
 
             {/* Dependencies */}
             <DependencySection

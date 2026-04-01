@@ -14,6 +14,7 @@ from .commands.search import find_cmd
 from .commands.journal import log_cmd
 from .commands.entity import contact_group, company_group, doc_group
 from .commands.checklist import check_group, sub_group
+from .commands.meeting import meeting_group
 
 
 @click.group()
@@ -79,6 +80,9 @@ cli.add_command(doc_group, "doc")
 # Checklist and subtask items
 cli.add_command(check_group, "check")
 cli.add_command(sub_group, "sub")
+
+# Meetings
+cli.add_command(meeting_group, "meeting")
 
 
 if __name__ == "__main__":

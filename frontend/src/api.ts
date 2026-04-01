@@ -60,6 +60,8 @@ export interface TaskBrief {
   subtask_done: number;
   checklist_total: number;
   checklist_done: number;
+  meetings_total: number;
+  meetings_upcoming: number;
   last_activity_at: string | null;
 }
 
@@ -95,8 +97,29 @@ export interface SubtaskItem {
   position: number;
 }
 
+export interface Meeting {
+  id: number;
+  task_id: number;
+  meeting_type: string;
+  scheduled_at: string | null;
+  interviewer: string | null;
+  platform: string | null;
+  join_url: string | null;
+  status: string;
+  result: string | null;
+  brief_doc_id: number | null;
+  notes_doc_id: number | null;
+  notes: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TaskFull extends TaskBrief {
   description: string;
+  meetings: Meeting[];
+  meetings_total: number;
+  meetings_upcoming: number;
   created_at: string;
   updated_at: string;
   subtask_items: SubtaskItem[];
@@ -397,6 +420,27 @@ export const tasksApi = {
     }),
   deleteChecklistItem: (taskId: number, itemId: number) =>
     request<{ ok: boolean }>(`/tasks/${taskId}/checklist/${itemId}`, {
+      method: "DELETE",
+    }),
+};
+
+// --- Meetings ---
+
+export const meetingsApi = {
+  list: (taskId: number) =>
+    request<Meeting[]>(`/tasks/${taskId}/meetings`),
+  add: (taskId: number, data: Partial<Meeting>) =>
+    request<Meeting>(`/tasks/${taskId}/meetings`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (taskId: number, meetingId: number, data: Partial<Meeting>) =>
+    request<Meeting>(`/tasks/${taskId}/meetings/${meetingId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  delete: (taskId: number, meetingId: number) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/meetings/${meetingId}`, {
       method: "DELETE",
     }),
 };

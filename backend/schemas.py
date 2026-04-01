@@ -140,6 +140,58 @@ class SubtaskItemOut(BaseModel):
         from_attributes = True
 
 
+# --- Meeting ---
+
+
+class MeetingCreate(BaseModel):
+    meeting_type: str
+    scheduled_at: Optional[datetime] = None
+    interviewer: Optional[str] = None
+    platform: Optional[str] = None
+    join_url: Optional[str] = None
+    status: str = "scheduled"
+    result: Optional[str] = None
+    brief_doc_id: Optional[int] = None
+    notes_doc_id: Optional[int] = None
+    notes: Optional[str] = None
+    position: int = 0
+
+
+class MeetingUpdate(BaseModel):
+    meeting_type: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    interviewer: Optional[str] = None
+    platform: Optional[str] = None
+    join_url: Optional[str] = None
+    status: Optional[str] = None
+    result: Optional[str] = None
+    brief_doc_id: Optional[int] = None
+    notes_doc_id: Optional[int] = None
+    notes: Optional[str] = None
+    position: Optional[int] = None
+
+
+class MeetingOut(BaseModel):
+    id: int
+    task_id: int
+    meeting_type: str
+    scheduled_at: Optional[datetime] = None
+    interviewer: Optional[str] = None
+    platform: Optional[str] = None
+    join_url: Optional[str] = None
+    status: str
+    result: Optional[str] = None
+    brief_doc_id: Optional[int] = None
+    notes_doc_id: Optional[int] = None
+    notes: Optional[str] = None
+    position: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- Dependency ---
 
 
@@ -441,6 +493,8 @@ class TaskBrief(BaseModel):
     subtask_done: int = 0
     checklist_total: int = 0
     checklist_done: int = 0
+    meetings_total: int = 0
+    meetings_upcoming: int = 0
     last_activity_at: Optional[datetime] = None
 
     class Config:
@@ -453,6 +507,7 @@ class TaskOut(BaseModel):  # noqa: F811
     project_id: int = 0
     title: str
     description: str
+    meetings: list[MeetingOut] = []
     status: str
     priority: str
     category: Optional[str] = None
@@ -477,6 +532,8 @@ class TaskOut(BaseModel):  # noqa: F811
     subtask_done: int = 0
     checklist_total: int = 0
     checklist_done: int = 0
+    meetings_total: int = 0
+    meetings_upcoming: int = 0
     last_activity_at: Optional[datetime] = None
     subtask_items: list[SubtaskItemOut] = []
     activities: list[ActivityOut] = []
