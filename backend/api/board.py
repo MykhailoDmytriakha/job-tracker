@@ -69,8 +69,8 @@ def get_board(project_id: Optional[int] = None, db: Session = Depends(get_db)):
                         outreach_status=t.outreach_status,
                         close_reason=t.close_reason,
                         is_blocked=t.id in blocked_ids,
-                        subtask_count=len(t.subtasks),
-                        subtask_done=sum(1 for s in t.subtasks if s.status == "done"),
+                        subtask_count=len(t.subtask_items),
+                        subtask_done=sum(1 for s in t.subtask_items if s.is_done),
                         checklist_total=len(t.checklist_items),
                         checklist_done=sum(1 for c in t.checklist_items if c.is_done),
                     )

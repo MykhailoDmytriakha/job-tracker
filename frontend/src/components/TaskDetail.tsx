@@ -17,11 +17,18 @@ const STATUS_OPTIONS = ["open", "in_progress", "waiting", "done", "closed"];
 const PRIORITY_OPTIONS = ["high", "medium", "low"];
 const CADENCE_DAYS: Record<string, number> = { daily: 1, weekly: 7, biweekly: 14, monthly: 30 };
 
+/** Parse API datetime strings as UTC (backend stores naive datetimes treated as UTC via _aware()). */
+function parseUtc(s: string | null): Date | null {
+  if (!s) return null;
+  const normalized = s.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(s) ? s : s + "Z";
+  return new Date(normalized);
+}
+
 /** Compute specific attention reasons for a task. Mirrors backend _needs_attention logic. */
 function getAttentionReasons(task: TaskFull): string[] {
   const now = new Date();
   const reasons: string[] = [];
-  const la = task.last_activity_at ? new Date(task.last_activity_at) : null;
+  const la = parseUtc(task.last_activity_at);
   const daysInactive = la ? Math.floor((now.getTime() - la.getTime()) / 86400000) : 9999;
   const isDone = task.status === "done" || task.status === "closed";
   if (isDone) return [];
@@ -35,8 +42,13 @@ function getAttentionReasons(task: TaskFull): string[] {
       reasons.push(`Stale recurring — no activity for ${daysInactive}d (cadence: ${task.cadence ?? "daily"}, threshold: ${days * 3}d)`);
   }
 
-  if (task.status === "waiting" && task.follow_up_date && new Date(task.follow_up_date) < now)
-    reasons.push("Follow-up date has passed — check-in is overdue");
+  if (task.status === "waiting" && task.follow_up_date) {
+    const followDay = parseUtc(task.follow_up_date)!;
+    // Compare dates only (UTC) — overdue only when the day has fully passed
+    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    if (followDay < todayUtc)
+      reasons.push("Follow-up date has passed — check-in is overdue");
+  }
 
   if (task.status === "in_progress" && daysInactive >= 14)
     reasons.push(`In-progress but no activity for ${daysInactive} days — might be stuck`);
@@ -48,7 +60,7 @@ function getAttentionReasons(task: TaskFull): string[] {
     reasons.push(`Blocked with no movement for ${daysInactive} days`);
 
   if (task.status === "open") {
-    const ageDays = Math.floor((now.getTime() - new Date(task.created_at).getTime()) / 86400000);
+    const ageDays = Math.floor((now.getTime() - parseUtc(task.created_at)!.getTime()) / 86400000);
     const hasRealActivity = task.activities?.some(a => a.action !== "created");
     if (ageDays >= 10 && !hasRealActivity)
       reasons.push(`Created ${ageDays} days ago but never updated`);
@@ -234,10 +246,7 @@ export function TaskDetail({
   async function addSubtask(e: React.FormEvent) {
     e.preventDefault();
     if (!subtaskTitle.trim()) return;
-    await tasksApi.create({
-      title: subtaskTitle.trim(),
-      parent_id: taskId,
-    } as any, task!.project_id);
+    await tasksApi.addSubtaskItem(taskId, subtaskTitle.trim());
     setSubtaskTitle("");
     load();
     onUpdate();
@@ -474,8 +483,8 @@ export function TaskDetail({
                 </div>
               )}
               <div className="detail-subtasks">
-                {task.subtasks.map((s) => (
-                  <SubtaskItem key={s.id} subtask={s} onUpdate={() => { load(); onUpdate(); }} />
+                {task.subtask_items.map((s) => (
+                  <SubtaskItem key={s.id} taskId={taskId} item={s} onUpdate={() => { load(); onUpdate(); }} />
                 ))}
               </div>
               <form className="checklist-add" onSubmit={addSubtask}>

@@ -95,6 +95,34 @@ class ChecklistItemOut(BaseModel):
         from_attributes = True
 
 
+# --- SubtaskItem ---
+
+
+class SubtaskItemCreate(BaseModel):
+    title: str
+    description: str = ""
+    position: int = 0
+
+
+class SubtaskItemUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    is_done: Optional[bool] = None
+    position: Optional[int] = None
+
+
+class SubtaskItemOut(BaseModel):
+    id: int
+    task_id: int
+    title: str
+    description: str
+    is_done: bool
+    position: int
+
+    class Config:
+        from_attributes = True
+
+
 # --- Dependency ---
 
 
@@ -402,7 +430,7 @@ class TaskBrief(BaseModel):
         from_attributes = True
 
 
-class TaskOut(BaseModel):
+class TaskOut(BaseModel):  # noqa: F811
     id: int
     display_id: str = ""
     project_id: int = 0
@@ -433,7 +461,7 @@ class TaskOut(BaseModel):
     checklist_total: int = 0
     checklist_done: int = 0
     last_activity_at: Optional[datetime] = None
-    subtasks: list["TaskBrief"] = []
+    subtask_items: list[SubtaskItemOut] = []
     activities: list[ActivityOut] = []
     checklist_items: list[ChecklistItemOut] = []
     blocked_by: list[TaskDependencyBrief] = []

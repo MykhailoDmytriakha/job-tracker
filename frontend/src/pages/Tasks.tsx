@@ -75,8 +75,12 @@ export function Tasks() {
 
   const load = useCallback(() => {
     if (!project) return;
-    const params: Record<string, string> = { root_only: "true", project_id: String(project.id) };
-    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+    const params: Record<string, string> = { project_id: String(project.id) };
+    if (debouncedSearch.trim()) {
+      params.search = debouncedSearch.trim();
+    } else {
+      params.root_only = "true";
+    }
     if (statusFilter) params.status = statusFilter;
     if (specialFilter === "overdue") params.overdue = "true";
     if (specialFilter === "recurring") params.is_recurring = "true";

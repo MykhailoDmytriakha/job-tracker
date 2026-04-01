@@ -156,7 +156,12 @@ class Task(Base):
 
     project = relationship("Project", back_populates="tasks")
     stage = relationship("Stage", back_populates="tasks")
-    parent = relationship("Task", remote_side=[id], backref="subtasks")
+    subtask_items = relationship(
+        "SubtaskItem",
+        back_populates="task",
+        order_by="SubtaskItem.position",
+        cascade="all, delete-orphan",
+    )
     activities = relationship(
         "Activity", back_populates="task", order_by="Activity.timestamp.desc()",
         cascade="all, delete-orphan",
@@ -253,6 +258,19 @@ class ChecklistItem(Base):
     position = Column(Integer, default=0)
 
     task = relationship("Task", back_populates="checklist_items")
+
+
+class SubtaskItem(Base):
+    __tablename__ = "subtask_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, default="")
+    is_done = Column(Boolean, default=False)
+    position = Column(Integer, default=0)
+
+    task = relationship("Task", back_populates="subtask_items")
 
 
 class Activity(Base):

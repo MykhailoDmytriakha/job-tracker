@@ -171,8 +171,9 @@ def list_tasks(
                     return True
 
             # 3. Waiting but follow-up date already passed (missed check-in)
+            # Compare dates only — follow-up is overdue when the day has fully passed
             follow = _aware(t.follow_up_date)
-            if t.status == "waiting" and follow and follow < now_a:
+            if t.status == "waiting" and follow and follow.date() < now_a.date():
                 return True
 
             # 4. In-progress frozen for 14+ days
@@ -259,10 +260,6 @@ def create_task(
     db.commit()
     db.refresh(db_task)
     log_activity(db, db_task.id, "created", f"Task created: {db_task.title}")
-    if db_task.parent_id:
-        log_activity(
-            db, db_task.parent_id, "subtask_added", f"Subtask added: {db_task.title}"
-        )
     db.commit()
     db.refresh(db_task)
     return _full(db_task, False)
@@ -301,10 +298,10 @@ def update_task(
                 detail=f"Complete {names} first, then you can close this task",
             )
 
-        # Open subtasks
-        open_subs = [s for s in db_task.subtasks if s.status not in ("done", "closed")]
+        # Open subtask items
+        open_subs = [s for s in db_task.subtask_items if not s.is_done]
         if open_subs:
-            names = ", ".join(f"#{s.id} {s.title}" for s in open_subs[:3])
+            names = ", ".join(s.title for s in open_subs[:3])
             remaining = f" and {len(open_subs) - 3} more" if len(open_subs) > 3 else ""
             raise HTTPException(
                 status_code=409,
@@ -448,9 +445,7 @@ def delete_task(
     # Clear and delete
     db_task.blocked_by.clear()
     db_task.blocks.clear()
-    for sub in list(db_task.subtasks):
-        sub.blocked_by.clear()
-        sub.blocks.clear()
+    for sub in list(db_task.subtask_items):
         db.delete(sub)
     db.delete(db_task)
     db.commit()
@@ -858,8 +853,8 @@ def _brief(t: models.Task, is_blocked: bool = False) -> schemas.TaskBrief:
         outreach_status=t.outreach_status,
         close_reason=t.close_reason,
         is_blocked=is_blocked,
-        subtask_count=len(t.subtasks),
-        subtask_done=sum(1 for s in t.subtasks if s.status == "done"),
+        subtask_count=len(t.subtask_items),
+        subtask_done=sum(1 for s in t.subtask_items if s.is_done),
         checklist_total=len(t.checklist_items),
         checklist_done=sum(1 for c in t.checklist_items if c.is_done),
         last_activity_at=_last_activity(t),
@@ -877,7 +872,6 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
         priority=t.priority,
         category=t.category,
         stage_id=t.stage_id,
-        parent_id=t.parent_id,
         follow_up_date=t.follow_up_date,
         due_date=t.due_date,
         is_recurring=t.is_recurring,
@@ -893,12 +887,18 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
         is_blocked=is_blocked,
         created_at=t.created_at,
         updated_at=t.updated_at,
-        subtask_count=len(t.subtasks),
-        subtask_done=sum(1 for s in t.subtasks if s.status == "done"),
+        subtask_count=len(t.subtask_items),
+        subtask_done=sum(1 for s in t.subtask_items if s.is_done),
         checklist_total=len(t.checklist_items),
         checklist_done=sum(1 for c in t.checklist_items if c.is_done),
         last_activity_at=_last_activity(t),
-        subtasks=[_brief(s) for s in t.subtasks],
+        subtask_items=[
+            schemas.SubtaskItemOut(
+                id=s.id, task_id=s.task_id, title=s.title,
+                description=s.description, is_done=s.is_done, position=s.position,
+            )
+            for s in t.subtask_items
+        ],
         activities=[
             schemas.ActivityOut(
                 id=a.id, task_id=a.task_id, action=a.action,
@@ -947,3 +947,50 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
             for co in t.companies
         ],
     )
+
+
+# --- Subtask Items ---
+
+
+@router.post("/{task_id}/subtask-items", response_model=schemas.SubtaskItemOut, status_code=201)
+def add_subtask_item(task_id: int, item: schemas.SubtaskItemCreate, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    max_pos = max((s.position for s in task.subtask_items), default=-1)
+    db_item = models.SubtaskItem(
+        task_id=task_id,
+        title=item.title,
+        description=item.description,
+        position=max_pos + 1,
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+@router.put("/{task_id}/subtask-items/{item_id}", response_model=schemas.SubtaskItemOut)
+def update_subtask_item(task_id: int, item_id: int, item: schemas.SubtaskItemUpdate, db: Session = Depends(get_db)):
+    db_item = db.query(models.SubtaskItem).filter(
+        models.SubtaskItem.id == item_id, models.SubtaskItem.task_id == task_id
+    ).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Subtask item not found")
+    for field, value in item.model_dump(exclude_unset=True).items():
+        setattr(db_item, field, value)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+@router.delete("/{task_id}/subtask-items/{item_id}")
+def delete_subtask_item(task_id: int, item_id: int, db: Session = Depends(get_db)):
+    db_item = db.query(models.SubtaskItem).filter(
+        models.SubtaskItem.id == item_id, models.SubtaskItem.task_id == task_id
+    ).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Subtask item not found")
+    db.delete(db_item)
+    db.commit()
+    return {"ok": True}

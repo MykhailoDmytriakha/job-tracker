@@ -62,7 +62,9 @@ export function Card({ task, onSelect }: { task: TaskBrief; onSelect?: (id: numb
           }}
         />
         <div className="card-body">
-          <div className="card-title">{task.title}</div>
+          <div className="card-title">
+            <span className="card-task-id">{task.display_id}</span>{" "}{task.title}
+          </div>
           <div className="card-meta">
             {task.category && (
               <span className="badge badge-category">{task.category}</span>

@@ -86,11 +86,20 @@ export interface TaskDependencyBrief {
   display_id: string;
 }
 
+export interface SubtaskItem {
+  id: number;
+  task_id: number;
+  title: string;
+  description: string;
+  is_done: boolean;
+  position: number;
+}
+
 export interface TaskFull extends TaskBrief {
   description: string;
   created_at: string;
   updated_at: string;
-  subtasks: TaskBrief[];
+  subtask_items: SubtaskItem[];
   activities: Activity[];
   checklist_items: ChecklistItem[];
   blocked_by: TaskDependencyBrief[];
@@ -352,6 +361,22 @@ export const tasksApi = {
     }),
   removeDependency: (id: number, depId: number) =>
     request<{ ok: boolean }>(`/tasks/${id}/dependencies/${depId}`, {
+      method: "DELETE",
+    }),
+
+  // Subtask Items
+  addSubtaskItem: (taskId: number, title: string, description?: string) =>
+    request<SubtaskItem>(`/tasks/${taskId}/subtask-items`, {
+      method: "POST",
+      body: JSON.stringify({ title, description: description ?? "" }),
+    }),
+  updateSubtaskItem: (taskId: number, itemId: number, data: Partial<SubtaskItem>) =>
+    request<SubtaskItem>(`/tasks/${taskId}/subtask-items/${itemId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  deleteSubtaskItem: (taskId: number, itemId: number) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/subtask-items/${itemId}`, {
       method: "DELETE",
     }),
 

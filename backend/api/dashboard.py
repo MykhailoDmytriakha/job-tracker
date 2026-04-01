@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date as date_type
 
 from ..database import get_db
 from .. import models, schemas
@@ -31,8 +31,8 @@ def _last_activity(t: models.Task):
 @router.get("/", response_model=schemas.DashboardView)
 def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
     now = datetime.now(timezone.utc)
-    today_end = now.replace(hour=23, minute=59, second=59)
-    week_end = today_end + timedelta(days=7)
+    today = date_type.today()
+    week_end_date = today + timedelta(days=7)
 
     # Blocked task IDs
     blocked_rows = db.execute(
@@ -60,29 +60,25 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
     recurring_tasks = []
 
     for t in active:
-        due = _aware(t.due_date)
-        follow = _aware(t.follow_up_date)
-        earliest = due or follow
+        due_d = t.due_date.date() if t.due_date else None
+        follow_d = t.follow_up_date.date() if t.follow_up_date else None
+        earliest_d = due_d or follow_d
 
         # Recurring: separate column, sorted by last activity (stale first)
         if t.is_recurring:
             recurring_tasks.append(t)
             continue
 
-        # Today: overdue OR due today OR follow-up today
-        if earliest and earliest <= today_end:
+        # Today: overdue OR due/follow-up today
+        if earliest_d and earliest_d <= today:
             today_tasks.append(t)
-        # Upcoming: due within 7 days
-        elif earliest and earliest <= week_end:
-            upcoming_tasks.append(t)
-        # Waiting tasks with follow-up in next 7 days
-        elif t.status == "waiting" and follow and follow <= week_end:
+        # Upcoming: within 7 days
+        elif earliest_d and earliest_d <= week_end_date:
             upcoming_tasks.append(t)
 
-    # Sort: today by urgency (most overdue first)
-    today_tasks.sort(key=lambda t: _aware(t.due_date) or _aware(t.follow_up_date) or now)
-    # Upcoming by date ascending
-    upcoming_tasks.sort(key=lambda t: _aware(t.due_date) or _aware(t.follow_up_date) or week_end)
+    _far = date_type(9999, 12, 31)
+    today_tasks.sort(key=lambda t: (t.due_date.date() if t.due_date else None) or (t.follow_up_date.date() if t.follow_up_date else None) or _far)
+    upcoming_tasks.sort(key=lambda t: (t.due_date.date() if t.due_date else None) or (t.follow_up_date.date() if t.follow_up_date else None) or _far)
     # Recurring by last activity (stale first = no activity or oldest activity)
     def _staleness(t):
         la = _last_activity(t)
@@ -94,8 +90,8 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
     # Stats
     overdue_count = sum(
         1 for t in active if not t.is_recurring and (
-            (_aware(t.due_date) and _aware(t.due_date) < now)
-            or (_aware(t.follow_up_date) and _aware(t.follow_up_date) < now)
+            (t.due_date and t.due_date.date() < today)
+            or (t.follow_up_date and t.follow_up_date.date() < today)
         )
     )
     waiting_count = sum(1 for t in active if t.status == "waiting")
@@ -172,8 +168,8 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
             outreach_status=t.outreach_status,
             close_reason=t.close_reason,
             is_blocked=t.id in blocked_ids,
-            subtask_count=len(t.subtasks),
-            subtask_done=sum(1 for s in t.subtasks if s.status == "done"),
+            subtask_count=len(t.subtask_items),
+            subtask_done=sum(1 for s in t.subtask_items if s.is_done),
             checklist_total=len(t.checklist_items),
             checklist_done=sum(1 for c in t.checklist_items if c.is_done),
             last_activity_at=_last_activity(t),
