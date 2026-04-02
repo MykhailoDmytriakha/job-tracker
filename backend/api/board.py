@@ -46,11 +46,12 @@ def get_board(project_id: Optional[int] = None, db: Session = Depends(get_db)):
                 stage=schemas.StageOut(
                     id=stage.id, name=stage.name,
                     parent_id=stage.parent_id, position=stage.position,
-                    is_default=stage.is_default,
+                    is_default=stage.is_default, description=stage.description or "",
                     children=[
                         schemas.StageOut(
                             id=c.id, name=c.name, parent_id=c.parent_id,
                             position=c.position, is_default=c.is_default,
+                            description=c.description or "",
                         )
                         for c in sorted(stage.children, key=lambda x: x.position)
                     ],

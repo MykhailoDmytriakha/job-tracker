@@ -30,6 +30,7 @@ export interface Stage {
   parent_id: number | null;
   position: number;
   is_default: boolean;
+  description: string;
   children: Stage[];
 }
 

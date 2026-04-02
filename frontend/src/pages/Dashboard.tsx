@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { dashboardApi, tasksApi } from "../api";
 import type { DashboardView, TaskBrief } from "../api";
@@ -37,8 +37,10 @@ function staleDays(dateStr: string | null): number {
 export function Dashboard() {
   const { active: project } = useProject();
   const [data, setData] = useState<DashboardView | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const selectedTaskId = searchParams.get("task") ? Number(searchParams.get("task")) : null;
 
   useEffect(() => {
     if (!project) return;
@@ -46,7 +48,11 @@ export function Dashboard() {
   }, [project]);
 
   function goToTask(id: number) {
-    setSelectedTaskId(id);
+    setSearchParams({ task: String(id) });
+  }
+
+  function closeTask() {
+    setSearchParams({});
   }
 
   function goToFiltered(filter: string) {
@@ -138,14 +144,14 @@ export function Dashboard() {
       {selectedTaskId && (
         <TaskModal
           taskId={selectedTaskId}
-          onClose={() => setSelectedTaskId(null)}
+          onClose={closeTask}
           onNavigate={(id) => navigate(`/tasks/${id}`)}
           onOpenFull={() => navigate(`/tasks/${selectedTaskId}`)}
           onUpdate={() => {
             if (project) dashboardApi.get(project.id).then(setData);
           }}
           onDelete={() => {
-            setSelectedTaskId(null);
+            closeTask();
             if (project) dashboardApi.get(project.id).then(setData);
           }}
         />

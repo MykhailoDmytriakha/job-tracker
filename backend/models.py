@@ -112,6 +112,7 @@ class Stage(Base):
     parent_id = Column(Integer, ForeignKey("stages.id"), nullable=True)
     position = Column(Integer, default=0)
     is_default = Column(Boolean, default=False)
+    description = Column(Text, default="")
 
     parent = relationship("Stage", remote_side=[id], backref="children")
     tasks = relationship("Task", back_populates="stage")

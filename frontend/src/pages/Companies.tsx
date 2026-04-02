@@ -38,7 +38,8 @@ export function Companies() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchHints, setSearchHints] = useState<Record<string, number>>({});
-  const [sortBy, setSortBy] = useState<SortKey>("name");
+  const [sortBy, setSortBy] = useState<SortKey>(() => (localStorage.getItem("jt_companies_sort") as SortKey) || "name");
+  useEffect(() => { localStorage.setItem("jt_companies_sort", sortBy); }, [sortBy]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
 

@@ -35,6 +35,7 @@ class StageBase(BaseModel):
     name: str
     parent_id: Optional[int] = None
     position: int = 0
+    description: str = ""
 
 
 class StageCreate(StageBase):
@@ -45,11 +46,13 @@ class StageUpdate(BaseModel):
     name: Optional[str] = None
     parent_id: Optional[int] = None
     position: Optional[int] = None
+    description: Optional[str] = None
 
 
 class StageOut(StageBase):
     id: int
     is_default: bool
+    description: str = ""
     children: list["StageOut"] = []
 
     class Config:

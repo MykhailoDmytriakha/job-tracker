@@ -40,7 +40,8 @@ export function Contacts() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchHints, setSearchHints] = useState<Record<string, number>>({});
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortKey>("name");
+  const [sortBy, setSortBy] = useState<SortKey>(() => (localStorage.getItem("jt_contacts_sort") as SortKey) || "name");
+  useEffect(() => { localStorage.setItem("jt_contacts_sort", sortBy); }, [sortBy]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCompany, setNewCompany] = useState("");

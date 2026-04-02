@@ -84,7 +84,8 @@ export function Tasks() {
   // Initialize filters from URL param on first render only (lazy init to avoid race condition)
   const [statusFilter, setStatusFilter] = useState<string | null>(() => parseFilterParam(searchParams.get("filter")).statusFilter);
   const [specialFilter, setSpecialFilter] = useState<SpecialFilter>(() => parseFilterParam(searchParams.get("filter")).specialFilter);
-  const [sortBy, setSortBy] = useState<SortKey>("created");
+  const [sortBy, setSortBy] = useState<SortKey>(() => (localStorage.getItem("jt_tasks_sort") as SortKey) || "created");
+  useEffect(() => { localStorage.setItem("jt_tasks_sort", sortBy); }, [sortBy]);
 
   // Sync active filter to URL so it survives page reloads
   useEffect(() => {

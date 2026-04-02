@@ -39,7 +39,8 @@ export function Docs() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchHints, setSearchHints] = useState<Record<string, number>>({});
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortKey>("updated");
+  const [sortBy, setSortBy] = useState<SortKey>(() => (localStorage.getItem("jt_docs_sort") as SortKey) || "updated");
+  useEffect(() => { localStorage.setItem("jt_docs_sort", sortBy); }, [sortBy]);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
