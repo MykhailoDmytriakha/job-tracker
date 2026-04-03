@@ -139,6 +139,46 @@ Default page ("/"). One-glance overview.
 
 ---
 
+## Meetings
+
+- Meetings live inside task detail as a dedicated section
+- A meeting can be created first with operational data: type, date/time, platform, interviewer, status, result, join URL, notes, linked brief doc, linked notes doc
+- Each meeting card can be expanded to inspect details and related documents
+- Cockpit has an explicit lifecycle:
+  - Before initialization, the meeting shows `Create cockpit`
+  - Creating a cockpit seeds a starter prep workspace and then opens the cockpit page
+  - Repeating `Create cockpit` on an already initialized meeting is treated as a no-op; existing cockpit content is preserved
+  - After initialization, the action becomes `Open cockpit`
+- Expanded meeting detail shows cockpit status so it is clear whether prep space already exists
+
+---
+
+## Meeting Cockpit
+
+Route: `/tasks/:taskId/meeting/:meetingId/cockpit`
+
+- Opens a dedicated full-page cockpit for one meeting
+- Header shows back button, company/task context, meeting type, schedule, interviewer, and join link when present
+- Main body is a two-column cockpit grid with six markdown sections:
+  - Ready Answers
+  - My Pitch
+  - Key Numbers
+  - My Questions
+  - Closing
+  - Post-Call Notes
+- Cockpit section rendering normalizes escaped newlines from storage and preserves meaningful line breaks in the rendered text
+- Clicking a panel header focuses it; other panels collapse to previews
+- Each panel supports inline markdown editing
+- Edit shortcuts: `Cmd+Enter` saves, `Esc` cancels
+- Bottom toolbar stays sticky inside the cockpit, centers its content, and groups related docs, companies, contacts, and links into color-coded clusters
+- Footer resources open in a viewport-bounded modal with internal scrolling for long documents; highlighted items use subtle accent emphasis, not a primary CTA look
+- Modal navigation preserves the same grouped resource structure as the footer (`Docs / Companies / Contacts`) so the user can switch resources in-place without closing the popup
+- When grouped modal navigation is present, the standalone left-side title is hidden to avoid repeating the active item twice
+- External footer links such as `Job Description` carry an outbound arrow cue and open outside the popup flow
+- Scroll behavior: the cockpit page owns its own vertical scroll inside the app shell, so long meeting prep content remains reachable without breaking the fixed-height layout
+
+---
+
 ## Pipeline (Kanban)
 
 Board view with 9 default stages:

@@ -198,6 +198,62 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** TaskDetail owns the API call. `onDelete` callback only updates UI state (clear selection, reload list). Single responsibility: component that initiates the action owns the API call, parent only reacts.
 **Rule:** API calls and state updates must not be split across parent-child. One component owns the mutation, the other reacts to its completion.
 
+## 2026-04-03
+
+### L029: Full-height route pages need their own scroll container
+**Context:** User reported that `/tasks/:taskId/meeting/:meetingId/cockpit` rendered correctly but the page could not scroll when the cockpit content exceeded the viewport.
+**Root cause:** The app shell uses fixed-height layout (`#root` = `100vh`, `main` = `overflow: hidden`) and relies on each page to own its vertical scrolling. Meeting Cockpit used `min-height: calc(100vh - 52px)` but did not define its own `overflow-y: auto`, so content became taller than `main` and got clipped instead of scrollable.
+**Fix:** Made `.ck` the route-level scroll container (`flex: 1`, `min-height: 0`, `overflow-y: auto`, `overflow-x: hidden`) and documented the behavior in `features.md`.
+**Rule:** In the app shell, any full-height route page must explicitly own vertical scrolling. If parent `main` hides overflow, child pages cannot rely on document scroll.
+
+### L030: Cockpit prep content must preserve meaning through rendering
+**Context:** User reported that `Ready Answers` looked wrong, `Post-Call Notes` showed broken `\n` escapes, and the bottom resource tray felt flat and hard to parse.
+**Root cause:** Cockpit content was rendered as raw markdown without normalizing escaped newlines from storage, so notes could show literal `\\n`. Also, the footer resources were dumped into one undifferentiated chip row, losing type semantics (docs vs contacts vs company vs links).
+**Fix:** Normalize cockpit markdown before render/edit, respect line breaks in paragraph rendering, and group footer resources into centered color-coded sections by entity type.
+**Rule:** Prep surfaces must preserve both text structure and resource semantics. If the source has meaningful line breaks or typed entities, the UI must carry that structure through to the final render.
+
+### L031: Long cockpit modals must be viewport-bounded, not content-sized
+**Context:** User clicked long footer resources like interview briefings and the modal became taller than the screen, making the popup look broken and hard to use.
+**Root cause:** Cockpit modal was rendered inside the transformed scroll container and had no `max-height`, so long markdown documents expanded the whole modal to content height instead of keeping the shell fixed and scrolling inside the body.
+**Fix:** Render the modal through a portal to `document.body`, cap modal height to the viewport, keep the header fixed, and let only the modal body scroll. Also softened the featured footer chip styling so emphasis stays subtle.
+**Rule:** Any modal that can open unbounded content must be viewport-constrained and portal-based. The frame stays fixed; only the content area scrolls.
+
+### L032: Cockpit creation must be explicit in the meeting workflow
+**Context:** User created a meeting in task detail, saw that a cockpit page exists, but had no clear action for creating the cockpit itself. The existing `Cockpit` button looked like navigation, not initialization.
+**Root cause:** The UI exposed the cockpit destination but not the state transition from “meeting exists” to “cockpit workspace created.” That made the workflow conceptually incomplete.
+**Fix:** Add explicit cockpit state (`not created yet` / `ready`), a dedicated `Create cockpit` action on the meeting card, and starter cockpit sections created on demand before navigation.
+**Rule:** When a feature has two phases, creation and usage must be distinct in the UI. A plain “open” button is not enough if the user still needs to initialize the workspace first.
+
+### L033: Nested task detail payloads must include the same meeting state as dedicated meeting endpoints
+**Context:** After adding explicit `Create cockpit` / `Open cockpit` states, task `97` still showed `Create cockpit` even though the meeting already had cockpit content and the dedicated meetings endpoint returned those sections.
+**Root cause:** The task detail serializer built `MeetingOut` objects manually inside `_full()` and forgot to include `cockpit_sections`, so `TaskOut.meetings[*].cockpit_sections` always defaulted to `[]`.
+**Fix:** Include serialized `cockpit_sections` when building nested meetings inside the task detail response and verify that `/api/tasks/:id` matches `/api/tasks/:id/meetings` for cockpit state.
+**Rule:** If a nested object is exposed both standalone and inside a parent payload, their state-bearing fields must stay structurally equivalent. A partial nested serializer creates false UI states.
+
+### L034: "Create" actions for persistent workspaces must be idempotent
+**Context:** Once the cockpit-state bug was found, it became clear that a stale `Create cockpit` button could have re-sent the initialization request for an already existing cockpit.
+**Root cause:** The bulk cockpit initializer deleted all existing cockpit sections before recreating them, which is valid for replace semantics but dangerous for a UI action labeled as creation.
+**Fix:** Make cockpit initialization a no-op when sections already exist, so repeated create attempts preserve prior content.
+**Rule:** If the UI says “Create” for a persistent workspace, the backend must treat repeated requests as safe and non-destructive unless the user explicitly asked for reset or replace.
+
+### L035: Modal viewers for related documents need in-place switching
+**Context:** In the cockpit footer, opening the wrong document forced the user to close the modal and reopen another document from the footer, slowing down rapid review.
+**Root cause:** The modal header exposed only the current title and close action, with no notion of sibling documents already available in the same footer group.
+**Fix:** Add an inline document switcher inside the modal header so related docs can be swapped in-place without closing the popup.
+**Rule:** If a modal is used as a viewer for a small set of sibling resources, navigation between those resources should happen inside the modal, not through repeated open/close cycles.
+
+### L036: In-modal resource navigation must preserve the same grouping semantics as the footer
+**Context:** After adding document tabs to the cockpit modal, the user still expected the popup navigation to reflect the same grouped structure as the footer: documents, companies, and contacts, not just a flat doc-only switcher.
+**Root cause:** The first pass solved speed of switching but dropped the footer’s information architecture, so the modal and footer no longer spoke the same visual language.
+**Fix:** Build modal navigation from the same resource groups as the footer, keep the same group colors for docs/companies/contacts, and mark external links separately instead of making them look like popup resources.
+**Rule:** If a UI exposes grouped resources in one surface and lets the user continue navigating them in another, the second surface must preserve the same grouping and visual semantics.
+
+### L037: Modal headers should not restate the active item when grouped navigation already makes it obvious
+**Context:** After grouped modal navigation was added, the left-side title like `Resume` became redundant because the active chip inside the colored header already identified the current resource.
+**Root cause:** The modal kept the older standalone title while also introducing richer grouped navigation, so the same information was shown twice in the same header.
+**Fix:** Hide the standalone modal title whenever grouped resource navigation is present; keep the title only for single-resource modals.
+**Rule:** If an active state is already explicit inside a navigation control, don’t repeat it as a separate heading in the same header band.
+
 ---
 
 ## Meta-patterns observed across all learnings

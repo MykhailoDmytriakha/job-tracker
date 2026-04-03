@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -33,6 +34,35 @@ const TYPE_LABELS: Record<string, string> = {
   panel: "Panel", onsite: "Onsite", other: "Meeting",
 };
 
+type ToolbarTone = "docs" | "companies" | "contacts" | "links";
+
+type ModalResourceTone = Exclude<ToolbarTone, "links">;
+
+type ModalResourceItem = {
+  key: string;
+  label: string;
+  title: string;
+  featured?: boolean;
+  kind: "document" | "company" | "contact";
+  resourceId: number;
+};
+
+type ModalResourceGroup = {
+  key: string;
+  label: string;
+  tone: ModalResourceTone;
+  items: ModalResourceItem[];
+};
+
+type ToolbarItem = {
+  key: string;
+  label: string;
+  featured?: boolean;
+} & (
+  | { kind: "button"; onClick: () => void }
+  | { kind: "link"; href: string }
+);
+
 function fmtDate(s: string | null): string {
   if (!s) return "";
   const d = new Date(s);
@@ -40,42 +70,135 @@ function fmtDate(s: string | null): string {
   return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+function normalizeCockpitMarkdown(content: string): string {
+  return content
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n?/g, "\n");
+}
+
+function docChipLabel(title: string, docType: string | null | undefined): string {
+  if (docType === "resume") return "Resume";
+  if (docType === "cover_letter") return "Cover Letter";
+  return title.length > 20 ? `${title.slice(0, 20)}...` : title;
+}
+
+function buildModalResourceGroups(task: TaskFull, meeting: Meeting): ModalResourceGroup[] {
+  const documentItems: ModalResourceItem[] = [];
+  const seen = new Set<number>();
+
+  if (meeting.brief_doc_id) {
+    documentItems.push({
+      key: `doc-${meeting.brief_doc_id}`,
+      label: "Full Briefing",
+      title: "Full Briefing",
+      featured: true,
+      kind: "document",
+      resourceId: meeting.brief_doc_id,
+    });
+    seen.add(meeting.brief_doc_id);
+  }
+
+  for (const doc of task.documents ?? []) {
+    if (seen.has(doc.id)) continue;
+    documentItems.push({
+      key: `doc-${doc.id}`,
+      label: docChipLabel(doc.title, doc.doc_type),
+      title: doc.doc_type === "resume"
+        ? "Resume"
+        : doc.doc_type === "cover_letter"
+          ? "Cover Letter"
+          : doc.title,
+      kind: "document",
+      resourceId: doc.id,
+    });
+    seen.add(doc.id);
+  }
+
+  return [
+    {
+      key: "docs",
+      label: "Docs",
+      tone: "docs" as const,
+      items: documentItems,
+    },
+    {
+      key: "companies",
+      label: task.companies && task.companies.length > 1 ? "Companies" : "Company",
+      tone: "companies" as const,
+      items: (task.companies?.map((company) => ({
+        key: `company-${company.id}`,
+        label: company.name,
+        title: company.name,
+        kind: "company" as const,
+        resourceId: company.id,
+      })) ?? []),
+    },
+    {
+      key: "contacts",
+      label: "Contacts",
+      tone: "contacts" as const,
+      items: (task.contacts?.map((contact) => ({
+        key: `contact-${contact.id}`,
+        label: contact.name,
+        title: contact.name,
+        kind: "contact" as const,
+        resourceId: contact.id,
+      })) ?? []),
+    },
+  ].filter((group) => group.items.length > 0);
+}
+
 // ── Modal ───────────────────────────────────────────────────────────────────
 
-function CockpitModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function CockpitModal({
+  title,
+  onClose,
+  switcher,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  switcher?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div className="ck-overlay" onClick={onClose}>
       <div className="ck-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="ck-modal-head">
-          <span className="ck-modal-title">{title}</span>
+        <div className={`ck-modal-head${switcher ? " ck-modal-head--switcher-only" : ""}`}>
+          {!switcher && <span className="ck-modal-title">{title}</span>}
+          {switcher ? <div className="ck-modal-switcher-wrap">{switcher}</div> : <div />}
           <button className="ck-modal-x" onClick={onClose}>&times;</button>
         </div>
         <div className="ck-modal-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
 // ── Panel component ─────────────────────────────────────────────────────────
 
 function Panel({
-  sectionKey, label, accent, area, placeholder,
+  label, accent, area, placeholder,
   content, mode, isEditing,
   onHeaderClick, onEdit, onSave, onCancel,
   editDraft, setEditDraft, saving,
 }: {
-  sectionKey: string; label: string; accent: string; area: string; placeholder: string;
+  label: string; accent: string; area: string; placeholder: string;
   content: string; mode: "default" | "expanded" | "collapsed"; isEditing: boolean;
   onHeaderClick: () => void; onEdit: () => void; onSave: () => void; onCancel: () => void;
   editDraft: string; setEditDraft: (v: string) => void; saving: boolean;
 }) {
   const editRef = useRef<HTMLTextAreaElement>(null);
+  const normalizedContent = normalizeCockpitMarkdown(content);
+  const previewText = normalizedContent.replace(/[*#|_\n]/g, " ").replace(/\s+/g, " ").trim();
   useEffect(() => { if (isEditing && editRef.current) editRef.current.focus(); }, [isEditing]);
 
   return (
@@ -86,8 +209,8 @@ function Panel({
       <div className="ck-panel-head" onClick={onHeaderClick}>
         <div className="ck-panel-bar" />
         <span className="ck-panel-label">{label}</span>
-        {mode === "collapsed" && content && (
-          <span className="ck-panel-preview">{content.replace(/[*#|_\n]/g, " ").slice(0, 100).trim()}</span>
+        {mode === "collapsed" && previewText && (
+          <span className="ck-panel-preview">{previewText.slice(0, 100).trim()}</span>
         )}
         <div className="ck-panel-tools" onClick={(e) => e.stopPropagation()}>
           {!isEditing && (
@@ -119,14 +242,53 @@ function Panel({
                 <button className="ck-btn ck-btn--primary" onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
               </div>
             </div>
-          ) : content ? (
-            <div className="ck-md"><ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown></div>
+          ) : normalizedContent ? (
+            <div className="ck-md"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizedContent}</ReactMarkdown></div>
           ) : (
             <div className="ck-empty" onClick={onEdit}>Click to add content</div>
           )}
         </div>
       </div>
     </article>
+  );
+}
+
+function ToolbarGroup({
+  label,
+  tone,
+  items,
+}: {
+  label: string;
+  tone: ToolbarTone;
+  items: ToolbarItem[];
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <section className={`ck-chip-group ck-chip-group--${tone}`}>
+      <div className="ck-chip-group-label">{label}</div>
+      <div className="ck-chip-group-chips">
+        {items.map((item) => {
+          const className = `ck-chip${item.featured ? " ck-chip--featured" : ""}`;
+          return item.kind === "link" ? (
+            <a
+              key={item.key}
+              className={className}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {item.label}
+              <span className="ck-chip-external" aria-hidden="true">↗</span>
+            </a>
+          ) : (
+            <button key={item.key} className={className} onClick={item.onClick}>
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -146,7 +308,15 @@ export function MeetingCockpit() {
   const [editDraft, setEditDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [modal, setModal] = useState<{ type: string; data?: DocumentFull | ContactFull | CompanyFull | null; loading?: boolean } | null>(null);
+  const docCacheRef = useRef(new Map<number, DocumentFull>());
+  const contactCacheRef = useRef(new Map<number, ContactFull>());
+  const companyCacheRef = useRef(new Map<number, CompanyFull>());
+  const [modal, setModal] = useState<{
+    groups: ModalResourceGroup[];
+    activeItem: ModalResourceItem;
+    data?: DocumentFull | ContactFull | CompanyFull | null;
+    loading: boolean;
+  } | null>(null);
 
   const loadData = useCallback(async () => {
     const [t, meetings] = await Promise.all([tasksApi.get(taskId), meetingsApi.list(taskId)]);
@@ -155,7 +325,7 @@ export function MeetingCockpit() {
     if (m) {
       setMeeting(m);
       const secs: Record<string, string> = {};
-      for (const s of m.cockpit_sections || []) secs[s.section_key] = s.content;
+      for (const s of m.cockpit_sections || []) secs[s.section_key] = normalizeCockpitMarkdown(s.content);
       setSections(secs);
     }
     requestAnimationFrame(() => setLoaded(true));
@@ -179,24 +349,74 @@ export function MeetingCockpit() {
     return focused === key ? "expanded" : "collapsed";
   }
 
-  async function openDoc(docId: number, label: string) {
-    setModal({ type: label, loading: true });
-    setModal({ type: label, data: await documentsApi.get(docId) });
-  }
-  async function openContact(cid: number) {
-    setModal({ type: "Contact", loading: true });
-    setModal({ type: "Contact", data: await contactsApi.get(cid) });
-  }
-  async function openCompany(cid: number) {
-    setModal({ type: "Company", loading: true });
-    setModal({ type: "Company", data: await companiesApi.get(cid) });
+  async function openModalItem(item: ModalResourceItem, groups: ModalResourceGroup[]) {
+    const cached = item.kind === "document"
+      ? docCacheRef.current.get(item.resourceId)
+      : item.kind === "contact"
+        ? contactCacheRef.current.get(item.resourceId)
+        : companyCacheRef.current.get(item.resourceId);
+
+    setModal({
+      groups,
+      activeItem: item,
+      data: cached ?? null,
+      loading: !cached,
+    });
+    if (cached) return;
+
+    const data = item.kind === "document"
+      ? await documentsApi.get(item.resourceId)
+      : item.kind === "contact"
+        ? await contactsApi.get(item.resourceId)
+        : await companiesApi.get(item.resourceId);
+
+    if (item.kind === "document") docCacheRef.current.set(item.resourceId, data as DocumentFull);
+    if (item.kind === "contact") contactCacheRef.current.set(item.resourceId, data as ContactFull);
+    if (item.kind === "company") companyCacheRef.current.set(item.resourceId, data as CompanyFull);
+
+    setModal((current) => {
+      if (!current || current.activeItem.key !== item.key) return current;
+      return {
+        ...current,
+        data,
+        loading: false,
+      };
+    });
   }
 
   if (!task || !meeting) {
     return <div className="ck-loader"><div className="ck-loader-ring" /><span>Loading cockpit...</span></div>;
   }
 
+  const modalResourceGroups = buildModalResourceGroups(task, meeting);
   const companyName = task.companies?.[0]?.name || task.title.split(":")[0]?.trim() || "Meeting";
+  const toolbarGroups = [
+    ...modalResourceGroups.map((group) => ({
+      key: group.key,
+      label: group.label,
+      tone: group.tone,
+      items: group.items.map((item) => ({
+        key: item.key,
+        label: item.label,
+        featured: item.featured,
+        kind: "button" as const,
+        onClick: () => { void openModalItem(item, modalResourceGroups); },
+      })),
+    })),
+    {
+      key: "links",
+      label: "Links",
+      tone: "links" as const,
+      items: task.posting_url
+        ? [{
+            key: "job-description",
+            label: "Job Description",
+            kind: "link" as const,
+            href: task.posting_url,
+          }]
+        : [],
+    },
+  ].filter((group) => group.items.length > 0);
 
   return (
     <div className={`ck ${loaded ? "ck--loaded" : ""}`}>
@@ -225,7 +445,6 @@ export function MeetingCockpit() {
         {SECTIONS.map((def) => (
           <Panel
             key={def.key}
-            sectionKey={def.key}
             label={def.label}
             accent={def.accent}
             area={def.area}
@@ -247,37 +466,56 @@ export function MeetingCockpit() {
       {/* Toolbar */}
       <div className="ck-toolbar">
         <div className="ck-toolbar-inner">
-          {task.documents?.map((doc) => (
-            <button key={doc.id} className="ck-chip" onClick={() => openDoc(doc.id, doc.doc_type || "Document")}>
-              {doc.doc_type === "resume" ? "Resume" : doc.doc_type === "cover_letter" ? "Cover Letter" : doc.title.length > 20 ? doc.title.slice(0, 20) + "..." : doc.title}
-            </button>
+          {toolbarGroups.map((group) => (
+            <ToolbarGroup
+              key={group.key}
+              label={group.label}
+              tone={group.tone}
+              items={group.items}
+            />
           ))}
-          {task.companies?.map((c) => (
-            <button key={c.id} className="ck-chip" onClick={() => openCompany(c.id)}>{c.name}</button>
-          ))}
-          {task.contacts?.map((c) => (
-            <button key={c.id} className="ck-chip" onClick={() => openContact(c.id)}>{c.name}</button>
-          ))}
-          {meeting.brief_doc_id && (
-            <button className="ck-chip ck-chip--accent" onClick={() => openDoc(meeting.brief_doc_id!, "Briefing")}>Full Briefing</button>
-          )}
-          {task.posting_url && (
-            <a className="ck-chip" href={task.posting_url} target="_blank" rel="noopener noreferrer">Job Description</a>
-          )}
         </div>
       </div>
 
       {/* Modal */}
       {modal && (
-        <CockpitModal title={modal.type} onClose={() => setModal(null)}>
+        <CockpitModal
+          title={modal.activeItem.title}
+          onClose={() => setModal(null)}
+          switcher={modal.groups.reduce((sum, group) => sum + group.items.length, 0) > 1 ? (
+            <div className="ck-modal-nav">
+              {modal.groups.map((group) => (
+                <section
+                  key={group.key}
+                  className={`ck-chip-group ck-chip-group--${group.tone} ck-modal-nav-group`}
+                >
+                  <div className="ck-chip-group-label ck-modal-nav-label">{group.label}</div>
+                  <div className="ck-chip-group-chips ck-modal-nav-chips">
+                    {group.items.map((item) => (
+                      <button
+                        key={item.key}
+                        className={`ck-chip ck-modal-nav-chip${modal.activeItem.key === item.key ? " ck-modal-nav-chip--active" : ""}${item.featured ? " ck-chip--featured" : ""}`}
+                        onClick={() => { void openModalItem(item, modal.groups); }}
+                        disabled={modal.activeItem.key === item.key && modal.loading}
+                        type="button"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : undefined}
+        >
           {modal.loading ? (
             <div className="ck-modal-loading"><div className="ck-loader-ring ck-loader-ring--sm" /></div>
-          ) : modal.data && "content" in modal.data ? (
+          ) : modal.activeItem.kind === "document" && modal.data ? (
             <div className="ck-md"><ReactMarkdown remarkPlugins={[remarkGfm]}>{(modal.data as DocumentFull).content}</ReactMarkdown></div>
-          ) : modal.data && "linkedin" in modal.data ? (
-            <EntityCard data={modal.data as ContactFull} type="contact" />
-          ) : modal.data && "website" in modal.data ? (
-            <EntityCard data={modal.data as CompanyFull} type="company" />
+          ) : modal.activeItem.kind === "contact" && modal.data ? (
+            <EntityCard data={modal.data as ContactFull} />
+          ) : modal.activeItem.kind === "company" && modal.data ? (
+            <EntityCard data={modal.data as CompanyFull} />
           ) : null}
         </CockpitModal>
       )}
@@ -285,7 +523,7 @@ export function MeetingCockpit() {
   );
 }
 
-function EntityCard({ data, type }: { data: ContactFull | CompanyFull; type: "contact" | "company" }) {
+function EntityCard({ data }: { data: ContactFull | CompanyFull }) {
   const c = data as any;
   return (
     <div className="ck-entity-card">

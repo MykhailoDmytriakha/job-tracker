@@ -958,7 +958,21 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
                 platform=m.platform, join_url=m.join_url, status=m.status,
                 result=m.result, brief_doc_id=m.brief_doc_id,
                 notes_doc_id=m.notes_doc_id, notes=m.notes,
-                position=m.position, created_at=m.created_at, updated_at=m.updated_at,
+                position=m.position,
+                cockpit_sections=[
+                    schemas.CockpitSectionOut(
+                        id=s.id,
+                        meeting_id=s.meeting_id,
+                        section_key=s.section_key,
+                        content=s.content,
+                        position=s.position,
+                        created_at=s.created_at,
+                        updated_at=s.updated_at,
+                    )
+                    for s in m.cockpit_sections
+                ],
+                created_at=m.created_at,
+                updated_at=m.updated_at,
             )
             for m in t.meetings
         ],
@@ -1158,6 +1172,8 @@ def upsert_cockpit_sections(
     ).first()
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
+    if meeting.cockpit_sections:
+        return meeting.cockpit_sections
     db.query(models.CockpitSection).filter(
         models.CockpitSection.meeting_id == meeting_id
     ).delete()

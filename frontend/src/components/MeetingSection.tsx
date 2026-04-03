@@ -61,6 +61,29 @@ const RESULT_BG: Record<string, string> = {
   unknown: "transparent",
 };
 
+const COCKPIT_STARTER_SECTIONS = [
+  {
+    section_key: "ready_answers",
+    content: "**Comp:** \n**Auth:** \n**Hybrid:** \n**Start:** \n**Gaps:** ",
+    position: 0,
+  },
+  {
+    section_key: "numbers",
+    content: "| Fact | Value |\n|------|-------|",
+    position: 2,
+  },
+  {
+    section_key: "questions",
+    content: "1. \n2. \n3.",
+    position: 3,
+  },
+  {
+    section_key: "post_call",
+    content: "What they asked:\n\nWhat went well:\n\nWhat was weak:\n\nNext steps:",
+    position: 5,
+  },
+] as const;
+
 // ── Date helpers ─────────────────────────────────────────────────────────────
 
 function formatScheduledAt(s: string | null): string {
@@ -379,11 +402,29 @@ function MeetingCard({
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [creatingCockpit, setCreatingCockpit] = useState(false);
 
   const statusColor = STATUS_COLORS[meeting.status] ?? "var(--text-faint)";
   const statusBg = STATUS_BG[meeting.status] ?? "transparent";
   const resultColor = meeting.result ? (RESULT_COLORS[meeting.result] ?? "var(--text-faint)") : null;
   const resultBg = meeting.result ? (RESULT_BG[meeting.result] ?? "transparent") : null;
+  const hasCockpit = (meeting.cockpit_sections?.length ?? 0) > 0;
+
+  async function handleCockpitAction() {
+    if (hasCockpit) {
+      navigate(`/tasks/${taskId}/meeting/${meeting.id}/cockpit`);
+      return;
+    }
+
+    setCreatingCockpit(true);
+    try {
+      await meetingsApi.saveCockpit(taskId, meeting.id, [...COCKPIT_STARTER_SECTIONS]);
+      onUpdate();
+      navigate(`/tasks/${taskId}/meeting/${meeting.id}/cockpit`);
+    } finally {
+      setCreatingCockpit(false);
+    }
+  }
 
   async function handleSave(f: FormState) {
     setSaving(true);
@@ -474,11 +515,12 @@ function MeetingCard({
 
           <div className="meeting-card-right" onClick={e => e.stopPropagation()}>
             <button
-              className="meeting-cockpit-btn"
-              onClick={() => navigate(`/tasks/${taskId}/meeting/${meeting.id}/cockpit`)}
-              title="Open Cockpit"
+              className={`meeting-cockpit-btn ${hasCockpit ? "meeting-cockpit-btn--ready" : "meeting-cockpit-btn--create"}`}
+              onClick={handleCockpitAction}
+              title={hasCockpit ? "Open cockpit" : "Create cockpit"}
+              disabled={creatingCockpit}
             >
-              Cockpit
+              {creatingCockpit ? "Creating..." : hasCockpit ? "Open cockpit" : "Create cockpit"}
             </button>
 
             {meeting.join_url && meeting.status === "scheduled" && (
@@ -560,6 +602,26 @@ function MeetingCard({
                   <span className="meeting-detail-value">{formatScheduledAt(meeting.scheduled_at)}</span>
                 </div>
               )}
+              <div className="meeting-detail-row meeting-detail-row--cockpit">
+                <span className="meeting-detail-label">Cockpit</span>
+                <div className="meeting-detail-cockpit">
+                  <span className={`meeting-cockpit-state${hasCockpit ? " meeting-cockpit-state--ready" : ""}`}>
+                    {hasCockpit ? "Ready" : "Not created yet"}
+                  </span>
+                  <button
+                    className={`meeting-cockpit-inline-btn ${hasCockpit ? "meeting-cockpit-inline-btn--ready" : "meeting-cockpit-inline-btn--create"}`}
+                    onClick={handleCockpitAction}
+                    disabled={creatingCockpit}
+                  >
+                    {creatingCockpit ? "Creating..." : hasCockpit ? "Open cockpit" : "Create cockpit"}
+                  </button>
+                  {!hasCockpit && (
+                    <span className="meeting-detail-hint">
+                      Create after the invite is logged, then fill answers, questions, and post-call notes there.
+                    </span>
+                  )}
+                </div>
+              </div>
               {meeting.result && (
                 <div className="meeting-detail-row">
                   <span className="meeting-detail-label">Result</span>
