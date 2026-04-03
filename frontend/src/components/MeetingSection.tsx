@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { meetingsApi, documentsApi } from "../api";
 import type { Meeting, DocumentBrief } from "../api";
+import { StripTooltip } from "./StripTooltip";
 
 // ── Display maps ────────────────────────────────────────────────────────────
 
@@ -28,6 +29,14 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "var(--red)",
   rescheduled: "var(--orange)",
   no_show: "var(--text-faint)",
+};
+
+const STATUS_DESCRIPTIONS: Record<string, string> = {
+  scheduled: "Blue: scheduled — meeting is confirmed",
+  completed: "Green: completed — meeting took place",
+  cancelled: "Red: cancelled — meeting was called off",
+  rescheduled: "Orange: rescheduled — new time being arranged",
+  no_show: "Gray: no show — participant(s) didn't appear",
 };
 
 const STATUS_BG: Record<string, string> = {
@@ -366,6 +375,7 @@ function MeetingCard({
   docs: DocumentBrief[];
   onUpdate: () => void;
 }) {
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -429,7 +439,11 @@ function MeetingCard({
       className={`meeting-card${expanded ? " meeting-card--expanded" : ""}`}
       style={{ "--status-color": statusColor } as React.CSSProperties}
     >
-      <div className="meeting-card-strip" style={{ background: statusColor }} />
+      <StripTooltip
+        className="meeting-card-strip"
+        style={{ background: statusColor }}
+        text={STATUS_DESCRIPTIONS[meeting.status] ?? `Status: ${meeting.status}`}
+      />
 
       <div className="meeting-card-body">
         {/* ── Compact row — always visible, click to expand ── */}
@@ -459,6 +473,14 @@ function MeetingCard({
           </div>
 
           <div className="meeting-card-right" onClick={e => e.stopPropagation()}>
+            <button
+              className="meeting-cockpit-btn"
+              onClick={() => navigate(`/tasks/${taskId}/meeting/${meeting.id}/cockpit`)}
+              title="Open Cockpit"
+            >
+              Cockpit
+            </button>
+
             {meeting.join_url && meeting.status === "scheduled" && (
               <a
                 className="meeting-join-btn"

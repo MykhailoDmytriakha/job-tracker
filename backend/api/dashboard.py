@@ -59,10 +59,12 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
     upcoming_tasks = []
     recurring_tasks = []
 
+    def _earliest_date(t):
+        dates = [d for d in [t.due_date, t.follow_up_date] if d]
+        return min(dates) if dates else None
+
     for t in active:
-        due_d = t.due_date if t.due_date else None
-        follow_d = t.follow_up_date if t.follow_up_date else None
-        earliest_d = due_d or follow_d
+        earliest_d = _earliest_date(t)
 
         # Recurring: separate column, sorted by last activity (stale first)
         if t.is_recurring:
@@ -77,8 +79,8 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
             upcoming_tasks.append(t)
 
     _far = date_type(9999, 12, 31)
-    today_tasks.sort(key=lambda t: t.due_date or t.follow_up_date or _far)
-    upcoming_tasks.sort(key=lambda t: t.due_date or t.follow_up_date or _far)
+    today_tasks.sort(key=lambda t: _earliest_date(t) or _far)
+    upcoming_tasks.sort(key=lambda t: _earliest_date(t) or _far)
     # Recurring by last activity (stale first = no activity or oldest activity)
     def _staleness(t):
         la = _last_activity(t)
@@ -114,8 +116,8 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
             if ref and (now - ref).days >= cadence_days * 3:
                 return True
 
-        # 3. Waiting but follow-up date already passed (missed check-in)
-        if t.status == "waiting" and t.follow_up_date and t.follow_up_date < today:
+        # 3. Waiting but follow-up date is today or already passed (missed check-in)
+        if t.status == "waiting" and t.follow_up_date and t.follow_up_date <= today:
             return True
 
         # 4. In-progress frozen for 14+ days

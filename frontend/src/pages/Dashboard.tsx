@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { createPortal } from "react-dom";
 import { dashboardApi, tasksApi } from "../api";
+import { StripTooltip } from "../components/StripTooltip";
 import type { DashboardView, TaskBrief } from "../api";
 import { useProject } from "../ProjectContext";
 import { TaskModal } from "../components/TaskModal";
@@ -165,9 +165,16 @@ export function Dashboard() {
 function TodayCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) {
   const dateStr = task.due_date || task.follow_up_date;
   const overdue = isOverdue(dateStr);
+  const isHigh = task.priority === "high";
+
+  let stripTitle = "";
+  if (isHigh && overdue) stripTitle = "High priority + overdue — due date has passed";
+  else if (overdue) stripTitle = "Overdue — due date has passed";
+  else if (isHigh) stripTitle = "High priority task";
 
   return (
-    <div className={`dash-card ${overdue ? "dash-card-urgent" : ""} ${task.priority === "high" ? "dash-card-high" : ""}`} onClick={onClick} title="Click to open">
+    <div className={`dash-card ${overdue ? "dash-card-urgent" : ""} ${isHigh ? "dash-card-high" : ""}`} onClick={onClick}>
+      {stripTitle && <StripTooltip text={stripTitle} />}
       <div className="dash-card-top">
         <span className="dash-card-title"><span className="dash-card-id">{task.display_id}</span> {task.title}</span>
       </div>
@@ -187,9 +194,11 @@ function TodayCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) 
 
 function UpcomingCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) {
   const dateStr = task.due_date || task.follow_up_date;
+  const isHigh = task.priority === "high";
 
   return (
-    <div className={`dash-card ${task.priority === "high" ? "dash-card-high" : ""}`} onClick={onClick} title="Click to open">
+    <div className={`dash-card ${isHigh ? "dash-card-high" : ""}`} onClick={onClick}>
+      {isHigh && <StripTooltip text="High priority task" />}
       <div className="dash-card-top">
         <span className="dash-card-title"><span className="dash-card-id">{task.display_id}</span> {task.title}</span>
       </div>
@@ -204,13 +213,21 @@ function UpcomingCard({ task, onClick }: { task: TaskBrief; onClick: () => void 
 
 const CADENCE_DAYS: Record<string, number> = { daily: 1, weekly: 7, biweekly: 14, monthly: 30 };
 
+
 function RecurringCard({ task, onClick, onLogProgress }: { task: TaskBrief; onClick: () => void; onLogProgress: (id: number) => void }) {
   const stale = staleDays(task.last_activity_at);
   const threshold = CADENCE_DAYS[task.cadence || "daily"] || 1;
   const isStale = stale >= threshold;
+  const isHigh = task.priority === "high";
+
+  let stripTitle = "";
+  if (isHigh && isStale) stripTitle = `High priority + stale (${stale}d since last activity, ${task.cadence} cadence)`;
+  else if (isHigh) stripTitle = "High priority task";
+  else if (isStale) stripTitle = `Stale — ${stale}d since last activity (${task.cadence} cadence, threshold: ${threshold}d)`;
 
   return (
-    <div className={`dash-card ${isStale ? "dash-card-stale" : ""} ${task.priority === "high" ? "dash-card-high" : ""}`} onClick={onClick} title="Click to open">
+    <div className={`dash-card ${isStale ? "dash-card-stale" : ""} ${isHigh ? "dash-card-high" : ""}`} onClick={onClick}>
+      {stripTitle && <StripTooltip text={stripTitle} />}
       <div className="dash-card-top">
         <span className="dash-card-title"><span className="dash-card-id">{task.display_id}</span> {task.title}</span>
       </div>

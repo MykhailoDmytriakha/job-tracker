@@ -3,6 +3,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Pipeline } from "./pages/Pipeline";
 import { Tasks } from "./pages/Tasks";
 import { Settings } from "./pages/Settings";
+import { MeetingCockpit } from "./pages/MeetingCockpit";
 import { Docs } from "./pages/Docs";
 import { Contacts } from "./pages/Contacts";
 import { Companies } from "./pages/Companies";
@@ -52,6 +53,7 @@ function AppInner() {
           <Route path="/companies/:companyId" element={<Companies />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/contacts/:contactId" element={<Contacts />} />
+          <Route path="/tasks/:taskId/meeting/:meetingId/cockpit" element={<MeetingCockpit />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

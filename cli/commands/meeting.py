@@ -1,3 +1,4 @@
+import json as json_mod
 import click
 from ..output import print_json
 from .task import parse_kvs
@@ -14,6 +15,13 @@ def meeting_group():
       jt meeting up 97 1 status=completed result=passed
       jt meeting done 97 1 --result=passed
       jt meeting del 97 1
+
+    \b
+    Cockpit (meeting prep screen):
+      jt meeting cockpit ls 97 1
+      jt meeting cockpit set 97 1 pitch "My 60-sec pitch text..."
+      jt meeting cockpit set 97 1 ready_answers "Comp: $175K..."
+      jt meeting cockpit bulk 97 1 sections.json
     """
 
 
@@ -104,4 +112,136 @@ def del_cmd(ctx, task_id, meeting_id):
     """
     client = ctx.obj["client"]
     data = client.delete(f"/api/tasks/{task_id}/meetings/{meeting_id}")
+    print_json(data)
+
+
+# --- Cockpit ---
+
+
+@meeting_group.group("cockpit")
+def cockpit_group():
+    """Manage cockpit sections for a meeting.
+
+    \b
+    Section keys: ready_answers | pitch | numbers | questions | closing | post_call
+
+    \b
+    Examples:
+      jt meeting cockpit ls 97 1
+      jt meeting cockpit set 97 1 pitch "I'm a Senior Engineer..."
+      jt meeting cockpit set 97 1 ready_answers $'Comp: $175K\\nAuth: US Citizen'
+      jt meeting cockpit bulk 97 1 sections.json
+      jt meeting cockpit get 97 1 pitch
+      jt meeting cockpit del 97 1
+    """
+
+
+@cockpit_group.command("ls")
+@click.argument("task_id", type=int)
+@click.argument("meeting_id", type=int)
+@click.pass_context
+def cockpit_ls(ctx, task_id, meeting_id):
+    """List all cockpit sections for a meeting.
+
+    \b
+    Example:
+      jt meeting cockpit ls 97 1
+    """
+    client = ctx.obj["client"]
+    data = client.get(f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit")
+    print_json(data)
+
+
+@cockpit_group.command("get")
+@click.argument("task_id", type=int)
+@click.argument("meeting_id", type=int)
+@click.argument("section_key")
+@click.pass_context
+def cockpit_get(ctx, task_id, meeting_id, section_key):
+    """Get a single cockpit section content.
+
+    \b
+    Example:
+      jt meeting cockpit get 97 1 pitch
+    """
+    client = ctx.obj["client"]
+    data = client.get(f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit")
+    for s in data:
+        if s["section_key"] == section_key:
+            click.echo(s["content"])
+            return
+    click.echo(f"Section '{section_key}' not found.", err=True)
+
+
+@cockpit_group.command("set")
+@click.argument("task_id", type=int)
+@click.argument("meeting_id", type=int)
+@click.argument("section_key")
+@click.argument("content")
+@click.pass_context
+def cockpit_set(ctx, task_id, meeting_id, section_key, content):
+    """Set (create or update) a cockpit section.
+
+    \b
+    Section keys: ready_answers | pitch | numbers | questions | closing | post_call
+
+    \b
+    Examples:
+      jt meeting cockpit set 97 1 pitch "I'm a Senior Engineer with ~10 years..."
+      jt meeting cockpit set 97 1 ready_answers "$(cat ready.md)"
+    """
+    client = ctx.obj["client"]
+    data = client.put(
+        f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit/{section_key}",
+        json={"content": content},
+    )
+    print_json(data)
+
+
+@cockpit_group.command("bulk")
+@click.argument("task_id", type=int)
+@click.argument("meeting_id", type=int)
+@click.argument("json_file", type=click.Path(exists=True))
+@click.pass_context
+def cockpit_bulk(ctx, task_id, meeting_id, json_file):
+    """Bulk-set all cockpit sections from a JSON file.
+
+    \b
+    JSON format (array):
+      [
+        {"section_key": "ready_answers", "content": "...", "position": 0},
+        {"section_key": "pitch", "content": "...", "position": 1},
+        ...
+      ]
+
+    \b
+    Example:
+      jt meeting cockpit bulk 97 1 cockpit.json
+    """
+    client = ctx.obj["client"]
+    with open(json_file, "r") as f:
+        sections = json_mod.load(f)
+    data = client.put(
+        f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit",
+        json=sections,
+    )
+    print_json(data)
+
+
+@cockpit_group.command("del")
+@click.argument("task_id", type=int)
+@click.argument("meeting_id", type=int)
+@click.pass_context
+def cockpit_del(ctx, task_id, meeting_id):
+    """Delete all cockpit sections for a meeting.
+
+    \b
+    Example:
+      jt meeting cockpit del 97 1
+    """
+    client = ctx.obj["client"]
+    data = client.put(
+        f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit",
+        json=[],
+    )
     print_json(data)

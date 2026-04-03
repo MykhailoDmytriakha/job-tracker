@@ -208,9 +208,8 @@ def list_tasks(
                 if ref and (now_a - ref).days >= cadence_days * 3:
                     return True
 
-            # 3. Waiting but follow-up date already passed (missed check-in)
-            # Compare local dates — overdue only when the follow-up day has fully passed
-            if t.status == "waiting" and t.follow_up_date and t.follow_up_date < today:
+            # 3. Waiting but follow-up date is today or already passed (missed check-in)
+            if t.status == "waiting" and t.follow_up_date and t.follow_up_date <= today:
                 return True
 
             # 4. In-progress frozen for 14+ days
@@ -1132,3 +1131,79 @@ def delete_meeting(task_id: int, meeting_id: int, db: Session = Depends(get_db))
     db.commit()
     log_activity(db, task_id, "meeting_deleted", f"meeting_id={meeting_id} type={mtype}")
     return {"ok": True}
+
+
+# --- Cockpit Sections ---
+
+
+@router.get("/{task_id}/meetings/{meeting_id}/cockpit", response_model=list[schemas.CockpitSectionOut])
+def list_cockpit_sections(task_id: int, meeting_id: int, db: Session = Depends(get_db)):
+    meeting = db.query(models.Meeting).filter(
+        models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
+    ).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    return meeting.cockpit_sections
+
+
+@router.put("/{task_id}/meetings/{meeting_id}/cockpit", response_model=list[schemas.CockpitSectionOut])
+def upsert_cockpit_sections(
+    task_id: int,
+    meeting_id: int,
+    sections: list[schemas.CockpitSectionCreate],
+    db: Session = Depends(get_db),
+):
+    meeting = db.query(models.Meeting).filter(
+        models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
+    ).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    db.query(models.CockpitSection).filter(
+        models.CockpitSection.meeting_id == meeting_id
+    ).delete()
+    for s in sections:
+        db.add(models.CockpitSection(
+            meeting_id=meeting_id,
+            section_key=s.section_key,
+            content=s.content,
+            position=s.position,
+        ))
+    db.commit()
+    db.refresh(meeting)
+    return meeting.cockpit_sections
+
+
+@router.put(
+    "/{task_id}/meetings/{meeting_id}/cockpit/{section_key}",
+    response_model=schemas.CockpitSectionOut,
+)
+def upsert_cockpit_section(
+    task_id: int,
+    meeting_id: int,
+    section_key: str,
+    section: schemas.CockpitSectionUpdate,
+    db: Session = Depends(get_db),
+):
+    meeting = db.query(models.Meeting).filter(
+        models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
+    ).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    db_section = db.query(models.CockpitSection).filter(
+        models.CockpitSection.meeting_id == meeting_id,
+        models.CockpitSection.section_key == section_key,
+    ).first()
+    if db_section:
+        for field, value in section.model_dump(exclude_unset=True).items():
+            setattr(db_section, field, value)
+    else:
+        db_section = models.CockpitSection(
+            meeting_id=meeting_id,
+            section_key=section_key,
+            content=section.content or "",
+            position=section.position or 0,
+        )
+        db.add(db_section)
+    db.commit()
+    db.refresh(db_section)
+    return db_section

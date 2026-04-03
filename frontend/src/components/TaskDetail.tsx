@@ -52,8 +52,8 @@ function getAttentionReasons(task: TaskFull): string[] {
   if (task.status === "waiting" && task.follow_up_date) {
     // Local today at midnight — matches backend date.today()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    if (parseLocalDate(task.follow_up_date) < today)
-      reasons.push("Follow-up date has passed — check-in is overdue");
+    if (parseLocalDate(task.follow_up_date) <= today)
+      reasons.push("Follow-up date is today or has passed — check-in is due");
   }
 
   if (task.status === "in_progress" && daysInactive >= 14)

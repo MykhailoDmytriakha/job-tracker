@@ -304,6 +304,30 @@ class Meeting(Base):
     )
 
     task = relationship("Task", back_populates="meetings")
+    cockpit_sections = relationship(
+        "CockpitSection",
+        back_populates="meeting",
+        order_by="CockpitSection.position",
+        cascade="all, delete-orphan",
+    )
+
+
+class CockpitSection(Base):
+    __tablename__ = "cockpit_sections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    meeting_id = Column(Integer, ForeignKey("meetings.id", ondelete="CASCADE"), nullable=False)
+    section_key = Column(String, nullable=False)  # ready_answers | pitch | numbers | questions | closing | post_call
+    content = Column(Text, default="")
+    position = Column(Integer, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    meeting = relationship("Meeting", back_populates="cockpit_sections")
 
 
 class Activity(Base):

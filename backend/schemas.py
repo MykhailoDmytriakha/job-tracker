@@ -189,6 +189,34 @@ class MeetingOut(BaseModel):
     notes_doc_id: Optional[int] = None
     notes: Optional[str] = None
     position: int
+    cockpit_sections: list["CockpitSectionOut"] = []
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Cockpit Section ---
+
+
+class CockpitSectionCreate(BaseModel):
+    section_key: str
+    content: str = ""
+    position: int = 0
+
+
+class CockpitSectionUpdate(BaseModel):
+    content: Optional[str] = None
+    position: Optional[int] = None
+
+
+class CockpitSectionOut(BaseModel):
+    id: int
+    meeting_id: int
+    section_key: str
+    content: str
+    position: int
     created_at: datetime
     updated_at: datetime
 

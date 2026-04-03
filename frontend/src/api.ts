@@ -98,6 +98,16 @@ export interface SubtaskItem {
   position: number;
 }
 
+export interface CockpitSection {
+  id: number;
+  meeting_id: number;
+  section_key: string;
+  content: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Meeting {
   id: number;
   task_id: number;
@@ -112,6 +122,7 @@ export interface Meeting {
   notes_doc_id: number | null;
   notes: string | null;
   position: number;
+  cockpit_sections: CockpitSection[];
   created_at: string;
   updated_at: string;
 }
@@ -443,6 +454,18 @@ export const meetingsApi = {
   delete: (taskId: number, meetingId: number) =>
     request<{ ok: boolean }>(`/tasks/${taskId}/meetings/${meetingId}`, {
       method: "DELETE",
+    }),
+  getCockpit: (taskId: number, meetingId: number) =>
+    request<CockpitSection[]>(`/tasks/${taskId}/meetings/${meetingId}/cockpit`),
+  saveCockpit: (taskId: number, meetingId: number, sections: { section_key: string; content: string; position: number }[]) =>
+    request<CockpitSection[]>(`/tasks/${taskId}/meetings/${meetingId}/cockpit`, {
+      method: "PUT",
+      body: JSON.stringify(sections),
+    }),
+  saveCockpitSection: (taskId: number, meetingId: number, sectionKey: string, content: string) =>
+    request<CockpitSection>(`/tasks/${taskId}/meetings/${meetingId}/cockpit/${sectionKey}`, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
     }),
 };
 
