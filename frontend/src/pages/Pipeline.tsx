@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   DndContext,
   PointerSensor,
@@ -17,7 +17,17 @@ export function Pipeline() {
   const { active: project } = useProject();
   const navigate = useNavigate();
   const [board, setBoard] = useState<BoardView | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const selectedTaskId = searchParams.get("task") ? Number(searchParams.get("task")) : null;
+
+  function setSelectedTaskId(id: number | null) {
+    if (id) {
+      setSearchParams({ task: String(id) });
+    } else {
+      setSearchParams({});
+    }
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
