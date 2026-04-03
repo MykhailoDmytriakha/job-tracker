@@ -2,9 +2,18 @@ import json
 import sys
 
 
+def _strip_nulls(obj):
+    """Recursively remove keys with None values from dicts."""
+    if isinstance(obj, dict):
+        return {k: _strip_nulls(v) for k, v in obj.items() if v is not None}
+    if isinstance(obj, list):
+        return [_strip_nulls(item) for item in obj]
+    return obj
+
+
 def print_json(data) -> None:
-    """Print data as JSON to stdout."""
-    print(json.dumps(data, indent=2, default=str, ensure_ascii=False))
+    """Print data as JSON to stdout. Null-valued fields are omitted for cleaner output."""
+    print(json.dumps(_strip_nulls(data), indent=2, default=str, ensure_ascii=False))
 
 
 def print_compact(data) -> None:

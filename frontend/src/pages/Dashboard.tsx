@@ -167,9 +167,8 @@ function TodayCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) 
   const overdue = isOverdue(dateStr);
 
   return (
-    <div className={`dash-card ${overdue ? "dash-card-urgent" : ""}`} onClick={onClick} title="Click to open">
+    <div className={`dash-card ${overdue ? "dash-card-urgent" : ""} ${task.priority === "high" ? "dash-card-high" : ""}`} onClick={onClick} title="Click to open">
       <div className="dash-card-top">
-        {task.priority === "high" && <span className="dash-card-dot danger" title="High priority" />}
         <span className="dash-card-title"><span className="dash-card-id">{task.display_id}</span> {task.title}</span>
       </div>
       <div className="dash-card-bottom">
@@ -190,9 +189,8 @@ function UpcomingCard({ task, onClick }: { task: TaskBrief; onClick: () => void 
   const dateStr = task.due_date || task.follow_up_date;
 
   return (
-    <div className="dash-card" onClick={onClick} title="Click to open">
+    <div className={`dash-card ${task.priority === "high" ? "dash-card-high" : ""}`} onClick={onClick} title="Click to open">
       <div className="dash-card-top">
-        {task.priority === "high" && <span className="dash-card-dot danger" title="High priority" />}
         <span className="dash-card-title"><span className="dash-card-id">{task.display_id}</span> {task.title}</span>
       </div>
       <div className="dash-card-bottom">
@@ -212,7 +210,7 @@ function RecurringCard({ task, onClick, onLogProgress }: { task: TaskBrief; onCl
   const isStale = stale >= threshold;
 
   return (
-    <div className={`dash-card ${isStale ? "dash-card-stale" : ""}`} onClick={onClick} title="Click to open">
+    <div className={`dash-card ${isStale ? "dash-card-stale" : ""} ${task.priority === "high" ? "dash-card-high" : ""}`} onClick={onClick} title="Click to open">
       <div className="dash-card-top">
         <span className="dash-card-title"><span className="dash-card-id">{task.display_id}</span> {task.title}</span>
       </div>

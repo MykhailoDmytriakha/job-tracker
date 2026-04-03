@@ -901,6 +901,40 @@ function MetaText({
   );
 }
 
+/* === Description Diff Renderer === */
+
+function isDiffFormat(detail: string): boolean {
+  if (!detail || detail.startsWith("[old]")) return false;
+  if (detail === "[cleared]") return true;
+  // Has diff lines starting with - or +
+  return detail.split("\n").some(l => l.startsWith("-") || l.startsWith("+"));
+}
+
+function DiffView({ diff }: { diff: string }) {
+  if (diff === "[cleared]") {
+    return <span className="activity-text diff-meta">description cleared</span>;
+  }
+  const lines = diff.split("\n");
+  const hasRemovals = lines.some(l => l.startsWith("-"));
+  return (
+    <div className="diff-block">
+      <span className="diff-label">{hasRemovals ? "description changed" : "description set"}</span>
+      {lines.map((line, i) => {
+        if (line === "..." || line === "[truncated]") {
+          return <div key={i} className="diff-line diff-meta">{line}</div>;
+        }
+        if (line.startsWith("+")) {
+          return <div key={i} className="diff-line diff-add">{line}</div>;
+        }
+        if (line.startsWith("-")) {
+          return <div key={i} className="diff-line diff-del">{line}</div>;
+        }
+        return <div key={i} className="diff-line diff-ctx">{line}</div>;
+      })}
+    </div>
+  );
+}
+
 /* === Activity Section — shared between recurring (top, green) and normal (bottom) === */
 
 function ActivitySection({
@@ -937,7 +971,10 @@ function ActivitySection({
             <div key={a.id} className={`detail-activity ${recurring && a.action === "note_added" ? "progress-entry" : ""}`}>
               <span className={`activity-dot ${recurring && a.action === "note_added" ? "green" : ""}`} />
               <div className="activity-content">
-                <span className="activity-text">{highlight(a.detail, searchTerm)}</span>
+                {a.action === "description_updated" && isDiffFormat(a.detail)
+                  ? <DiffView diff={a.detail} />
+                  : <span className="activity-text">{highlight(a.detail, searchTerm)}</span>
+                }
                 <span className="activity-time">
                   {new Date(a.timestamp).toLocaleString()}
                 </span>

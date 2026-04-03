@@ -46,7 +46,13 @@ def parse_kvs(kvs: tuple) -> dict:
 @click.option("--fields", default=None, help="Comma-separated fields to include")
 @click.pass_context
 def get_cmd(ctx, task_id, fields):
-    """Get full task detail."""
+    """Get full task detail (description, activities, contacts, companies, docs, checklist).
+
+    \b
+    Examples:
+      jt get 180                               full detail
+      jt get 180 --fields=title,status,stage_id specific fields only
+    """
     client = ctx.obj["client"]
     data = client.get(f"/api/tasks/{task_id}")
     if fields:
@@ -68,7 +74,19 @@ def get_cmd(ctx, task_id, fields):
 @click.option("--fields", default=None, help="Comma-separated fields to include")
 @click.pass_context
 def ls_cmd(ctx, status, stage_id, priority, category, search, overdue, attention, recurring, on_board, brief, fields):
-    """List tasks with optional filters."""
+    """List tasks with optional filters.
+
+    \b
+    Examples:
+      jt ls                              all open tasks
+      jt ls --status=waiting             waiting tasks
+      jt ls --stage=4                    APPLIED stage
+      jt ls --priority=high              high priority only
+      jt ls --search="Premera"           text search
+      jt ls --attention                  tasks needing attention
+      jt ls --overdue                    overdue tasks
+      jt ls --on-board --brief           board tasks, minimal fields
+    """
     client = ctx.obj["client"]
     params = {}
     if status:
@@ -170,7 +188,13 @@ def up_cmd(ctx, task_id, kvs):
 @click.argument("text")
 @click.pass_context
 def note_cmd(ctx, task_id, text):
-    """Add a note/log entry to a task."""
+    """Add a note/log entry to a task.
+
+    \b
+    Examples:
+      jt note 180 "[2026-04-03] Applied via Workday. Confirmation #12345."
+      jt note 97  "[2026-04-03] Phone screen completed. Next: technical."
+    """
     client = ctx.obj["client"]
     data = client.post(f"/api/tasks/{task_id}/log", json={"text": text})
     print_json({"ok": True, "task_id": task_id})
@@ -181,7 +205,13 @@ def note_cmd(ctx, task_id, text):
 @click.option("--force", is_flag=True, help="Force delete even if task has dependents")
 @click.pass_context
 def del_cmd(ctx, task_id, force):
-    """Delete a task."""
+    """Delete a task. Use --force if task has dependents.
+
+    \b
+    Examples:
+      jt del 180           delete (fails if has dependents)
+      jt del 180 --force   force delete with dependents
+    """
     client = ctx.obj["client"]
     params = {"force": "true"} if force else {}
     data = client.delete(f"/api/tasks/{task_id}", params=params)
@@ -397,3 +427,64 @@ def why_cmd(ctx, task_id):
     result["display_id"] = task.get("display_id")
     result["title"] = task.get("title")
     print_json(result)
+
+
+# ---------- stage name aliases for jt mv ----------
+
+_STAGE_ALIASES = {
+    # Full names (uppercase)
+    "FILTERED": 1, "READY TO APPLY": 3, "READY": 3,
+    "APPLIED": 4, "OUTREACHED": 5, "WAITING": 6,
+    "PHONE SCREEN": 13, "SCREEN": 13, "INTERVIEW": 10,
+    "OFFER": 8, "CLOSED": 9,
+    # Lowercase
+    "filtered": 1, "ready to apply": 3, "ready": 3,
+    "applied": 4, "outreached": 5, "waiting": 6,
+    "phone screen": 13, "screen": 13, "interview": 10,
+    "offer": 8, "closed": 9,
+}
+
+
+def _resolve_stage(stage_str: str) -> int:
+    """Resolve stage name or number to stage_id."""
+    # Try as integer first
+    try:
+        return int(stage_str)
+    except ValueError:
+        pass
+    # Try alias lookup
+    stage_id = _STAGE_ALIASES.get(stage_str)
+    if stage_id is None:
+        stage_id = _STAGE_ALIASES.get(stage_str.upper())
+    if stage_id is None:
+        valid = "FILTERED(1), READY(3), APPLIED(4), OUTREACHED(5), WAITING(6), SCREEN(13), INTERVIEW(10), OFFER(8), CLOSED(9)"
+        raise click.UsageError(f"Unknown stage '{stage_str}'. Valid: {valid}")
+    return stage_id
+
+
+@click.command("mv")
+@click.argument("task_id", type=int)
+@click.argument("stage", nargs=-1, required=True)
+@click.pass_context
+def mv_cmd(ctx, task_id, stage):
+    """Move a task to a pipeline stage. Accepts stage ID or name.
+
+    \b
+    Examples:
+      jt mv 185 4                  move to APPLIED (by ID)
+      jt mv 185 applied            move to APPLIED (by name)
+      jt mv 185 ready              move to READY TO APPLY
+      jt mv 185 "phone screen"     move to PHONE SCREEN
+      jt mv 185 screen             move to PHONE SCREEN (short)
+      jt mv 185 closed             move to CLOSED
+
+    \b
+    Stage names (case-insensitive):
+      filtered(1)  ready(3)  applied(4)  outreached(5)
+      waiting(6)  screen(13)  interview(10)  offer(8)  closed(9)
+    """
+    client = ctx.obj["client"]
+    stage_str = " ".join(stage)
+    stage_id = _resolve_stage(stage_str)
+    data = client.put(f"/api/tasks/{task_id}", json={"stage_id": stage_id})
+    print_json(data)

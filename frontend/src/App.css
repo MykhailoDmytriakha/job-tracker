@@ -367,10 +367,9 @@ main {
 .dash-card:hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .dash-card-urgent { border-left: 3px solid var(--red); }
 .dash-card-stale { border-left: 3px solid var(--orange); }
+.dash-card-high { border-left: 3px solid var(--red); }
 
 .dash-card-top { display: flex; align-items: flex-start; gap: 6px; }
-.dash-card-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
-.dash-card-dot.danger { background: var(--red); }
 .dash-card-title {
   font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.35;
   overflow: hidden;
@@ -1393,9 +1392,30 @@ main {
   width: 5px; height: 5px; border-radius: 50%;
   background: var(--border-strong); flex-shrink: 0; margin-top: 5px;
 }
-.activity-content { display: flex; flex-direction: column; gap: 1px; }
+.activity-content { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .activity-text { color: var(--text-muted); }
 .activity-time { font-size: 11px; color: var(--text-faint); }
+
+/* Description diff */
+.diff-block {
+  font-family: "SF Mono", "Menlo", "Consolas", monospace;
+  font-size: 11px; line-height: 1.5;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 2px 0;
+}
+.diff-label {
+  display: block; padding: 3px 8px;
+  font-family: inherit; font-size: 10px; font-weight: 600;
+  color: var(--text-faint); background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
+}
+.diff-line { padding: 1px 8px; white-space: pre-wrap; word-break: break-word; }
+.diff-add { color: var(--green); background: var(--green-soft); }
+.diff-del { color: var(--red); background: var(--red-soft); text-decoration: line-through; }
+.diff-ctx { color: var(--text-faint); }
+.diff-meta { color: var(--text-faint); font-style: italic; }
 mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px; padding: 0 1px; }
 
 .note-form { display: flex; gap: 6px; }

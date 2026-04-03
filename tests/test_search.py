@@ -93,7 +93,7 @@ def test_search_document_by_content(client):
 
 def test_search_activity_by_detail(client):
     t = client.post("/api/tasks/", json={"title": "Task X"}).json()
-    client.post(f"/api/tasks/{t['id']}/note", json={"text": "Discussed the pricing structure in detail"})
+    client.post(f"/api/tasks/{t['id']}/log", json={"text": "Discussed the pricing structure in detail"})
     r = client.get("/api/search/", params={"project_id": 1, "q": "pricing"})
     data = r.json()
     act_group = next((g for g in data["groups"] if g["entity_type"] == "activity"), None)

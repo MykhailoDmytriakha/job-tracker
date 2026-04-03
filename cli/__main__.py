@@ -7,7 +7,7 @@ from .client import JTClient
 from .commands.task import (
     get_cmd, ls_cmd, new_cmd, up_cmd, note_cmd, del_cmd,
     link_cmd, unlink_cmd, deps_cmd, chain_cmd, block_cmd, unblock_cmd,
-    why_cmd,
+    why_cmd, mv_cmd,
 )
 from .commands.dash import dash_cmd, board_cmd, health_cmd, stages_cmd
 from .commands.search import find_cmd
@@ -42,6 +42,31 @@ def cli(ctx, project_id, url):
       jt log                       today's activity journal
       jt find "query"              global search
       jt contact/company/doc ls    entity lists
+
+    \b
+    Task fields (key=value):
+      status          open | in_progress | waiting | done | closed
+      priority        high | medium | low
+      stage_id        1=FILTERED  3=READY  4=APPLIED  5=OUTREACHED
+                      6=WAITING  13=PHONE SCREEN  10=INTERVIEW
+                      8=OFFER  9=CLOSED
+      pipeline_heat   hot | warm | cold | archived
+      outreach_status not_started | searching | contacted | replied
+                      | connected | dead_end
+      lead_source     job_board | linkedin | referral | direct
+                      | cold_outreach
+      cadence         daily | weekly | biweekly | monthly
+      due_date        ISO date (YYYY-MM-DD)
+      follow_up_date  ISO date (YYYY-MM-DD)
+      applied_at      ISO date (YYYY-MM-DD)
+      posting_url     URL string
+      compensation    free text (e.g. "$150k-$180k")
+      is_recurring    true | false
+      description     free text
+
+    \b
+    Null values: pass field=null to clear a field.
+    Output:      null fields are omitted from output.
     """
     ctx.ensure_object(dict)
     ctx.obj["client"] = JTClient(url, project_id)
@@ -61,6 +86,7 @@ cli.add_command(chain_cmd, "chain")
 cli.add_command(block_cmd, "block")
 cli.add_command(unblock_cmd, "unblock")
 cli.add_command(why_cmd, "why")
+cli.add_command(mv_cmd, "mv")
 
 # Infrastructure
 cli.add_command(dash_cmd, "dash")

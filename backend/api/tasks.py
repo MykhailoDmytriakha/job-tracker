@@ -1,3 +1,5 @@
+import difflib
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -13,6 +15,41 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 def log_activity(db: Session, task_id: int, action: str, detail: str = ""):
     activity = models.Activity(task_id=task_id, action=action, detail=detail)
     db.add(activity)
+
+
+def _description_diff(old: str, new: str) -> str:
+    """Compute a compact line-level diff between old and new description.
+
+    Returns standard -/+ format with 1 line of context.
+    For a 500-line description with 1 changed line, stores ~3 lines instead of 500.
+    """
+    if not old and new:
+        # All lines are additions
+        return "\n".join(f"+{line}" for line in new.splitlines())
+    if old and not new:
+        return "[cleared]"
+    if old == new:
+        return ""
+
+    old_lines = old.splitlines(keepends=True)
+    new_lines = new.splitlines(keepends=True)
+
+    diff = list(difflib.unified_diff(old_lines, new_lines, n=1))
+    if not diff:
+        return ""
+
+    # Strip --- / +++ headers and @@ markers, keep only content
+    result_lines = []
+    for line in diff:
+        if line.startswith("---") or line.startswith("+++"):
+            continue
+        if line.startswith("@@"):
+            if result_lines:
+                result_lines.append("...")
+            continue
+        result_lines.append(line.rstrip("\n"))
+
+    return "\n".join(result_lines)
 
 
 def _get_blocked_ids(db: Session) -> set[int]:
@@ -298,6 +335,19 @@ def update_task(
                 detail=f"Complete {names} first, then you can close this task",
             )
 
+        # Open child tasks (via parent_id)
+        open_children = db.query(models.Task).filter(
+            models.Task.parent_id == db_task.id,
+            models.Task.status.notin_(["done", "closed"]),
+        ).all()
+        if open_children:
+            names = ", ".join(f"#{c.id} {c.title}" for c in open_children[:3])
+            remaining = f" and {len(open_children) - 3} more" if len(open_children) > 3 else ""
+            raise HTTPException(
+                status_code=409,
+                detail=f"Complete {len(open_children)} subtask(s) first: {names}{remaining}",
+            )
+
         # Open subtask items
         open_subs = [s for s in db_task.subtask_items if not s.is_done]
         if open_subs:
@@ -340,8 +390,9 @@ def update_task(
         )
 
     if "description" in changes and changes["description"] != db_task.description:
-        old_desc = db_task.description or ""
-        log_activity(db, task_id, "description_updated", f"[old]\n{old_desc}")
+        diff = _description_diff(db_task.description or "", changes["description"] or "")
+        if diff:
+            log_activity(db, task_id, "description_updated", diff)
 
     if "category" in changes and changes["category"] != db_task.category:
         log_activity(
@@ -446,6 +497,10 @@ def delete_task(
     # Clear and delete
     db_task.blocked_by.clear()
     db_task.blocks.clear()
+    # Detach child tasks (via parent_id)
+    db.query(models.Task).filter(models.Task.parent_id == db_task.id).update(
+        {"parent_id": None}, synchronize_session="fetch"
+    )
     for sub in list(db_task.subtask_items):
         db.delete(sub)
     db.delete(db_task)

@@ -54,6 +54,7 @@ def list_activities(
         schemas.ActivityJournalItem(
             id=row.id,
             task_id=row.task_id,
+            display_id=row.task.display_id,
             task_title=row.task.title,
             action=row.action,
             detail=row.detail,

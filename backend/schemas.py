@@ -76,6 +76,7 @@ class ActivityOut(BaseModel):
 class ActivityJournalItem(BaseModel):
     id: int
     task_id: int
+    display_id: str
     task_title: str
     action: str
     detail: str

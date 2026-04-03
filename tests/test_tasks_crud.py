@@ -138,7 +138,7 @@ def test_list_tasks_on_board(client):
 
 def test_add_note(client):
     t = client.post("/api/tasks/", json={"title": "Note test"}).json()
-    r = client.post(f"/api/tasks/{t['id']}/note", json={"text": "Important note"})
+    r = client.post(f"/api/tasks/{t['id']}/log", json={"text": "Important note"})
     assert r.status_code == 200
     full = client.get(f"/api/tasks/{t['id']}").json()
     assert any(a["action"] == "note_added" and "Important note" in a["detail"] for a in full["activities"])
