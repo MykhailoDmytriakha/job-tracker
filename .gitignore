@@ -8,5 +8,7 @@ node_modules/
 dist/
 .DS_Store
 .env
+.env.prod
+.env.vercel
 frontend/.env
 .vercel
