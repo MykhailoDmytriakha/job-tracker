@@ -14,13 +14,21 @@ from .api import (
 )
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+def init_db():
+    """Create tables and run migrations. Called both from lifespan and module-level for serverless."""
     models.Base.metadata.create_all(bind=engine)
     run_migrations(engine)
     seed_default_stages()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
     yield
 
+
+# Init DB at module load time (needed for Vercel serverless where lifespan doesn't run)
+init_db()
 
 app = FastAPI(title="Job Tracker", version="0.2.0", lifespan=lifespan)
 
