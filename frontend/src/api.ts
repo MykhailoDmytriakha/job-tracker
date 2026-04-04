@@ -1,4 +1,4 @@
-const BASE = "http://localhost:8000/api";
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 export class ApiError extends Error {
   status: number;
@@ -10,17 +10,58 @@ export class ApiError extends Error {
   }
 }
 
+export function getAuthToken(): string | null {
+  return localStorage.getItem("token");
+}
+
+export function setAuthToken(token: string) {
+  localStorage.setItem("token", token);
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem("token");
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers,
     ...options,
   });
+  if (res.status === 401) {
+    clearAuthToken();
+    window.location.href = "/login";
+    throw new ApiError(401, "Unauthorized", "Session expired");
+  }
   if (!res.ok) {
     const body = await res.text();
     throw new ApiError(res.status, res.statusText, body);
   }
   return res.json();
 }
+
+// --- Auth API ---
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string | null;
+  picture: string | null;
+  created_at: string;
+}
+
+export const authApi = {
+  googleLogin: (credential: string) =>
+    request<{ access_token: string; token_type: string }>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    }),
+  me: () => request<AuthUser>("/auth/me"),
+};
 
 // --- Types ---
 

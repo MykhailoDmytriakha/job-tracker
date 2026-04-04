@@ -1,10 +1,12 @@
-"""Idempotent schema migration runner for SQLite.
+"""Idempotent schema migration runner.
 
 Runs on every startup. create_all handles new tables.
 This handles adding columns to existing tables (ALTER TABLE).
+Works with both SQLite and PostgreSQL.
 """
 
 from sqlalchemy import inspect, text
+from .database import is_sqlite
 
 
 def run_migrations(engine):
@@ -20,16 +22,6 @@ def run_migrations(engine):
                 conn.execute(text("ALTER TABLE contacts ADD COLUMN company_id INTEGER REFERENCES companies(id)"))
 
     if "tasks" in tables:
-        # Normalize date-only columns: strip time component from any datetime strings
-        # (e.g. "2026-04-01 00:00:00.000000" → "2026-04-01") so SQLAlchemy Date type can parse them
-        date_columns = ["follow_up_date", "due_date", "next_checkpoint", "applied_at"]
-        with engine.begin() as conn:
-            for col in date_columns:
-                conn.execute(text(
-                    f"UPDATE tasks SET {col} = substr({col}, 1, 10)"
-                    f" WHERE {col} IS NOT NULL AND length({col}) > 10"
-                ))
-
         existing = {col["name"] for col in inspector.get_columns("tasks")}
         migrations = [
             ("category", "TEXT"),
@@ -59,3 +51,20 @@ def run_migrations(engine):
                     conn.execute(
                         text(f"ALTER TABLE tasks ADD COLUMN {col_name} {col_type}")
                     )
+
+    # Projects table: add user_id if missing
+    if "projects" in tables:
+        project_cols = {col["name"] for col in inspector.get_columns("projects")}
+        if "user_id" not in project_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE projects ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+
+    # Date normalization: only on SQLite (PostgreSQL handles dates natively)
+    if is_sqlite and "tasks" in tables:
+        date_columns = ["follow_up_date", "due_date", "next_checkpoint", "applied_at"]
+        with engine.begin() as conn:
+            for col in date_columns:
+                conn.execute(text(
+                    f"UPDATE tasks SET {col} = substr({col}, 1, 10)"
+                    f" WHERE {col} IS NOT NULL AND length({col}) > 10"
+                ))

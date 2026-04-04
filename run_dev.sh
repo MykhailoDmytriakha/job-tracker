@@ -3,6 +3,11 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Load env vars
+if [ -f "$DIR/.env" ]; then
+  export $(grep -v '^#' "$DIR/.env" | xargs)
+fi
+
 # Backend
 echo "Starting backend..."
 cd "$DIR"

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
 import { Pipeline } from "./pages/Pipeline";
 import { Tasks } from "./pages/Tasks";
@@ -7,11 +7,13 @@ import { MeetingCockpit } from "./pages/MeetingCockpit";
 import { Docs } from "./pages/Docs";
 import { Contacts } from "./pages/Contacts";
 import { Companies } from "./pages/Companies";
+import { Login } from "./pages/Login";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import { Toast } from "./components/Toast";
 import { ProjectProvider, useProject } from "./ProjectContext";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
 import { Welcome } from "./components/Welcome";
+import { AuthProvider, useAuth } from "./AuthContext";
 import "./App.css";
 
 function AppInner() {
@@ -62,12 +64,49 @@ function AppInner() {
   );
 }
 
+function AuthGate() {
+  const { user, loading, authRequired } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="login">
+        <div className="login-spinner">
+          <div className="login-spinner-ring" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          user ? <Navigate to="/" replace /> : <Login />
+        }
+      />
+      <Route
+        path="/*"
+        element={
+          !authRequired || user ? (
+            <ProjectProvider>
+              <AppInner />
+            </ProjectProvider>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+    </Routes>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <ProjectProvider>
-        <AppInner />
-      </ProjectProvider>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

@@ -3,6 +3,29 @@ from datetime import datetime, date
 from typing import Optional
 
 
+# --- Auth ---
+
+
+class GoogleAuthRequest(BaseModel):
+    credential: str  # Google ID token from frontend
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+    name: Optional[str] = None
+    picture: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- Project ---
 
 

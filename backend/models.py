@@ -8,6 +8,20 @@ from datetime import datetime, timezone
 from .database import Base
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    name = Column(String, nullable=True)
+    picture = Column(String, nullable=True)
+    google_id = Column(String, unique=True, nullable=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_login = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    projects = relationship("Project", back_populates="owner")
+
+
 task_dependencies = Table(
     "task_dependencies",
     Base.metadata,
@@ -62,12 +76,14 @@ class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     name = Column(String, nullable=False)
     short_key = Column(String(5), nullable=False, unique=True)
     description = Column(Text, default="")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    owner = relationship("User", back_populates="projects")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
 
 
