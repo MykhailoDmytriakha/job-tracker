@@ -159,6 +159,7 @@ Route: `/tasks/:taskId/meeting/:meetingId/cockpit`
 
 - Opens a dedicated full-page cockpit for one meeting
 - Header shows back button, company/task context, meeting type, schedule, interviewer, and join link when present
+- Header includes a Cockpit-only text size control for section content
 - Main body is a two-column cockpit grid with six markdown sections:
   - Ready Answers
   - My Pitch
@@ -167,6 +168,7 @@ Route: `/tasks/:taskId/meeting/:meetingId/cockpit`
   - Closing
   - Post-Call Notes
 - Cockpit section rendering normalizes escaped newlines from storage and preserves meaningful line breaks in the rendered text
+- The text-size preference affects Cockpit section content in both read mode and edit mode, persists locally per user/browser, and does not resize the surrounding page chrome
 - Clicking a panel header focuses it; other panels collapse to previews
 - Each panel supports inline markdown editing
 - Edit shortcuts: `Cmd+Enter` saves, `Esc` cancels

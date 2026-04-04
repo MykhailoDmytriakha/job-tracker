@@ -35,6 +35,17 @@ const TYPE_LABELS: Record<string, string> = {
   panel: "Panel", onsite: "Onsite", other: "Meeting",
 };
 
+const COCKPIT_TEXT_SIZE_KEY = "jt_cockpit_text_size";
+
+const CONTENT_SIZE_OPTIONS = [
+  { id: "s", label: "Small", shortLabel: "S", scale: 0.92 },
+  { id: "m", label: "Medium", shortLabel: "M", scale: 1 },
+  { id: "l", label: "Large", shortLabel: "L", scale: 1.12 },
+  { id: "xl", label: "XL", shortLabel: "XL", scale: 1.26 },
+] as const;
+
+type ContentSizeId = (typeof CONTENT_SIZE_OPTIONS)[number]["id"];
+
 type ToolbarTone = "docs" | "companies" | "contacts" | "links";
 
 type ModalResourceTone = Exclude<ToolbarTone, "links">;
@@ -63,6 +74,10 @@ type ToolbarItem = {
   | { kind: "button"; onClick: () => void }
   | { kind: "link"; href: string }
 );
+
+function isContentSizeId(value: string | null): value is ContentSizeId {
+  return CONTENT_SIZE_OPTIONS.some((option) => option.id === value);
+}
 
 function fmtDate(s: string | null): string {
   if (!s) return "";
@@ -309,6 +324,10 @@ export function MeetingCockpit() {
   const [editDraft, setEditDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [contentSize, setContentSize] = useState<ContentSizeId>(() => {
+    const saved = localStorage.getItem(COCKPIT_TEXT_SIZE_KEY);
+    return isContentSizeId(saved) ? saved : "m";
+  });
   const docCacheRef = useRef(new Map<number, DocumentFull>());
   const contactCacheRef = useRef(new Map<number, ContactFull>());
   const companyCacheRef = useRef(new Map<number, CompanyFull>());
@@ -333,6 +352,7 @@ export function MeetingCockpit() {
   }, [taskId, meetingId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { localStorage.setItem(COCKPIT_TEXT_SIZE_KEY, contentSize); }, [contentSize]);
 
   function handlePanelClick(key: string) { if (!editing) setFocused(prev => prev === key ? null : key); }
   function startEdit(key: string) { setEditing(key); setEditDraft(sections[key] || ""); setFocused(key); }
@@ -390,6 +410,7 @@ export function MeetingCockpit() {
   }
 
   const modalResourceGroups = buildModalResourceGroups(task, meeting);
+  const activeContentSize = CONTENT_SIZE_OPTIONS.find((option) => option.id === contentSize) ?? CONTENT_SIZE_OPTIONS[1];
   const companyName = task.companies?.[0]?.name || task.title.split(":")[0]?.trim() || "Meeting";
   const toolbarGroups = [
     ...modalResourceGroups.map((group) => ({
@@ -420,7 +441,10 @@ export function MeetingCockpit() {
   ].filter((group) => group.items.length > 0);
 
   return (
-    <div className={`ck ${loaded ? "ck--loaded" : ""}`}>
+    <div
+      className={`ck ${loaded ? "ck--loaded" : ""}`}
+      style={{ "--ck-content-scale": activeContentSize.scale } as React.CSSProperties}
+    >
       {/* Scrollable content area */}
       <div className="ck-scroll">
         {/* Header */}
@@ -436,11 +460,32 @@ export function MeetingCockpit() {
               {meeting.interviewer && <span className="ck-interviewer">{meeting.interviewer}</span>}
             </div>
           </div>
-          {meeting.join_url && (
-            <a className="ck-join" href={meeting.join_url} target="_blank" rel="noopener noreferrer">
-              Join {meeting.platform ? meeting.platform.charAt(0).toUpperCase() + meeting.platform.slice(1) : "Call"}
-            </a>
-          )}
+          <div className="ck-header-actions">
+            <div className="ck-font-control" role="radiogroup" aria-label="Cockpit content text size">
+              <span className="ck-font-control-label">Text size</span>
+              <div className="ck-font-control-options">
+                {CONTENT_SIZE_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`ck-font-control-btn${contentSize === option.id ? " ck-font-control-btn--active" : ""}`}
+                    onClick={() => setContentSize(option.id)}
+                    role="radio"
+                    aria-checked={contentSize === option.id}
+                    aria-label={`${option.label} content text`}
+                    title={`${option.label} content text`}
+                  >
+                    {option.shortLabel}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {meeting.join_url && (
+              <a className="ck-join" href={meeting.join_url} target="_blank" rel="noopener noreferrer">
+                Join {meeting.platform ? meeting.platform.charAt(0).toUpperCase() + meeting.platform.slice(1) : "Call"}
+              </a>
+            )}
+          </div>
         </header>
 
         {/* Two-column grid */}

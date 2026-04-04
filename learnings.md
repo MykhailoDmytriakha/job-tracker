@@ -260,6 +260,12 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Make activity text preserve line breaks and wrap long tokens (`overflow-wrap: anywhere` / `word-break: break-word`) and explicitly hide horizontal overflow in task detail columns.
 **Rule:** Any user-generated log or note text shown inside fixed-width panels or modals must wrap arbitrary tokens (URLs, hashes, IDs) and must never create horizontal scrolling.
 
+### L039: Dense cockpit writing surfaces need their own text-size control
+**Context:** User reported that Cockpit content sections such as `My Pitch` and `Post-Call Notes` sometimes feel too small and asked for an in-page way to regulate font size.
+**Root cause:** Cockpit optimized for information density with markdown/read-edit font sizes around 13-14px, but long-form prep notes are a reading/writing surface, not chrome. One fixed size is too rigid for different screens and visual comfort needs.
+**Fix:** Add a Cockpit-only content text-size control, persist the preference locally, and apply the same scale to both reading and editing states of section content.
+**Rule:** For long-form prep, notes, or writing surfaces, content typography must be user-adjustable independently from surrounding UI chrome. Read mode and edit mode must stay in sync.
+
 ---
 
 ## Meta-patterns observed across all learnings
