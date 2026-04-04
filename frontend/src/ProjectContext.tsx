@@ -5,6 +5,7 @@ import type { Project } from "./api";
 interface ProjectCtx {
   projects: Project[];
   active: Project | null;
+  loading: boolean;
   setActiveId: (id: number) => void;
   reload: () => void;
 }
@@ -12,6 +13,7 @@ interface ProjectCtx {
 const Ctx = createContext<ProjectCtx>({
   projects: [],
   active: null,
+  loading: true,
   setActiveId: () => {},
   reload: () => {},
 });
@@ -22,6 +24,7 @@ export function useProject() {
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeId, setActiveIdRaw] = useState<number | null>(() => {
     const saved = localStorage.getItem("activeProjectId");
     return saved ? Number(saved) : null;
@@ -38,6 +41,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (list.length > 0 && (activeId === null || !list.find(p => p.id === activeId))) {
         setActiveId(list[0].id);
       }
+      setLoading(false);
     });
   }
 
@@ -46,7 +50,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const active = projects.find((p) => p.id === activeId) || null;
 
   return (
-    <Ctx.Provider value={{ projects, active, setActiveId, reload }}>
+    <Ctx.Provider value={{ projects, active, loading, setActiveId, reload }}>
       {children}
     </Ctx.Provider>
   );

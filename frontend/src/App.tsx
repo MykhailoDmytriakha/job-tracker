@@ -17,7 +17,17 @@ import { AuthProvider, useAuth } from "./AuthContext";
 import "./App.css";
 
 function AppInner() {
-  const { projects } = useProject();
+  const { projects, loading } = useProject();
+
+  if (loading) {
+    return (
+      <div className="login">
+        <div className="login-spinner">
+          <div className="login-spinner-ring" />
+        </div>
+      </div>
+    );
+  }
 
   // No projects: show welcome / onboarding
   if (projects.length === 0) {
