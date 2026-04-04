@@ -134,8 +134,11 @@ Default page ("/"). One-glance overview.
 4. **Recently Updated** - last 10 tasks by updated_at
 
 ### Click behavior
-- Clicking any task navigates to `/tasks?selected=ID`
-- Tasks page reads URL param and opens detail panel for that task
+- Clicking any dashboard task opens task detail in a modal on the dashboard route (`/?task=ID`)
+- The modal keeps a browsing queue in dashboard order: `Today -> Upcoming -> Recurring`
+- The modal header shows previous/current/next task IDs so you can move through the queue without closing the popup
+- `Left` / `Right` arrow keys switch tasks in-place when focus is not inside an input, textarea, or select
+- `Open full page` still navigates to `/tasks/:id`
 
 ---
 
@@ -191,6 +194,9 @@ INBOX, TRIAGED, TO APPLY, SUBMITTED, HUMAN LANE, WAITING, RESPONSE, OFFER, CLOSE
 - Drag-and-drop cards between columns (updates stage_id)
 - Cards show: title, priority stripe, category badge, date, blocked indicator
 - Blocked cards: reduced opacity (0.45)
+- Clicking a card opens task detail in a modal on the pipeline route (`/pipeline?task=ID`)
+- The modal header shows previous/current/next task IDs using the current board order: column order first, then card order inside each column
+- `Left` / `Right` arrow keys switch cards in-place when focus is not inside an input, textarea, or select
 
 ---
 
@@ -220,6 +226,20 @@ Three options: Light, Dark, System (auto)
 - Applied via `data-theme` attribute on `<html>`
 - All colors use CSS custom properties
 - Dark mode: tested, all components work
+
+---
+
+## Developer Scripts
+
+- `./run_dev.sh` is the default dev launcher and forwards to `./start_dev.sh`
+- `./start_dev.sh` starts backend and frontend in the background, then returns control to the shell immediately
+- Startup stores the active ports and process IDs in `.dev-ports.env`
+- Startup writes logs to `.dev-logs/backend.log` and `.dev-logs/frontend.log`
+- Backend port starts at `8000` and moves upward only if the port is already busy
+- Frontend port starts at `5173` and moves upward only if the port is already busy
+- Frontend gets `VITE_API_URL` pointing at the chosen backend port
+- Backend gets `FRONTEND_URL` matching the chosen frontend port so CORS stays valid
+- `./stop_dev.sh` reads `.dev-ports.env`, stops the recorded processes, clears any leftover listeners on those ports, and deletes the state file
 
 ---
 

@@ -172,6 +172,8 @@ export function TaskDetail({
   onDelete,
   onUpdate,
   onNavigate,
+  modalSwitcher,
+  modalPosition,
   onOpenFull,
   isModal = false,
   searchTerm = "",
@@ -181,6 +183,8 @@ export function TaskDetail({
   onDelete: () => void;
   onUpdate: () => void;
   onNavigate: (id: number) => void;
+  modalSwitcher?: React.ReactNode;
+  modalPosition?: React.ReactNode;
   onOpenFull?: () => void;
   isModal?: boolean;
   searchTerm?: string;
@@ -199,22 +203,32 @@ export function TaskDetail({
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const descDivRef = useRef<HTMLDivElement>(null);
+  const loadRequestIdRef = useRef(0);
   const [descHeight, setDescHeight] = useState<number | undefined>(undefined);
 
-  const load = () => {
-    tasksApi.get(taskId).then((t) => {
+  const load = async (targetTaskId: number = taskId) => {
+    const requestId = ++loadRequestIdRef.current;
+    try {
+      const t = await tasksApi.get(targetTaskId);
+      const cats = await categoriesApi.list(t.project_id);
+      const stages = t.stage_id ? await stagesApi.list() : null;
+
+      if (requestId !== loadRequestIdRef.current) return;
+
       setTask(t);
-      categoriesApi.list(t.project_id).then((cats) => setCategoryOptions(cats.map(c => c.name)));
-      if (t.stage_id) {
-        stagesApi.list().then((stages) => {
-          setAllStages(stages.flatMap((s) => [s, ...s.children]));
-        });
-      }
-    });
+      setCategoryOptions(cats.map((c) => c.name));
+      setAllStages(stages ? stages.flatMap((s) => [s, ...s.children]) : []);
+    } catch (e) {
+      if (requestId !== loadRequestIdRef.current) return;
+      setError(e instanceof Error ? e.message : "Failed to load task");
+    }
   };
 
   useEffect(() => {
-    load();
+    setTask(null);
+    setCategoryOptions([]);
+    setAllStages([]);
+    void load(taskId);
     setEditingField(null);
     setError(null);
   }, [taskId]);
@@ -224,7 +238,7 @@ export function TaskDetail({
     setError(null);
     try {
       await tasksApi.update(taskId, { [field]: value } as any);
-      load();
+      void load();
       onUpdate();
     } catch (e) {
       if (e instanceof ApiError) {
@@ -248,7 +262,7 @@ export function TaskDetail({
     if (!noteText.trim()) return;
     await tasksApi.addLog(taskId, noteText.trim());
     setNoteText("");
-    load();
+    void load();
   }
 
   async function addSubtask(e: React.FormEvent) {
@@ -256,7 +270,7 @@ export function TaskDetail({
     if (!subtaskTitle.trim()) return;
     await tasksApi.addSubtaskItem(taskId, subtaskTitle.trim());
     setSubtaskTitle("");
-    load();
+    void load();
     onUpdate();
   }
 
@@ -275,56 +289,69 @@ export function TaskDetail({
     task.subtask_count > 0
       ? Math.round((task.subtask_done / task.subtask_count) * 100)
       : null;
+  const headerActions = (
+    <div className="detail-header-actions">
+      {onOpenFull && (
+        <button
+          className="detail-expand"
+          onClick={onOpenFull}
+          title="Open full page"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M14 8v6a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1h6M10 2h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      )}
+      <button
+        className="detail-delete"
+        onClick={() => setDeleteConfirm({ show: true, message: `Delete "${task.title}"? This cannot be undone.`, canForce: true })}
+        title="Delete task"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {isModal && (
+        <button
+          className="detail-modal-close"
+          onClick={onClose}
+          title="Close (Esc)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className={`detail-panel${isModal ? " detail-panel--modal" : ""}${hasAttention ? " detail-panel--attention" : ""}`}>
-      <div className={`detail-header${isModal ? " detail-header--modal" : ""}`}>
+      <div className={`detail-header${isModal ? " detail-header--modal" : ""}${isModal && modalSwitcher ? " detail-header--modal-switcher" : ""}`}>
         {isModal ? (
-          <span className="detail-modal-id">{task.display_id}</span>
+          modalSwitcher ? (
+            <>
+              {modalPosition && <div className="detail-modal-position-slot">{modalPosition}</div>}
+              <div className="detail-modal-switcher-slot">{modalSwitcher}</div>
+              {headerActions}
+            </>
+          ) : (
+            <>
+              <span className="detail-modal-id">{task.display_id}</span>
+              {headerActions}
+            </>
+          )
         ) : (
-          <button className="detail-close" onClick={onClose} title="Back to list">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Back
-          </button>
+          <>
+            <button className="detail-close" onClick={onClose} title="Back to list">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back
+            </button>
+            {headerActions}
+          </>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {onOpenFull && (
-            <button
-              className="detail-expand"
-              onClick={onOpenFull}
-              title="Open full page"
-              style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', color: 'var(--text-faint)', padding: '6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-faint)'; e.currentTarget.style.background = 'none'; }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M14 8v6a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1h6M10 2h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          )}
-          <button
-            className="detail-delete"
-            onClick={() => setDeleteConfirm({ show: true, message: `Delete "${task.title}"? This cannot be undone.`, canForce: true })}
-            title="Delete task"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          {isModal && (
-            <button
-              className="detail-modal-close"
-              onClick={onClose}
-              title="Close (Esc)"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-              </svg>
-            </button>
-          )}
-        </div>
       </div>
 
       <div className="detail-body">
@@ -509,7 +536,7 @@ export function TaskDetail({
               )}
               <div className="detail-subtasks">
                 {task.subtask_items.map((s) => (
-                  <SubtaskItem key={s.id} taskId={taskId} item={s} onUpdate={() => { load(); onUpdate(); }} />
+                  <SubtaskItem key={s.id} taskId={taskId} item={s} onUpdate={() => { void load(); onUpdate(); }} />
                 ))}
               </div>
               <form className="checklist-add" onSubmit={addSubtask}>
@@ -593,7 +620,7 @@ export function TaskDetail({
                   await categoriesApi.create(task.project_id, { name: newCatName.trim() });
                   await updateField("category", newCatName.trim());
                   setShowNewCat(false);
-                  load();
+                  void load();
                 }}>
                   <input value={newCatName} onChange={(e) => setNewCatName(e.target.value)} placeholder="Category name..." autoFocus />
                   <button type="submit">Create</button>

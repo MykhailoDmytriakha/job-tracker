@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   DndContext,
@@ -13,20 +13,43 @@ import { Column } from "../components/Column";
 import { useProject } from "../ProjectContext";
 import { TaskModal } from "../components/TaskModal";
 
+type ModalTaskItem = {
+  id: number;
+  display_id: string;
+  title: string;
+};
+
+function getColumnTasksForTask(board: BoardView, taskId: number): ModalTaskItem[] {
+  const col = board.columns.find((c) => c.tasks.some((t) => t.id === taskId));
+  if (!col) return [];
+  return col.tasks.map(({ id, display_id, title }) => ({ id, display_id, title }));
+}
+
 export function Pipeline() {
   const { active: project } = useProject();
   const navigate = useNavigate();
   const [board, setBoard] = useState<BoardView | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [modalTasks, setModalTasks] = useState<ModalTaskItem[]>([]);
+  const activeStageRef = useRef<number | null>(null);
 
   const selectedTaskId = searchParams.get("task") ? Number(searchParams.get("task")) : null;
 
-  function setSelectedTaskId(id: number | null) {
-    if (id) {
-      setSearchParams({ task: String(id) });
-    } else {
-      setSearchParams({});
+  function selectTask(id: number) {
+    if (board) {
+      const col = board.columns.find((c) => c.tasks.some((t) => t.id === id));
+      if (col && col.stage.id !== activeStageRef.current) {
+        activeStageRef.current = col.stage.id;
+        setModalTasks(getColumnTasksForTask(board, id));
+      }
     }
+    setSearchParams({ task: String(id) });
+  }
+
+  function clearSelection() {
+    setSearchParams({});
+    setModalTasks([]);
+    activeStageRef.current = null;
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -55,14 +78,14 @@ export function Pipeline() {
         <div className="board-active-area">
           <div className="board">
             {activeColumns.map((col) => (
-              <Column key={col.stage.id} column={col} onSelectTask={(id) => setSelectedTaskId(id)} />
+              <Column key={col.stage.id} column={col} onSelectTask={(id) => selectTask(id)} />
             ))}
           </div>
         </div>
         {closedColumns.length > 0 && (
           <div className="board-closed-area">
             {closedColumns.map((col) => (
-              <Column key={col.stage.id} column={col} onSelectTask={(id) => setSelectedTaskId(id)} isHorizontal />
+              <Column key={col.stage.id} column={col} onSelectTask={(id) => selectTask(id)} isHorizontal />
             ))}
           </div>
         )}
@@ -71,12 +94,14 @@ export function Pipeline() {
       {selectedTaskId && (
         <TaskModal
           taskId={selectedTaskId}
-          onClose={() => setSelectedTaskId(null)}
+          onClose={clearSelection}
+          onSelectTask={(id) => selectTask(id)}
           onNavigate={(id) => navigate(`/tasks/${id}`)}
           onOpenFull={() => navigate(`/tasks/${selectedTaskId}`)}
+          navigationItems={modalTasks}
           onUpdate={load}
           onDelete={() => {
-            setSelectedTaskId(null);
+            clearSelection();
             load();
           }}
         />

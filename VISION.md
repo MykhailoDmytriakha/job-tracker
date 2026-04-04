@@ -303,7 +303,9 @@ job-tracker/
         TaskDetail.tsx - Full task editor
         ThemeSwitcher.tsx - Theme toggle
   data.db              - SQLite database
-  run_dev.sh           - Development launcher
+  run_dev.sh           - Default development launcher
+  start_dev.sh         - Background dev launcher
+  stop_dev.sh          - Stops background dev services
   requirements.txt     - Python dependencies
   VISION.md            - This file
 ```
@@ -321,9 +323,11 @@ job-tracker/
 
 ```bash
 ./run_dev.sh
-# Frontend: http://localhost:5173
-# Backend API: http://localhost:8000/api
-# Swagger docs: http://localhost:8000/docs
+# starts backend + frontend in background
+# prints actual Frontend/Backend URLs and writes .dev-ports.env
+
+./stop_dev.sh
+# stops the last background dev run using .dev-ports.env
 ```
 
 ## Implementation Status

@@ -9,6 +9,18 @@ import { TaskModal } from "../components/TaskModal";
 
 import { calculateDaysDiff, isDateOverdue } from "../utils/date";
 
+type ModalTaskItem = {
+  id: number;
+  display_id: string;
+  title: string;
+};
+
+type DashColumn = "today" | "upcoming" | "recurring";
+
+function getColumnTasks(data: DashboardView, column: DashColumn): ModalTaskItem[] {
+  return data[column].map(({ id, display_id, title }) => ({ id, display_id, title }));
+}
+
 function daysAgo(dateStr: string | null): string {
   if (!dateStr) return "never";
   const diff = calculateDaysDiff(dateStr);
@@ -43,6 +55,8 @@ export function Dashboard() {
 
   const selectedTaskId = searchParams.get("task") ? Number(searchParams.get("task")) : null;
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [modalTasks, setModalTasks] = useState<ModalTaskItem[]>([]);
+  const activeColumn = useRef<DashColumn | null>(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
 
   useEffect(() => {
@@ -57,7 +71,18 @@ export function Dashboard() {
     dashboardApi.get(project.id).then(setData);
   }, [project]);
 
-  function goToTask(id: number) {
+  useEffect(() => {
+    if (!selectedTaskId) {
+      setModalTasks([]);
+      activeColumn.current = null;
+    }
+  }, [selectedTaskId]);
+
+  function goToTask(id: number, column?: DashColumn) {
+    if (column && data) {
+      activeColumn.current = column;
+      setModalTasks(getColumnTasks(data, column));
+    }
     setSearchParams({ task: String(id) });
   }
 
@@ -122,7 +147,7 @@ export function Dashboard() {
             <div className="dash-column-empty">Nothing due today</div>
           ) : (
             data.today.map((t) => (
-              <TodayCard key={t.id} task={t} onClick={() => goToTask(t.id)} />
+              <TodayCard key={t.id} task={t} onClick={() => goToTask(t.id, "today")} />
             ))
           ))}
         </div>
@@ -140,7 +165,7 @@ export function Dashboard() {
             <div className="dash-column-empty">Nothing upcoming</div>
           ) : (
             data.upcoming.map((t) => (
-              <UpcomingCard key={t.id} task={t} onClick={() => goToTask(t.id)} />
+              <UpcomingCard key={t.id} task={t} onClick={() => goToTask(t.id, "upcoming")} />
             ))
           ))}
         </div>
@@ -158,7 +183,7 @@ export function Dashboard() {
             <div className="dash-column-empty">No recurring tasks</div>
           ) : (
             data.recurring.map((t) => (
-              <RecurringCard key={t.id} task={t} onClick={() => goToTask(t.id)} onLogProgress={async (id) => {
+              <RecurringCard key={t.id} task={t} onClick={() => goToTask(t.id, "recurring")} onLogProgress={async (id) => {
                 await tasksApi.addLog(id, "Progress logged");
                 if (project) dashboardApi.get(project.id).then(setData);
               }} />
@@ -171,8 +196,10 @@ export function Dashboard() {
         <TaskModal
           taskId={selectedTaskId}
           onClose={closeTask}
+          onSelectTask={goToTask}
           onNavigate={(id) => navigate(`/tasks/${id}`)}
           onOpenFull={() => navigate(`/tasks/${selectedTaskId}`)}
+          navigationItems={modalTasks}
           onUpdate={() => {
             if (project) dashboardApi.get(project.id).then(setData);
           }}

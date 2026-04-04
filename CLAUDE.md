@@ -46,8 +46,11 @@ Backend: `/backend/`. Frontend: `/frontend/src/`.
 ## Running
 ```bash
 ./run_dev.sh
-# Backend: http://localhost:8000 (Swagger: /docs)
-# Frontend: http://localhost:5173 (or next available port)
+# starts backend + frontend in background
+# prints actual Backend/Frontend URLs and writes .dev-ports.env
+
+./stop_dev.sh
+# stops the last background dev run using .dev-ports.env
 ```
 
 ## Testing

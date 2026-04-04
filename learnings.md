@@ -218,6 +218,8 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Render the modal through a portal to `document.body`, cap modal height to the viewport, keep the header fixed, and let only the modal body scroll. Also softened the featured footer chip styling so emphasis stays subtle.
 **Rule:** Any modal that can open unbounded content must be viewport-constrained and portal-based. The frame stays fixed; only the content area scrolls.
 
+## 2026-04-04
+
 ### L032: Cockpit creation must be explicit in the meeting workflow
 **Context:** User created a meeting in task detail, saw that a cockpit page exists, but had no clear action for creating the cockpit itself. The existing `Cockpit` button looked like navigation, not initialization.
 **Root cause:** The UI exposed the cockpit destination but not the state transition from “meeting exists” to “cockpit workspace created.” That made the workflow conceptually incomplete.
@@ -277,6 +279,18 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Root cause:** The main Cockpit surface carries its typography scale on `.ck`, but the resource viewer modal is rendered through a portal to `document.body`, so it does not inherit those CSS variables automatically.
 **Fix:** Apply the Cockpit content scale to the modal container too, and define the shared typography variables on both `.ck` and `.ck-modal`.
 **Rule:** Any portal-based viewer opened from a configurable writing/reading surface must inherit the same typography preference, or the experience feels inconsistent.
+
+### L042: Detached dev scripts must own a new session, not just use nohup
+**Context:** New `start_dev.sh` initially launched `uvicorn --reload` and `vite` with `nohup ... &`, reported success, but both services disappeared right after the launcher exited.
+**Root cause:** `nohup` alone did not fully isolate the dev servers from the parent execution context. Reloaders and child processes could still die with the launcher/process group, so the start script produced a false positive.
+**Fix:** Launch background dev services in a new session/process group and stop them by recorded group leader PID, with port-based cleanup only as a fallback.
+**Rule:** For any persistent background dev script, detach with a new session and treat start/stop as process-group management, not plain PID management.
+
+### L043: Repository-scoped deliverables must stay inside the repository unless global install is explicit
+**Context:** While creating a new reusable skill, the first implementation path targeted the global Codex skills directory. The user corrected the scope: "давай в проекте только".
+**Root cause:** I optimized for reusability before confirming installation scope. For repo work, that silently crosses a boundary between project artifact and user environment configuration.
+**Fix:** Create the skill under the current repository instead of `~/.codex/skills` and treat global installation as opt-in only.
+**Rule:** When the user asks to create tooling, skills, templates, or automations during repo work, default to repository-local placement unless they explicitly ask for a global install.
 
 ---
 

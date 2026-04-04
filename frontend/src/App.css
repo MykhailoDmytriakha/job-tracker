@@ -950,6 +950,15 @@ main {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 8px;
 }
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--bg);
+}
 /* Back arrow — left side, navigation action */
 .detail-close {
   display: flex; align-items: center; gap: 5px;
@@ -959,16 +968,34 @@ main {
   line-height: 1; transition: all var(--transition);
 }
 .detail-close:hover { background: var(--bg-hover); color: var(--text); }
-/* Trash icon — right side, destructive, subtle until hovered */
-.detail-delete {
-  display: flex; align-items: center;
+/* Shared style for all toolbar action buttons */
+.detail-header-actions > button {
+  display: flex; align-items: center; justify-content: center;
   background: none; border: none;
-  color: var(--text-faint); font-size: 0;
-  padding: 6px; border-radius: var(--radius-sm);
-  cursor: pointer; transition: all var(--transition);
-  line-height: 0;
+  color: var(--text-faint);
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+  font-size: 0; line-height: 0;
 }
-.detail-delete:hover { background: var(--red-soft); color: var(--red); }
+.detail-header-actions > button:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.detail-header-actions > button:active {
+  transform: scale(0.92);
+}
+/* Delete — red on hover */
+.detail-delete:hover {
+  background: var(--red-soft) !important;
+  color: var(--red) !important;
+}
+/* Focus-visible for all header action buttons */
+.detail-header-actions > button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
 .detail-body {
   flex: 1; min-height: 0;
@@ -2275,6 +2302,21 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   padding-bottom: 10px;
   margin-bottom: 12px;
 }
+.detail-header--modal-switcher {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.detail-modal-position-slot {
+  display: flex;
+  align-items: center;
+}
+.detail-modal-switcher-slot {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
 .detail-modal-id {
   font-size: 12px; font-weight: 700;
   color: var(--accent); opacity: 0.75;
@@ -2283,18 +2325,94 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   background: var(--accent-soft);
   border-radius: 4px;
 }
-.detail-modal-close {
-  display: flex; align-items: center; justify-content: center;
-  background: none; border: none;
-  color: var(--text-faint);
-  padding: 6px; border-radius: var(--radius-sm);
+.task-modal-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.task-modal-switcher-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12px;
   cursor: pointer;
-  transition: color var(--transition), background var(--transition);
+  transition: border-color var(--transition), background var(--transition), color var(--transition), transform var(--transition);
 }
-.detail-modal-close:hover {
+.task-modal-switcher-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
   color: var(--text);
-  background: var(--bg-hover);
 }
+.task-modal-switcher-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.task-modal-switcher-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.task-modal-switcher-btn:disabled {
+  cursor: default;
+  color: var(--text-faint);
+  opacity: 0.35;
+  border-color: transparent;
+  background: transparent;
+}
+.task-modal-switcher-arrow {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 500;
+}
+.task-modal-switcher-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.task-modal-switcher-current {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.task-modal-switcher-current-id {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1.5px solid var(--accent);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+/* Position badge — left side of header */
+.task-modal-position {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  background: var(--bg-hover);
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.task-modal-position-sep {
+  margin: 0 3px;
+  opacity: 0.5;
+}
+/* Close button inherits toolbar styles — only override-specific behavior here */
 
 /* ============================================================
    CUSTOM DATE PICKER
@@ -3731,6 +3849,26 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   .task-modal-overlay { padding: 0; }
   .task-modal-content { max-width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
   .task-modal-content .detail-columns { grid-template-columns: 1fr; }
+  .detail-header--modal-switcher {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .detail-modal-position-slot {
+    display: none;
+  }
+  .detail-header--modal-switcher .detail-header-actions {
+    justify-self: end;
+  }
+  .task-modal-switcher {
+    justify-content: center;
+  }
+  .task-modal-switcher-btn {
+    padding: 5px 8px;
+  }
+  .task-modal-switcher-current-id {
+    font-size: 12px;
+    padding: 5px 12px;
+  }
 
   /* Pipeline: smaller columns */
   .column { width: 220px; }
