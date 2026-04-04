@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       checkAuth();
     } else {
       // No auth configured (local dev): skip login
-      setUser({ id: 0, email: "dev@localhost", name: "Local Dev", picture: null, created_at: "" });
+      setUser({ id: 0, email: "dev@localhost", name: "Local Dev", picture: null, timezone: null, created_at: "" });
       setLoading(false);
     }
   }, [authRequired, checkAuth]);
