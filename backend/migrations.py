@@ -1,8 +1,8 @@
 """Idempotent schema migration runner.
 
 Runs on every startup. create_all handles new tables.
-This handles adding columns to existing tables (ALTER TABLE).
-Works with both SQLite and PostgreSQL.
+ALTER TABLE migrations only needed for SQLite (legacy schema evolution).
+PostgreSQL gets correct schema from create_all() on first run.
 """
 
 from sqlalchemy import inspect, text
@@ -13,8 +13,17 @@ def run_migrations(engine):
     inspector = inspect(engine)
     tables = inspector.get_table_names()
 
-    # Tasks table migrations (for existing DBs missing new columns)
-    # Contacts table: add company_id if missing
+    if not is_sqlite:
+        # PostgreSQL: create_all() handles everything. Only add user_id if missing.
+        if "projects" in tables:
+            project_cols = {col["name"] for col in inspector.get_columns("projects")}
+            if "user_id" not in project_cols:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE projects ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+        return
+
+    # --- SQLite-only migrations below ---
+
     if "contacts" in tables:
         contact_cols = {col["name"] for col in inspector.get_columns("contacts")}
         if "company_id" not in contact_cols:
@@ -52,15 +61,14 @@ def run_migrations(engine):
                         text(f"ALTER TABLE tasks ADD COLUMN {col_name} {col_type}")
                     )
 
-    # Projects table: add user_id if missing
     if "projects" in tables:
         project_cols = {col["name"] for col in inspector.get_columns("projects")}
         if "user_id" not in project_cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE projects ADD COLUMN user_id INTEGER REFERENCES users(id)"))
 
-    # Date normalization: only on SQLite (PostgreSQL handles dates natively)
-    if is_sqlite and "tasks" in tables:
+    # Date normalization: SQLite stores dates as strings
+    if "tasks" in tables:
         date_columns = ["follow_up_date", "due_date", "next_checkpoint", "applied_at"]
         with engine.begin() as conn:
             for col in date_columns:
