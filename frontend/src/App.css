@@ -3348,9 +3348,49 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
       "closing"
       "postcall";
     padding: 12px;
+    padding-bottom: 80px;
     gap: 6px;
   }
-  .ck-toolbar { padding: 10px 12px; }
+  /* Toolbar: single-row horizontal scroll, no group labels */
+  .ck-toolbar { padding: 6px 10px; }
+  .ck-toolbar-inner {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .ck-toolbar-inner::-webkit-scrollbar { display: none; }
+  .ck-chip-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    flex-shrink: 0;
+    border-radius: 10px;
+  }
+  .ck-chip-group-label {
+    font-size: 0.58rem;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .ck-chip-group-chips {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .ck-chip {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    border-radius: 7px;
+  }
+  /* Header compact */
+  .ck-back { width: 30px; height: 30px; }
+  .ck-join { padding: 10px 20px; font-size: 0.88rem; }
+  /* Panels: tighter */
+  .ck-panel-head { padding: 10px 12px; }
+  .ck-panel-label { font-size: 0.82rem; }
+  .ck-md { padding: 2px 12px 12px; font-size: 0.82rem; }
   .ck-overlay { padding: 8px; }
   .ck-modal {
     border-radius: 12px;
