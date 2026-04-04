@@ -1,9 +1,10 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "framework": null,
+  "installCommand": "cd frontend && npm install",
+  "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/(.*)", "destination": "/api/index.py" }
   ],
   "functions": {
     "api/index.py": {
