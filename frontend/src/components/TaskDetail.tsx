@@ -194,6 +194,8 @@ export function TaskDetail({
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; message: string; canForce: boolean }>({ show: false, message: "", canForce: false });
   const [copied, setCopied] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [mobileActivityOpen, setMobileActivityOpen] = useState(false);
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const descDivRef = useRef<HTMLDivElement>(null);
@@ -414,6 +416,15 @@ export function TaskDetail({
           </div>
         </div>{/* /detail-top */}
 
+        {/* Mobile compact pills: status + priority + dates */}
+        <div className="detail-mobile-pills">
+          <span className={`pill status-${task.status}`}>{task.status.replace("_", " ")}</span>
+          <span className={`pill priority-${task.priority}`}>{task.priority}</span>
+          {task.due_date && <span className="pill pill-date">Due {task.due_date}</span>}
+          {task.follow_up_date && <span className="pill pill-date">F/U {task.follow_up_date}</span>}
+          {task.stage_id && task.pipeline_heat && <span className={`pill heat-${task.pipeline_heat}`}>{task.pipeline_heat}</span>}
+        </div>
+
         <div className="detail-columns">
           {/* ── LEFT: work surface ── */}
           <div className="detail-col-main">
@@ -510,20 +521,38 @@ export function TaskDetail({
               </form>
             </div>
 
-            {/* Activity bottom (non-recurring) */}
+            {/* Activity bottom (non-recurring) — mobile: collapsible */}
             {!task.is_recurring && (
-              <ActivitySection
-                task={task}
-                noteText={noteText}
-                setNoteText={setNoteText}
-                onAdd={addLog}
-                searchTerm={searchTerm}
-              />
+              <div className={`detail-mobile-drawer${mobileActivityOpen ? " open" : ""}`}>
+                <button className="detail-mobile-drawer-toggle" onClick={() => setMobileActivityOpen(!mobileActivityOpen)}>
+                  Activity
+                  <svg className={`detail-mobile-drawer-chevron${mobileActivityOpen ? " open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <div className="detail-mobile-drawer-content">
+                  <ActivitySection
+                    task={task}
+                    noteText={noteText}
+                    setNoteText={setNoteText}
+                    onAdd={addLog}
+                    searchTerm={searchTerm}
+                  />
+                </div>
+              </div>
             )}
           </div>
 
           {/* ── RIGHT: sidebar ── */}
           <div className="detail-col-side">
+            <div className={`detail-mobile-drawer sidebar-drawer${mobileDrawerOpen ? " open" : ""}`}>
+              <button className="detail-mobile-drawer-toggle" onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}>
+                Pipeline & Details
+                <svg className={`detail-mobile-drawer-chevron${mobileDrawerOpen ? " open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              <div className="detail-mobile-drawer-content">
             {/* Task meta */}
             <div className="detail-meta">
               <MetaSelect
@@ -709,6 +738,8 @@ export function TaskDetail({
 
             {/* Contacts */}
             <TaskContacts taskId={taskId} contacts={task.contacts} projectId={task.project_id} onUpdate={load} searchTerm={searchTerm} />
+              </div>{/* /detail-mobile-drawer-content */}
+            </div>{/* /detail-mobile-drawer */}
           </div>
         </div>
       </div>

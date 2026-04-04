@@ -3516,6 +3516,14 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 
 
 /* ============================================================
+   MOBILE TASK DETAIL: compact pills + collapsible drawers
+   ============================================================ */
+
+/* Hidden on desktop, visible on mobile */
+.detail-mobile-pills { display: none; }
+.detail-mobile-drawer-toggle { display: none; }
+
+/* ============================================================
    RESPONSIVE: TABLET (<768px) — iPad portrait, Z Fold unfolded
    ============================================================ */
 
@@ -3558,6 +3566,68 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   /* Profile */
   .profile-page { padding: 20px 16px; }
   .profile-card { flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px; }
+
+  /* Mobile compact pills */
+  .detail-mobile-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 0 10px;
+  }
+  .detail-mobile-pills .pill {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+  .detail-mobile-pills .pill-date {
+    background: var(--bg-muted);
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+  }
+
+  /* Mobile collapsible drawers */
+  .detail-mobile-drawer-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 0;
+    background: none;
+    border: none;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .detail-mobile-drawer-chevron {
+    transition: transform 0.25s ease;
+    color: var(--text-faint);
+  }
+  .detail-mobile-drawer-chevron.open {
+    transform: rotate(180deg);
+  }
+  .detail-mobile-drawer-content {
+    display: none;
+  }
+  .detail-mobile-drawer.open .detail-mobile-drawer-content {
+    display: block;
+  }
+
+  /* Sidebar on mobile: hide the full meta (shown via drawer instead) */
+  .detail-col-side {
+    border-left: none;
+    padding-left: 0;
+    border-top: none;
+    padding-top: 0;
+  }
 
   /* Popovers: constrain width */
   .attention-popover { width: min(300px, calc(100vw - 32px)); }
