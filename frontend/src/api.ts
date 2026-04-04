@@ -22,8 +22,13 @@ export function clearAuthToken() {
   localStorage.removeItem("token");
 }
 
+const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-Timezone": browserTimezone,
+  };
   const token = getAuthToken();
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -51,6 +56,7 @@ export interface AuthUser {
   email: string;
   name: string | null;
   picture: string | null;
+  timezone: string | null;
   created_at: string;
 }
 

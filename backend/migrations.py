@@ -14,12 +14,17 @@ def run_migrations(engine):
     tables = inspector.get_table_names()
 
     if not is_sqlite:
-        # PostgreSQL: create_all() handles everything. Only add user_id if missing.
+        # PostgreSQL: create_all() handles new tables. Add missing columns here.
         if "projects" in tables:
             project_cols = {col["name"] for col in inspector.get_columns("projects")}
             if "user_id" not in project_cols:
                 with engine.begin() as conn:
                     conn.execute(text("ALTER TABLE projects ADD COLUMN user_id INTEGER REFERENCES users(id)"))
+        if "users" in tables:
+            user_cols = {col["name"] for col in inspector.get_columns("users")}
+            if "timezone" not in user_cols:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN timezone VARCHAR"))
         return
 
     # --- SQLite-only migrations below ---

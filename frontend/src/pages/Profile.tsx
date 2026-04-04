@@ -39,6 +39,14 @@ export function Profile() {
       </div>
 
       <div className="profile-section">
+        <div className="profile-section-label">Preferences</div>
+        <div className="profile-row">
+          <div className="profile-row-label">Timezone</div>
+          <div className="profile-row-value">{user.timezone || "Not set"}</div>
+        </div>
+      </div>
+
+      <div className="profile-section">
         <div className="profile-section-label">Session</div>
         <button
           className="profile-logout"

@@ -1577,6 +1577,20 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   color: var(--text-muted);
   margin-bottom: 12px;
 }
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.profile-row-label {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+.profile-row-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.84rem;
+  color: var(--text);
+}
 .profile-logout {
   font-family: 'Outfit', sans-serif;
   font-size: 0.88rem;

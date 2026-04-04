@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session, joinedload, subqueryload
 from sqlalchemy import text, func
 from datetime import datetime, timezone, timedelta, date as date_type
 
 from ..database import get_db
 from .. import models, schemas
+from ..usertime import user_today
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -29,9 +30,9 @@ def _last_activity(t: models.Task):
 
 
 @router.get("/", response_model=schemas.DashboardView)
-def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
+def get_dashboard(project_id: int = None, db: Session = Depends(get_db), x_timezone: str | None = Header(None)):
     now = datetime.now(timezone.utc)
-    today = date_type.today()
+    today = user_today(x_timezone)
     week_end_date = today + timedelta(days=7)
 
     # Blocked task IDs

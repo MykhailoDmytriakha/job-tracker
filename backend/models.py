@@ -16,6 +16,7 @@ class User(Base):
     name = Column(String, nullable=True)
     picture = Column(String, nullable=True)
     google_id = Column(String, unique=True, nullable=True, index=True)
+    timezone = Column(String, nullable=True)  # IANA tz, e.g. "America/Los_Angeles"
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

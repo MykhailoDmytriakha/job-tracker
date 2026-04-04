@@ -1,6 +1,6 @@
 import difflib
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session, joinedload, subqueryload
 from sqlalchemy import text
 from datetime import datetime, timezone, date
@@ -8,6 +8,7 @@ from typing import Optional
 
 from ..database import get_db
 from .. import models, schemas
+from ..usertime import user_today
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -116,6 +117,7 @@ def list_tasks(
     attention: Optional[bool] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
+    x_timezone: str | None = Header(None),
 ):
     query = db.query(models.Task).options(
         subqueryload(models.Task.activities),
@@ -178,14 +180,14 @@ def list_tasks(
             .distinct()
         )
     if overdue:
-        today = date.today()
+        today = user_today(x_timezone)
         query = query.filter(
             models.Task.status.notin_(["done", "closed"]),
             (models.Task.due_date < today) | (models.Task.follow_up_date < today),
         )
     if attention:
         now_a = datetime.now(timezone.utc)
-        today = date.today()
+        today = user_today(x_timezone)
         tasks_raw = query.filter(
             models.Task.status.notin_(["done", "closed"])
         ).order_by(models.Task.created_at.desc()).all()

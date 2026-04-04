@@ -106,13 +106,34 @@ def google_login(body: schemas.GoogleAuthRequest, db: Session = Depends(get_db))
 def get_me(
     user: models.User | None = Depends(get_current_user),
     db: Session = Depends(get_db),
+    x_timezone: str | None = Header(None),
 ):
     if user is None:
-        # Local dev mode: return a stub
         return schemas.UserOut(
             id=0,
             email="dev@localhost",
             name="Local Dev",
+            timezone=x_timezone,
             created_at=datetime.now(timezone.utc),
         )
+    # Sync timezone from browser if changed or missing
+    if x_timezone and x_timezone != user.timezone:
+        user.timezone = x_timezone
+        db.commit()
+    return user
+
+
+@router.put("/me/timezone", response_model=schemas.UserOut)
+def update_timezone(
+    body: dict,
+    user: models.User | None = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    tz = body.get("timezone", "")
+    if tz:
+        user.timezone = tz
+        db.commit()
+        db.refresh(user)
     return user

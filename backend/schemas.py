@@ -20,6 +20,7 @@ class UserOut(BaseModel):
     email: str
     name: Optional[str] = None
     picture: Optional[str] = None
+    timezone: Optional[str] = None
     created_at: datetime
 
     class Config:
