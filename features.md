@@ -226,6 +226,7 @@ Every task has a chronological activity log:
 - Manual: notes (via "Add a note" input)
 - Shown in detail panel, newest first
 - Each entry: dot indicator, detail text, timestamp
+- Entry text preserves line breaks and wraps long tokens such as URLs/IDs without introducing horizontal scroll in the detail panel or popup
 
 ---
 

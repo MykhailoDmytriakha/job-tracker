@@ -987,12 +987,14 @@ main {
 .detail-col-main {
   min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 6px;
   padding-bottom: 24px;
 }
 .detail-col-side {
   min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 2px;
   padding-bottom: 24px;
 }
@@ -1506,7 +1508,14 @@ main {
   background: var(--border-strong); flex-shrink: 0; margin-top: 5px;
 }
 .activity-content { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.activity-text { color: var(--text-muted); }
+.activity-text {
+  display: block;
+  max-width: 100%;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .activity-time { font-size: 11px; color: var(--text-faint); }
 
 /* Description diff */

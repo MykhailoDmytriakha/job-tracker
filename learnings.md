@@ -254,6 +254,12 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Hide the standalone modal title whenever grouped resource navigation is present; keep the title only for single-resource modals.
 **Rule:** If an active state is already explicit inside a navigation control, don’t repeat it as a separate heading in the same header band.
 
+### L038: Activity log text must wrap arbitrary long tokens inside modal layouts
+**Context:** User reported that the task popup opened from Dashboard and Pipeline gained a horizontal scrollbar when an activity entry contained a very long URL.
+**Root cause:** Activity text used default line-breaking, so unbroken strings like URLs could not wrap. The detail columns were scroll containers, which let that overflow turn into horizontal scrolling.
+**Fix:** Make activity text preserve line breaks and wrap long tokens (`overflow-wrap: anywhere` / `word-break: break-word`) and explicitly hide horizontal overflow in task detail columns.
+**Rule:** Any user-generated log or note text shown inside fixed-width panels or modals must wrap arbitrary tokens (URLs, hashes, IDs) and must never create horizontal scrolling.
+
 ---
 
 ## Meta-patterns observed across all learnings
