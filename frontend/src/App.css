@@ -3351,8 +3351,14 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
     padding-bottom: 80px;
     gap: 6px;
   }
-  /* Toolbar: single-row horizontal scroll, no group labels */
-  .ck-toolbar { padding: 6px 10px; }
+  /* Toolbar: fixed bottom, single-row horizontal scroll */
+  .ck-toolbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 10px;
+  }
   .ck-toolbar-inner {
     flex-wrap: nowrap;
     overflow-x: auto;
