@@ -84,10 +84,13 @@ def _hint(status: int, detail: str, path: str = "") -> str:
 
 
 class JTClient:
-    def __init__(self, base_url: str, project_id: int):
+    def __init__(self, base_url: str, project_id: int, token: str = ""):
         self.base_url = base_url.rstrip("/")
         self.project_id = project_id
-        self._http = httpx.Client(base_url=self.base_url, timeout=10.0)
+        headers = {}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        self._http = httpx.Client(base_url=self.base_url, timeout=10.0, headers=headers)
 
     def _inject_pid(self, path: str, params: dict) -> dict:
         """Inject project_id into params if this endpoint requires it."""

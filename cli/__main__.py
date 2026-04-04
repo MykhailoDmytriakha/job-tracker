@@ -2,7 +2,7 @@
 
 import click
 from . import __version__
-from .config import BASE_URL, PROJECT_ID
+from . import config as cfg
 from .client import JTClient
 from .commands.task import (
     get_cmd, ls_cmd, new_cmd, up_cmd, note_cmd, del_cmd,
@@ -15,14 +15,15 @@ from .commands.journal import log_cmd
 from .commands.entity import contact_group, company_group, doc_group
 from .commands.checklist import check_group, sub_group
 from .commands.meeting import meeting_group
+from .commands.config_cmd import config_group
 
 
 @click.group()
 @click.version_option(__version__, "--version", "-V")
-@click.option("--project", "project_id", type=int, default=PROJECT_ID,
-              help=f"Project ID (default: {PROJECT_ID})")
-@click.option("--url", default=BASE_URL,
-              help=f"API base URL (default: {BASE_URL})")
+@click.option("--project", "project_id", type=int, default=None,
+              help="Project ID (default: from config)")
+@click.option("--url", default=None,
+              help="API base URL (default: from config)")
 @click.pass_context
 def cli(ctx, project_id, url):
     """jt — Job Tracker CLI for AI agents.
@@ -69,7 +70,10 @@ def cli(ctx, project_id, url):
     Output:      null fields are omitted from output.
     """
     ctx.ensure_object(dict)
-    ctx.obj["client"] = JTClient(url, project_id)
+    final_url = url or cfg.get("url")
+    final_pid = project_id or cfg.get("project_id")
+    final_token = cfg.get("token") or ""
+    ctx.obj["client"] = JTClient(final_url, final_pid, token=final_token)
 
 
 # Task commands (top-level — 80% of usage)
@@ -109,6 +113,9 @@ cli.add_command(sub_group, "sub")
 
 # Meetings
 cli.add_command(meeting_group, "meeting")
+
+# Config
+cli.add_command(config_group, "config")
 
 
 if __name__ == "__main__":

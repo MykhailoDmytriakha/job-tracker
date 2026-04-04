@@ -60,6 +60,18 @@ export interface AuthUser {
   created_at: string;
 }
 
+export interface ApiToken {
+  id: number;
+  name: string;
+  token_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface ApiTokenCreated extends ApiToken {
+  token: string; // full token, shown once
+}
+
 export const authApi = {
   googleLogin: (credential: string) =>
     request<{ access_token: string; token_type: string }>("/auth/google", {
@@ -67,6 +79,14 @@ export const authApi = {
       body: JSON.stringify({ credential }),
     }),
   me: () => request<AuthUser>("/auth/me"),
+  listTokens: () => request<ApiToken[]>("/auth/tokens"),
+  createToken: (name: string) =>
+    request<ApiTokenCreated>("/auth/tokens", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  deleteToken: (id: number) =>
+    request<{ detail: string }>(`/auth/tokens/${id}`, { method: "DELETE" }),
 };
 
 // --- Types ---

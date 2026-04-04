@@ -27,6 +27,29 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
+class TokenCreateRequest(BaseModel):
+    name: str
+
+
+class TokenCreateResponse(BaseModel):
+    id: int
+    name: str
+    token: str  # full token, shown only once
+    token_prefix: str
+    created_at: datetime
+
+
+class TokenOut(BaseModel):
+    id: int
+    name: str
+    token_prefix: str
+    created_at: datetime
+    last_used_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 # --- Project ---
 
 

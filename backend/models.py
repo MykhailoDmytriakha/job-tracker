@@ -21,6 +21,21 @@ class User(Base):
     last_login = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     projects = relationship("Project", back_populates="owner")
+    api_tokens = relationship("ApiToken", back_populates="user", cascade="all, delete-orphan")
+
+
+class ApiToken(Base):
+    __tablename__ = "api_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    token_hash = Column(String, nullable=False, index=True)
+    token_prefix = Column(String(10), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="api_tokens")
 
 
 task_dependencies = Table(

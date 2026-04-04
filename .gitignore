@@ -12,3 +12,4 @@ dist/
 .env.vercel
 frontend/.env
 .vercel
+migrate_data.py
