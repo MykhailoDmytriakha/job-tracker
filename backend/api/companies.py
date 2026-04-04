@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, subqueryload
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -58,7 +58,7 @@ def create_company(
 
 @router.get("/{company_id}", response_model=schemas.CompanyOut)
 def get_company(company_id: int, db: Session = Depends(get_db)):
-    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    company = db.query(models.Company).options(subqueryload(models.Company.tasks), subqueryload(models.Company.contacts)).filter(models.Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     return _company_out(company)
@@ -66,7 +66,7 @@ def get_company(company_id: int, db: Session = Depends(get_db)):
 
 @router.put("/{company_id}", response_model=schemas.CompanyOut)
 def update_company(company_id: int, update: schemas.CompanyUpdate, db: Session = Depends(get_db)):
-    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    company = db.query(models.Company).options(subqueryload(models.Company.tasks), subqueryload(models.Company.contacts)).filter(models.Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     for key, value in update.model_dump(exclude_unset=True).items():
@@ -79,7 +79,7 @@ def update_company(company_id: int, update: schemas.CompanyUpdate, db: Session =
 
 @router.delete("/{company_id}")
 def delete_company(company_id: int, db: Session = Depends(get_db)):
-    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    company = db.query(models.Company).options(subqueryload(models.Company.tasks), subqueryload(models.Company.contacts)).filter(models.Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     # Clear contact links

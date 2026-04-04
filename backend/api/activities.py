@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..database import get_db
 from .. import models, schemas
@@ -23,6 +23,7 @@ def list_activities(
 ):
     query = (
         db.query(models.Activity)
+        .options(joinedload(models.Activity.task).joinedload(models.Task.project))
         .join(models.Task, models.Activity.task_id == models.Task.id)
         .filter(models.Task.project_id == project_id)
     )

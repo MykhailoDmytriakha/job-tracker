@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, subqueryload
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -51,7 +51,7 @@ def create_document(
 
 @router.get("/{doc_id}", response_model=schemas.DocumentOut)
 def get_document(doc_id: int, db: Session = Depends(get_db)):
-    doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+    doc = db.query(models.Document).options(subqueryload(models.Document.tasks)).filter(models.Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return _doc_out(doc)
@@ -59,7 +59,7 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
 
 @router.put("/{doc_id}", response_model=schemas.DocumentOut)
 def update_document(doc_id: int, update: schemas.DocumentUpdate, db: Session = Depends(get_db)):
-    doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+    doc = db.query(models.Document).options(subqueryload(models.Document.tasks)).filter(models.Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     changes = update.model_dump(exclude_unset=True)
@@ -73,7 +73,7 @@ def update_document(doc_id: int, update: schemas.DocumentUpdate, db: Session = D
 
 @router.delete("/{doc_id}")
 def delete_document(doc_id: int, db: Session = Depends(get_db)):
-    doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+    doc = db.query(models.Document).options(subqueryload(models.Document.tasks)).filter(models.Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     doc.tasks.clear()

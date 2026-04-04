@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, subqueryload
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -47,7 +47,7 @@ def create_contact(
 
 @router.get("/{contact_id}", response_model=schemas.ContactOut)
 def get_contact(contact_id: int, db: Session = Depends(get_db)):
-    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+    contact = db.query(models.Contact).options(subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)).filter(models.Contact.id == contact_id).first()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     return _contact_out(contact)
@@ -55,7 +55,7 @@ def get_contact(contact_id: int, db: Session = Depends(get_db)):
 
 @router.put("/{contact_id}", response_model=schemas.ContactOut)
 def update_contact(contact_id: int, update: schemas.ContactUpdate, db: Session = Depends(get_db)):
-    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+    contact = db.query(models.Contact).options(subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)).filter(models.Contact.id == contact_id).first()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     for key, value in update.model_dump(exclude_unset=True).items():
@@ -68,7 +68,7 @@ def update_contact(contact_id: int, update: schemas.ContactUpdate, db: Session =
 
 @router.delete("/{contact_id}")
 def delete_contact(contact_id: int, db: Session = Depends(get_db)):
-    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+    contact = db.query(models.Contact).options(subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)).filter(models.Contact.id == contact_id).first()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     contact.tasks.clear()
@@ -86,7 +86,7 @@ def add_interaction(
     interaction: schemas.InteractionCreate,
     db: Session = Depends(get_db),
 ):
-    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+    contact = db.query(models.Contact).options(subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)).filter(models.Contact.id == contact_id).first()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     db_item = models.Interaction(

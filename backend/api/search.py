@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, subqueryload, joinedload
+from sqlalchemy import or_
 
 from ..database import get_db
 from .. import models, schemas
@@ -26,11 +27,9 @@ def global_search(
 
     groups: list[schemas.SearchResultGroup] = []
 
-    # --- Tasks ---
-    task_hits: list[schemas.SearchHit] = []
-    
     q_clean = q.strip()
-    
+
+    # --- Tasks ---
     task_conditions = [
         models.Task.title.ilike(f"%{q_clean}%"),
         models.Task.description.ilike(f"%{q_clean}%"),
@@ -38,7 +37,6 @@ def global_search(
         models.Task.close_reason.ilike(f"%{q_clean}%"),
         models.Task.posting_url.ilike(f"%{q_clean}%"),
     ]
-    
     if q_clean.isdigit():
         task_conditions.append(models.Task.id == int(q_clean))
         task_conditions.append(models.Task.sequence_num == int(q_clean))
@@ -47,145 +45,121 @@ def global_search(
         m = re.match(r'^[A-Za-z0-9]+-(\d+)$', q_clean)
         if m:
             task_conditions.append(models.Task.sequence_num == int(m.group(1)))
-            
-    from sqlalchemy import or_
-    tasks = db.query(models.Task).filter(
+
+    tasks = db.query(models.Task).options(
+        joinedload(models.Task.project),
+    ).filter(
         models.Task.project_id == project_id,
         or_(*task_conditions),
     ).all()
-    for t in tasks:
-        fields = _matched_fields(t, ["title", "description", "compensation", "close_reason", "posting_url"], q)
-        task_hits.append(schemas.SearchHit(
-            entity_type="task",
-            id=t.id,
-            title=t.title,
-            subtitle=t.status,
-            matched_fields=fields,
+    task_hits = [
+        schemas.SearchHit(
+            entity_type="task", id=t.id, title=t.title, subtitle=t.status,
+            matched_fields=_matched_fields(t, ["title", "description", "compensation", "close_reason", "posting_url"], q),
             display_id=t.display_id,
-        ))
+        )
+        for t in tasks
+    ]
     if task_hits:
         groups.append(schemas.SearchResultGroup(entity_type="task", count=len(task_hits), hits=task_hits))
 
     # --- Contacts ---
-    contact_hits: list[schemas.SearchHit] = []
-    contacts = db.query(models.Contact).filter(
+    contacts = db.query(models.Contact).options(
+        subqueryload(models.Contact.tasks),
+    ).filter(
         models.Contact.project_id == project_id,
-        (
-            models.Contact.name.ilike(f"%{q}%")
-            | models.Contact.email.ilike(f"%{q}%")
-            | models.Contact.role.ilike(f"%{q}%")
-            | models.Contact.company.ilike(f"%{q}%")
-            | models.Contact.notes.ilike(f"%{q}%")
-        ),
+        (models.Contact.name.ilike(f"%{q}%") | models.Contact.email.ilike(f"%{q}%")
+         | models.Contact.role.ilike(f"%{q}%") | models.Contact.company.ilike(f"%{q}%")
+         | models.Contact.notes.ilike(f"%{q}%")),
     ).all()
-    for c in contacts:
-        fields = _matched_fields(c, ["name", "email", "role", "company", "notes"], q)
-        linked_task_ids = [t.id for t in c.tasks]
-        contact_hits.append(schemas.SearchHit(
-            entity_type="contact",
-            id=c.id,
-            title=c.name,
+    contact_hits = [
+        schemas.SearchHit(
+            entity_type="contact", id=c.id, title=c.name,
             subtitle=f"{c.role or ''} @ {c.company or ''}".strip(" @") or None,
-            matched_fields=fields,
-            linked_task_ids=linked_task_ids,
-        ))
+            matched_fields=_matched_fields(c, ["name", "email", "role", "company", "notes"], q),
+            linked_task_ids=[t.id for t in c.tasks],
+        )
+        for c in contacts
+    ]
     if contact_hits:
         groups.append(schemas.SearchResultGroup(entity_type="contact", count=len(contact_hits), hits=contact_hits))
 
     # --- Companies ---
-    company_hits: list[schemas.SearchHit] = []
-    companies = db.query(models.Company).filter(
+    companies = db.query(models.Company).options(
+        subqueryload(models.Company.tasks),
+    ).filter(
         models.Company.project_id == project_id,
-        (
-            models.Company.name.ilike(f"%{q}%")
-            | models.Company.notes.ilike(f"%{q}%")
-            | models.Company.domain.ilike(f"%{q}%")
-            | models.Company.strategic_lane.ilike(f"%{q}%")
-        ),
+        (models.Company.name.ilike(f"%{q}%") | models.Company.notes.ilike(f"%{q}%")
+         | models.Company.domain.ilike(f"%{q}%") | models.Company.strategic_lane.ilike(f"%{q}%")),
     ).all()
-    for co in companies:
-        fields = _matched_fields(co, ["name", "notes", "domain", "strategic_lane"], q)
-        linked_task_ids = [t.id for t in co.tasks]
-        company_hits.append(schemas.SearchHit(
-            entity_type="company",
-            id=co.id,
-            title=co.name,
+    company_hits = [
+        schemas.SearchHit(
+            entity_type="company", id=co.id, title=co.name,
             subtitle=co.location or co.domain,
-            matched_fields=fields,
-            linked_task_ids=linked_task_ids,
-        ))
+            matched_fields=_matched_fields(co, ["name", "notes", "domain", "strategic_lane"], q),
+            linked_task_ids=[t.id for t in co.tasks],
+        )
+        for co in companies
+    ]
     if company_hits:
         groups.append(schemas.SearchResultGroup(entity_type="company", count=len(company_hits), hits=company_hits))
 
     # --- Documents ---
-    doc_hits: list[schemas.SearchHit] = []
-    documents = db.query(models.Document).filter(
+    documents = db.query(models.Document).options(
+        subqueryload(models.Document.tasks),
+    ).filter(
         models.Document.project_id == project_id,
-        (
-            models.Document.title.ilike(f"%{q}%")
-            | models.Document.content.ilike(f"%{q}%")
-        ),
+        (models.Document.title.ilike(f"%{q}%") | models.Document.content.ilike(f"%{q}%")),
     ).all()
-    for d in documents:
-        fields = _matched_fields(d, ["title", "content"], q)
-        linked_task_ids = [t.id for t in d.tasks]
-        doc_hits.append(schemas.SearchHit(
-            entity_type="document",
-            id=d.id,
-            title=d.title,
-            subtitle=d.doc_type,
-            matched_fields=fields,
-            linked_task_ids=linked_task_ids,
-        ))
+    doc_hits = [
+        schemas.SearchHit(
+            entity_type="document", id=d.id, title=d.title, subtitle=d.doc_type,
+            matched_fields=_matched_fields(d, ["title", "content"], q),
+            linked_task_ids=[t.id for t in d.tasks],
+        )
+        for d in documents
+    ]
     if doc_hits:
         groups.append(schemas.SearchResultGroup(entity_type="document", count=len(doc_hits), hits=doc_hits))
 
-    # --- Activities (notes on tasks) ---
-    activity_hits: list[schemas.SearchHit] = []
+    # --- Activities ---
     activities = (
         db.query(models.Activity)
+        .options(joinedload(models.Activity.task).joinedload(models.Task.project))
         .join(models.Task, models.Activity.task_id == models.Task.id)
-        .filter(
-            models.Task.project_id == project_id,
-            models.Activity.detail.ilike(f"%{q}%"),
-        )
+        .filter(models.Task.project_id == project_id, models.Activity.detail.ilike(f"%{q}%"))
         .all()
     )
-    for a in activities:
-        task = a.task
-        activity_hits.append(schemas.SearchHit(
-            entity_type="activity",
-            id=a.id,
+    activity_hits = [
+        schemas.SearchHit(
+            entity_type="activity", id=a.id,
             title=a.detail[:120] + ("…" if len(a.detail) > 120 else ""),
-            subtitle=task.title if task else None,
-            matched_fields=["detail"],
-            task_id=a.task_id,
-            display_id=task.display_id if task else None,
-        ))
+            subtitle=a.task.title if a.task else None,
+            matched_fields=["detail"], task_id=a.task_id,
+            display_id=a.task.display_id if a.task else None,
+        )
+        for a in activities
+    ]
     if activity_hits:
         groups.append(schemas.SearchResultGroup(entity_type="activity", count=len(activity_hits), hits=activity_hits))
 
-    # --- Interactions (contact channel logs) ---
-    interaction_hits: list[schemas.SearchHit] = []
+    # --- Interactions ---
     interactions = (
         db.query(models.Interaction)
+        .options(joinedload(models.Interaction.contact))
         .join(models.Contact, models.Interaction.contact_id == models.Contact.id)
-        .filter(
-            models.Contact.project_id == project_id,
-            models.Interaction.summary.ilike(f"%{q}%"),
-        )
+        .filter(models.Contact.project_id == project_id, models.Interaction.summary.ilike(f"%{q}%"))
         .all()
     )
-    for i in interactions:
-        contact = i.contact
-        interaction_hits.append(schemas.SearchHit(
-            entity_type="interaction",
-            id=i.id,
+    interaction_hits = [
+        schemas.SearchHit(
+            entity_type="interaction", id=i.id,
             title=i.summary[:120] + ("…" if len(i.summary) > 120 else ""),
-            subtitle=contact.name if contact else None,
-            matched_fields=["summary"],
-            contact_id=i.contact_id,
-        ))
+            subtitle=i.contact.name if i.contact else None,
+            matched_fields=["summary"], contact_id=i.contact_id,
+        )
+        for i in interactions
+    ]
     if interaction_hits:
         groups.append(schemas.SearchResultGroup(entity_type="interaction", count=len(interaction_hits), hits=interaction_hits))
 
