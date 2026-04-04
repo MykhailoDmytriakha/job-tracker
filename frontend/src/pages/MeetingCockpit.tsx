@@ -421,50 +421,53 @@ export function MeetingCockpit() {
 
   return (
     <div className={`ck ${loaded ? "ck--loaded" : ""}`}>
-      {/* Header */}
-      <header className="ck-header">
-        <button className="ck-back" onClick={() => navigate(`/tasks/${taskId}`)}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </button>
-        <div className="ck-header-text">
-          <h1 className="ck-company">{companyName}</h1>
-          <div className="ck-meta">
-            <span className="ck-type-badge">{TYPE_LABELS[meeting.meeting_type] || meeting.meeting_type}</span>
-            {meeting.scheduled_at && <span className="ck-date">{fmtDate(meeting.scheduled_at)}</span>}
-            {meeting.interviewer && <span className="ck-interviewer">{meeting.interviewer}</span>}
+      {/* Scrollable content area */}
+      <div className="ck-scroll">
+        {/* Header */}
+        <header className="ck-header">
+          <button className="ck-back" onClick={() => navigate(`/tasks/${taskId}`)}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+          <div className="ck-header-text">
+            <h1 className="ck-company">{companyName}</h1>
+            <div className="ck-meta">
+              <span className="ck-type-badge">{TYPE_LABELS[meeting.meeting_type] || meeting.meeting_type}</span>
+              {meeting.scheduled_at && <span className="ck-date">{fmtDate(meeting.scheduled_at)}</span>}
+              {meeting.interviewer && <span className="ck-interviewer">{meeting.interviewer}</span>}
+            </div>
           </div>
-        </div>
-        {meeting.join_url && (
-          <a className="ck-join" href={meeting.join_url} target="_blank" rel="noopener noreferrer">
-            Join {meeting.platform ? meeting.platform.charAt(0).toUpperCase() + meeting.platform.slice(1) : "Call"}
-          </a>
-        )}
-      </header>
+          {meeting.join_url && (
+            <a className="ck-join" href={meeting.join_url} target="_blank" rel="noopener noreferrer">
+              Join {meeting.platform ? meeting.platform.charAt(0).toUpperCase() + meeting.platform.slice(1) : "Call"}
+            </a>
+          )}
+        </header>
 
-      {/* Two-column grid */}
-      <div className="ck-grid">
-        {SECTIONS.map((def) => (
-          <Panel
-            key={def.key}
-            label={def.label}
-            accent={def.accent}
-            area={def.area}
-            placeholder={def.placeholder}
-            content={sections[def.key] || ""}
-            mode={panelMode(def.key)}
-            isEditing={editing === def.key}
-            onHeaderClick={() => handlePanelClick(def.key)}
-            onEdit={() => startEdit(def.key)}
-            onSave={saveEdit}
-            onCancel={() => setEditing(null)}
-            editDraft={editDraft}
-            setEditDraft={setEditDraft}
-            saving={saving}
-          />
-        ))}
+        {/* Two-column grid */}
+        <div className="ck-grid">
+          {SECTIONS.map((def) => (
+            <Panel
+              key={def.key}
+              label={def.label}
+              accent={def.accent}
+              area={def.area}
+              placeholder={def.placeholder}
+              content={sections[def.key] || ""}
+              mode={panelMode(def.key)}
+              isEditing={editing === def.key}
+              onHeaderClick={() => handlePanelClick(def.key)}
+              onEdit={() => startEdit(def.key)}
+              onSave={saveEdit}
+              onCancel={() => setEditing(null)}
+              editDraft={editDraft}
+              setEditDraft={setEditDraft}
+              saving={saving}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Toolbar */}
+      {/* Toolbar — always visible at bottom, not overlapping */}
       <div className="ck-toolbar">
         <div className="ck-toolbar-inner">
           {toolbarGroups.map((group) => (

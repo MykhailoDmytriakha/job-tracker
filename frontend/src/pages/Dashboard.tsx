@@ -42,6 +42,15 @@ export function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const selectedTaskId = searchParams.get("task") ? Number(searchParams.get("task")) : null;
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     if (!project) return;
@@ -59,6 +68,13 @@ export function Dashboard() {
   function goToFiltered(filter: string) {
     navigate(`/tasks?filter=${filter}`);
   }
+
+  function toggleColumn(key: string) {
+    if (!isMobile) return;
+    setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  const isCollapsed = (key: string) => isMobile && collapsed[key];
 
   if (!data) return <div className="loading">Loading...</div>;
 
@@ -95,41 +111,50 @@ export function Dashboard() {
       <div className="dash-columns">
         {/* TODAY */}
         <div className="dash-column">
-          <div className="dash-column-header">
-            <span className="dash-column-title">Today</span>
+          <div className={`dash-column-header ${isMobile ? "dash-column-header--mobile" : ""}`} onClick={() => toggleColumn("today")}>
+            <span className="dash-column-title">
+              {isMobile && <span className={`dash-column-toggle ${isCollapsed("today") ? "collapsed" : ""}`}>&#9660;</span>}
+              Today
+            </span>
             <span className="dash-column-count">{data.today.length}</span>
           </div>
-          {data.today.length === 0 ? (
+          {!isCollapsed("today") && (data.today.length === 0 ? (
             <div className="dash-column-empty">Nothing due today</div>
           ) : (
             data.today.map((t) => (
               <TodayCard key={t.id} task={t} onClick={() => goToTask(t.id)} />
             ))
-          )}
+          ))}
         </div>
 
         {/* UPCOMING */}
         <div className="dash-column">
-          <div className="dash-column-header">
-            <span className="dash-column-title">Upcoming</span>
+          <div className={`dash-column-header ${isMobile ? "dash-column-header--mobile" : ""}`} onClick={() => toggleColumn("upcoming")}>
+            <span className="dash-column-title">
+              {isMobile && <span className={`dash-column-toggle ${isCollapsed("upcoming") ? "collapsed" : ""}`}>&#9660;</span>}
+              Upcoming
+            </span>
             <span className="dash-column-count">{data.upcoming.length}</span>
           </div>
-          {data.upcoming.length === 0 ? (
+          {!isCollapsed("upcoming") && (data.upcoming.length === 0 ? (
             <div className="dash-column-empty">Nothing upcoming</div>
           ) : (
             data.upcoming.map((t) => (
               <UpcomingCard key={t.id} task={t} onClick={() => goToTask(t.id)} />
             ))
-          )}
+          ))}
         </div>
 
         {/* RECURRING */}
         <div className="dash-column">
-          <div className="dash-column-header">
-            <span className="dash-column-title">Recurring</span>
+          <div className={`dash-column-header ${isMobile ? "dash-column-header--mobile" : ""}`} onClick={() => toggleColumn("recurring")}>
+            <span className="dash-column-title">
+              {isMobile && <span className={`dash-column-toggle ${isCollapsed("recurring") ? "collapsed" : ""}`}>&#9660;</span>}
+              Recurring
+            </span>
             <span className="dash-column-count">{data.recurring.length}</span>
           </div>
-          {data.recurring.length === 0 ? (
+          {!isCollapsed("recurring") && (data.recurring.length === 0 ? (
             <div className="dash-column-empty">No recurring tasks</div>
           ) : (
             data.recurring.map((t) => (
@@ -138,7 +163,7 @@ export function Dashboard() {
                 if (project) dashboardApi.get(project.id).then(setData);
               }} />
             ))
-          )}
+          ))}
         </div>
       </div>
       
