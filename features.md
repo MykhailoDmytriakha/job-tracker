@@ -169,6 +169,7 @@ Route: `/tasks/:taskId/meeting/:meetingId/cockpit`
   - Post-Call Notes
 - Cockpit section rendering normalizes escaped newlines from storage and preserves meaningful line breaks in the rendered text
 - The text-size preference affects Cockpit section content in both read mode and edit mode, persists locally per user/browser, and does not resize the surrounding page chrome
+- Footer-opened modal viewers inherit the same Cockpit text-size preference, so documents and notes stay visually consistent with the main prep panels
 - Clicking a panel header focuses it; other panels collapse to previews
 - Each panel supports inline markdown editing
 - Edit shortcuts: `Cmd+Enter` saves, `Esc` cancels

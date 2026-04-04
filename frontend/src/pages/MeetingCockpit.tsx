@@ -170,11 +170,13 @@ function buildModalResourceGroups(task: TaskFull, meeting: Meeting): ModalResour
 function CockpitModal({
   title,
   onClose,
+  contentScale,
   switcher,
   children,
 }: {
   title: string;
   onClose: () => void;
+  contentScale: number;
   switcher?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -186,7 +188,11 @@ function CockpitModal({
 
   return createPortal(
     <div className="ck-overlay" onClick={onClose}>
-      <div className="ck-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="ck-modal"
+        style={{ "--ck-content-scale": contentScale } as React.CSSProperties}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className={`ck-modal-head${switcher ? " ck-modal-head--switcher-only" : ""}`}>
           {!switcher && <span className="ck-modal-title">{title}</span>}
           {switcher ? <div className="ck-modal-switcher-wrap">{switcher}</div> : <div />}
@@ -531,6 +537,7 @@ export function MeetingCockpit() {
         <CockpitModal
           title={modal.activeItem.title}
           onClose={() => setModal(null)}
+          contentScale={activeContentSize.scale}
           switcher={modal.groups.reduce((sum, group) => sum + group.items.length, 0) > 1 ? (
             <div className="ck-modal-nav">
               {modal.groups.map((group) => (

@@ -272,6 +272,12 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Move the app shell to dynamic viewport sizing (`100dvh` with `100vh` fallback) and make the Cockpit footer sticky with `env(safe-area-inset-bottom)` padding so it stays fully visible above browser UI.
 **Rule:** In mobile webviews/browsers, any bottom toolbar inside a fixed app shell must account for dynamic viewport height and bottom safe areas. `100vh` alone is not reliable.
 
+### L041: Cockpit viewer modals must inherit the same text-size preference as the main prep surface
+**Context:** After adding `S / M / L / XL` text sizing to Cockpit, the user noticed that footer-opened modals still showed document text at the old fixed size.
+**Root cause:** The main Cockpit surface carries its typography scale on `.ck`, but the resource viewer modal is rendered through a portal to `document.body`, so it does not inherit those CSS variables automatically.
+**Fix:** Apply the Cockpit content scale to the modal container too, and define the shared typography variables on both `.ck` and `.ck-modal`.
+**Rule:** Any portal-based viewer opened from a configurable writing/reading surface must inherit the same typography preference, or the experience feels inconsistent.
+
 ---
 
 ## Meta-patterns observed across all learnings

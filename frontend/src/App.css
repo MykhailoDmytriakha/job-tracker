@@ -2784,7 +2784,8 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 
 /* ── Page shell ── */
 
-.ck {
+.ck,
+.ck-modal {
   --ck-content-scale: 1;
   --ck-content-body-size: calc(1rem * var(--ck-content-scale));
   --ck-content-code-size: calc(var(--ck-content-body-size) * 0.95);
@@ -2794,6 +2795,9 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   --ck-content-table-leading-cell-size: calc(var(--ck-content-body-size) * 0.95);
   --ck-content-edit-size: calc(var(--ck-content-body-size) * 0.97);
   --ck-content-empty-size: calc(var(--ck-content-body-size) * 0.96);
+}
+
+.ck {
   display: flex;
   flex-direction: column;
   flex: 1;
