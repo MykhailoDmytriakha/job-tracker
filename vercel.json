@@ -7,6 +7,7 @@
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
+  "regions": ["pdx1"],
   "functions": {
     "api/index.py": {
       "runtime": "@vercel/python@4.6.0",
