@@ -317,7 +317,7 @@ class CockpitSection(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     meeting_id = Column(Integer, ForeignKey("meetings.id", ondelete="CASCADE"), nullable=False)
-    section_key = Column(String, nullable=False)  # ready_answers | pitch | numbers | questions | closing | post_call
+    section_key = Column(String, nullable=False)  # pitch | rescue_phrases | quick_facts | story_cards | questions | closing | post_call
     content = Column(Text, default="")
     position = Column(Integer, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

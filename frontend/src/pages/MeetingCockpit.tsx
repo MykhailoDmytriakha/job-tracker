@@ -21,11 +21,12 @@ import type {
 // ── Section config with grid placement ──────────────────────────────────────
 
 const SECTIONS = [
-  { key: "ready_answers", label: "Ready Answers", area: "answers", accent: "#3b82f6", placeholder: "**Comp:** $175K-$210K base\n**Auth:** US Citizen\n**Hybrid:** ...\n**Start:** ...\n**Gaps:** ..." },
-  { key: "pitch", label: "My Pitch", area: "pitch", accent: "#10b981", placeholder: "\"I'm a Senior Engineer with ~10 years...\"" },
-  { key: "numbers", label: "Key Numbers", area: "numbers", accent: "#f59e0b", placeholder: "| Fact | Value |\n|------|-------|\n| ... | ... |" },
+  { key: "pitch", label: "My Pitch", area: "pitch", accent: "#10b981", placeholder: "\"I'm a Senior Backend Engineer with 10+ years...\"" },
+  { key: "rescue_phrases", label: "Rescue Phrases", area: "rescue", accent: "#ef4444", placeholder: "\"That's a great question, let me think of the best example...\"\n\"Could you clarify what aspect you're most interested in?\"\n\"Let me walk you through a specific situation...\"" },
+  { key: "quick_facts", label: "Quick Facts", area: "quickfacts", accent: "#3b82f6", placeholder: "**Comp:** $175K-$210K\n**Auth:** US Citizen\n**Start:** 2 weeks\n**Location:** Remote, Seattle area" },
+  { key: "story_cards", label: "Story Cards", area: "stories", accent: "#f59e0b", placeholder: "🟢 **PERFORMANCE**\nRedis + dedup + N+1 | DB +50% | Tests 5×\n→ \"billing estimation was slow...\"\n\n🔵 **JAVA MIGRATION**\n8→11→17→21 | javax→jakarta | 90+ ARO\n→ \"inherited Java 8 monolith...\"" },
   { key: "questions", label: "My Questions", area: "questions", accent: "#8b5cf6", placeholder: "1. ...\n2. ...\n3. ..." },
-  { key: "closing", label: "Closing", area: "closing", accent: "#06b6d4", placeholder: "\"Thank you. Anything else? What's the timeline?\"" },
+  { key: "closing", label: "Closing", area: "closing", accent: "#06b6d4", placeholder: "\"Thank you. What's the timeline for next steps?\"" },
   { key: "post_call", label: "Post-Call Notes", area: "postcall", accent: "#f97316", placeholder: "What they asked:\n\nWhat went well:\n\nWhat was weak:\n\nNext steps:" },
 ];
 

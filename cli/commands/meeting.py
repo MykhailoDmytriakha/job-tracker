@@ -17,10 +17,10 @@ def meeting_group():
       jt meeting del 97 1
 
     \b
-    Cockpit (meeting prep screen):
+    Cockpit (live interview reference screen):
       jt meeting cockpit ls 97 1
       jt meeting cockpit set 97 1 pitch "My 60-sec pitch text..."
-      jt meeting cockpit set 97 1 ready_answers "Comp: $175K..."
+      jt meeting cockpit set 97 1 rescue_phrases "That's a great question..."
       jt meeting cockpit bulk 97 1 sections.json
     """
 
@@ -123,13 +123,25 @@ def cockpit_group():
     """Manage cockpit sections for a meeting.
 
     \b
-    Section keys: ready_answers | pitch | numbers | questions | closing | post_call
+    Section keys: pitch | rescue_phrases | quick_facts | story_cards | questions | closing | post_call
+
+    \b
+    Cockpit = live reference screen for during-interview use.
+    Sections follow interview flow top-to-bottom:
+      pitch          60-sec opening speech (first thing you see = first thing you say)
+      rescue_phrases buy-time phrases for blank-outs
+      quick_facts    comp, auth, start date, location
+      story_cards    experience stories with numbers and trigger phrases
+      questions      2-3 smart questions for them
+      closing        final line
+      post_call      debrief notes (filled after call)
 
     \b
     Examples:
       jt meeting cockpit ls 97 1
       jt meeting cockpit set 97 1 pitch "I'm a Senior Engineer..."
-      jt meeting cockpit set 97 1 ready_answers $'Comp: $175K\\nAuth: US Citizen'
+      jt meeting cockpit set 97 1 rescue_phrases "That's a great question..."
+      jt meeting cockpit set 97 1 quick_facts $'Comp: $175K\\nAuth: US Citizen'
       jt meeting cockpit bulk 97 1 sections.json
       jt meeting cockpit get 97 1 pitch
       jt meeting cockpit del 97 1
@@ -183,12 +195,13 @@ def cockpit_set(ctx, task_id, meeting_id, section_key, content):
     """Set (create or update) a cockpit section.
 
     \b
-    Section keys: ready_answers | pitch | numbers | questions | closing | post_call
+    Section keys: pitch | rescue_phrases | quick_facts | story_cards | questions | closing | post_call
 
     \b
     Examples:
       jt meeting cockpit set 97 1 pitch "I'm a Senior Engineer with ~10 years..."
-      jt meeting cockpit set 97 1 ready_answers "$(cat ready.md)"
+      jt meeting cockpit set 97 1 quick_facts "$(cat facts.md)"
+      jt meeting cockpit set 97 1 story_cards "$(cat stories.md)"
     """
     client = ctx.obj["client"]
     data = client.put(
@@ -209,8 +222,10 @@ def cockpit_bulk(ctx, task_id, meeting_id, json_file):
     \b
     JSON format (array):
       [
-        {"section_key": "ready_answers", "content": "...", "position": 0},
-        {"section_key": "pitch", "content": "...", "position": 1},
+        {"section_key": "pitch", "content": "...", "position": 0},
+        {"section_key": "rescue_phrases", "content": "...", "position": 1},
+        {"section_key": "quick_facts", "content": "...", "position": 2},
+        {"section_key": "story_cards", "content": "...", "position": 3},
         ...
       ]
 
