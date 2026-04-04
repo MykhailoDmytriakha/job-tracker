@@ -3513,3 +3513,97 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
     border-radius: 16px;
   }
 }
+
+
+/* ============================================================
+   RESPONSIVE: TABLET (<768px) — iPad portrait, Z Fold unfolded
+   ============================================================ */
+
+@media (max-width: 768px) {
+  /* Nav: horizontal scroll */
+  .nav {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    gap: 1px;
+    padding: 6px 10px;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a { padding: 6px 8px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+  .project-switcher { margin-right: 6px; }
+  .project-trigger { font-size: 12px; padding: 4px 8px; }
+
+  /* Dashboard: stats wrap */
+  .dash-stats { flex-wrap: wrap; }
+  .stat-card { min-width: calc(33% - 6px); }
+
+  /* Dashboard: 3 cols → 1 col */
+  .dash-columns { grid-template-columns: 1fr; }
+  .dash-column { max-height: none; }
+
+  /* Tasks: hide list panel when detail open */
+  .tasks-layout.has-detail .tasks-list-panel { display: none; }
+  .detail-panel { padding-left: 0; }
+  .detail-columns { grid-template-columns: 1fr; }
+  .detail-sidebar { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; }
+
+  /* Task modal: full screen */
+  .task-modal-overlay { padding: 0; }
+  .task-modal-content { max-width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .task-modal-content .detail-columns { grid-template-columns: 1fr; }
+
+  /* Pipeline: smaller columns */
+  .column { width: 220px; }
+
+  /* Profile */
+  .profile-page { padding: 20px 16px; }
+  .profile-card { flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px; }
+
+  /* Popovers: constrain width */
+  .attention-popover { width: min(300px, calc(100vw - 32px)); }
+  .attention-badge-popover { width: min(280px, calc(100vw - 32px)); }
+  .dp-popover { width: min(240px, calc(100vw - 32px)); }
+
+  /* Docs/Contacts/Companies: single column */
+  .docs-layout.has-detail { grid-template-columns: 1fr; }
+  .contacts-layout.has-detail { grid-template-columns: 1fr; }
+  .docs-layout.has-detail .docs-list,
+  .contacts-layout.has-detail .contacts-list { display: none; }
+}
+
+
+/* ============================================================
+   RESPONSIVE: PHONE (<480px) — Z Fold folded, small phones
+   ============================================================ */
+
+@media (max-width: 480px) {
+  /* Nav: compact */
+  .nav { padding: 4px 6px; }
+  .nav a { padding: 5px 6px; font-size: 11px; }
+  .nav-avatar { width: 28px; height: 28px; }
+  .theme-pill { display: none; }
+
+  /* Dashboard stats: 2 per row */
+  .stat-card { min-width: calc(50% - 6px); }
+  .stat-value { font-size: 18px; }
+  .stat-label { font-size: 9px; }
+
+  /* Task cards: tighter */
+  .dash-card { padding: 8px; }
+  .dash-card-title { font-size: 12px; }
+
+  /* Tasks toolbar */
+  .tasks-toolbar-row1 { flex-wrap: wrap; }
+  .tasks-toolbar-row2 { flex-wrap: wrap; }
+
+  /* Profile */
+  .profile-page { padding: 16px 12px; gap: 16px; }
+  .profile-title { font-size: 1.2rem; }
+  .profile-avatar-lg { width: 52px; height: 52px; }
+  .profile-name { font-size: 1rem; }
+  .profile-token-form { flex-direction: column; }
+  .profile-token-created-row { flex-direction: column; }
+
+  /* Login */
+  .login-ambient { display: none; }
+}
