@@ -2859,7 +2859,7 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
     "closing closing"
     "postcall postcall";
   gap: 8px;
-  padding: 16px 28px;
+  padding: 16px 28px 120px;
   flex: 1;
   align-content: start;
 }
@@ -3060,14 +3060,14 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .ck-btn--ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
 .ck-btn--ghost:hover { background: var(--bg-hover); }
 
-/* ── Toolbar (sticky bottom) ── */
+/* ── Toolbar (fixed bottom) ── */
 
 .ck-toolbar {
-  position: sticky;
+  position: fixed;
   bottom: 0;
-  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
   border-top: 1px solid var(--border);
   padding: 10px 28px;
   z-index: 10;
@@ -3351,52 +3351,6 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
     padding-bottom: 80px;
     gap: 6px;
   }
-  /* Toolbar: fixed bottom, single-row horizontal scroll */
-  .ck-toolbar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 6px 10px;
-  }
-  .ck-toolbar-inner {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    justify-content: flex-start;
-    gap: 6px;
-  }
-  .ck-toolbar-inner::-webkit-scrollbar { display: none; }
-  .ck-chip-group {
-    flex-direction: row;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 6px;
-    flex-shrink: 0;
-    border-radius: 10px;
-  }
-  .ck-chip-group-label {
-    font-size: 0.58rem;
-    text-align: left;
-    white-space: nowrap;
-  }
-  .ck-chip-group-chips {
-    flex-wrap: nowrap;
-    gap: 4px;
-  }
-  .ck-chip {
-    padding: 4px 8px;
-    font-size: 0.72rem;
-    border-radius: 7px;
-  }
-  /* Header compact */
-  .ck-back { width: 30px; height: 30px; }
-  .ck-join { padding: 10px 20px; font-size: 0.88rem; }
-  /* Panels: tighter */
-  .ck-panel-head { padding: 10px 12px; }
-  .ck-panel-label { font-size: 0.82rem; }
-  .ck-md { padding: 2px 12px 12px; font-size: 0.82rem; }
   .ck-overlay { padding: 8px; }
   .ck-modal {
     border-radius: 12px;
@@ -3416,10 +3370,51 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   }
 }
 
+/* Cockpit mobile: catch iPad + Z Fold unfolded (884px) */
+@media (max-width: 1024px) {
+  .ck-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "pitch" "rescue" "quickfacts" "stories"
+      "questions" "closing" "postcall";
+    padding: 12px 12px 80px;
+    gap: 6px;
+  }
+  .ck-header { padding: 14px 16px; flex-wrap: wrap; }
+  .ck-company { font-size: 1.2rem; }
+  .ck-join { width: 100%; justify-content: center; order: 10; margin-top: 8px; }
+  .ck-toolbar { padding: 6px 10px; }
+  .ck-toolbar-inner {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .ck-toolbar-inner::-webkit-scrollbar { display: none; }
+  .ck-chip-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    flex-shrink: 0;
+    border-radius: 10px;
+  }
+  .ck-chip-group-label { font-size: 0.58rem; text-align: left; white-space: nowrap; }
+  .ck-chip-group-chips { flex-wrap: nowrap; gap: 4px; }
+  .ck-chip { padding: 4px 8px; font-size: 0.72rem; border-radius: 7px; }
+  .ck-back { width: 30px; height: 30px; }
+  .ck-join { padding: 10px 20px; font-size: 0.88rem; }
+  .ck-panel-head { padding: 10px 12px; }
+  .ck-panel-label { font-size: 0.82rem; }
+  .ck-md { padding: 2px 12px 12px; font-size: 0.82rem; }
+}
+
 /* Large screens: more breathing room */
 @media (min-width: 1200px) {
   .ck-header { padding: 24px 40px; }
-  .ck-grid { padding: 20px 40px; gap: 10px; }
+  .ck-grid { padding: 20px 40px 100px; gap: 10px; }
   .ck-toolbar { padding: 12px 40px; }
 }
 
