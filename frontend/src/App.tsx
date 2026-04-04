@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
 import { Pipeline } from "./pages/Pipeline";
 import { Tasks } from "./pages/Tasks";
@@ -8,6 +8,7 @@ import { Docs } from "./pages/Docs";
 import { Contacts } from "./pages/Contacts";
 import { Companies } from "./pages/Companies";
 import { Login } from "./pages/Login";
+import { Profile } from "./pages/Profile";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import { Toast } from "./components/Toast";
 import { ProjectProvider, useProject } from "./ProjectContext";
@@ -15,6 +16,29 @@ import { ProjectSwitcher } from "./components/ProjectSwitcher";
 import { Welcome } from "./components/Welcome";
 import { AuthProvider, useAuth } from "./AuthContext";
 import "./App.css";
+
+function UserAvatar() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  if (!user) return null;
+
+  const initials = (user.name || user.email || "?")
+    .split(/[\s@]/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0].toUpperCase())
+    .join("");
+
+  return (
+    <button className="nav-avatar" onClick={() => navigate("/profile")} title={user.email}>
+      {user.picture ? (
+        <img src={user.picture} alt="" className="nav-avatar-img" referrerPolicy="no-referrer" />
+      ) : (
+        <span className="nav-avatar-initials">{initials}</span>
+      )}
+    </button>
+  );
+}
 
 function AppInner() {
   const { projects, loading } = useProject();
@@ -52,6 +76,7 @@ function AppInner() {
         <NavLink to="/settings">Settings</NavLink>
         <div className="nav-spacer" />
         <ThemeSwitcher />
+        <UserAvatar />
       </nav>
       <main>
         <Routes>
@@ -67,6 +92,7 @@ function AppInner() {
           <Route path="/contacts/:contactId" element={<Contacts />} />
           <Route path="/tasks/:taskId/meeting/:meetingId/cockpit" element={<MeetingCockpit />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
       <Toast />
