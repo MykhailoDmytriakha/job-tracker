@@ -1,7 +1,7 @@
 import difflib
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, subqueryload
 from sqlalchemy import text
 from datetime import datetime, timezone, date
 from typing import Optional
@@ -117,7 +117,13 @@ def list_tasks(
     search: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(models.Task)
+    query = db.query(models.Task).options(
+        subqueryload(models.Task.activities),
+        subqueryload(models.Task.subtask_items),
+        subqueryload(models.Task.checklist_items),
+        subqueryload(models.Task.meetings),
+        joinedload(models.Task.project),
+    )
     if project_id is not None:
         query = query.filter(models.Task.project_id == project_id)
     if status:
@@ -243,10 +249,25 @@ def list_tasks(
 
 @router.get("/{task_id}", response_model=schemas.TaskOut)
 def get_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    task = (
+        db.query(models.Task)
+        .options(
+            subqueryload(models.Task.activities),
+            subqueryload(models.Task.subtask_items),
+            subqueryload(models.Task.checklist_items),
+            subqueryload(models.Task.meetings),
+            subqueryload(models.Task.documents),
+            subqueryload(models.Task.contacts),
+            subqueryload(models.Task.companies),
+            subqueryload(models.Task.blocked_by),
+            subqueryload(models.Task.blocks),
+            joinedload(models.Task.project),
+        )
+        .filter(models.Task.id == task_id)
+        .first()
+    )
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    # Future: validate task.project.user_id == current_user
     is_blocked = _is_task_blocked(db, task_id)
     return _full(task, is_blocked)
 
