@@ -32,18 +32,14 @@ function isFormTarget(target: EventTarget | null): boolean {
 
 function TaskModalSwitcher({
   current,
-  currentIndex,
   next,
   onSelectTask,
   previous,
-  total,
 }: {
   current: TaskModalNavItem;
-  currentIndex: number;
   next: TaskModalNavItem | null;
   onSelectTask: (id: number) => void;
   previous: TaskModalNavItem | null;
-  total: number;
 }) {
   return (
     <div className="task-modal-switcher" aria-label="Task navigation">
@@ -144,11 +140,9 @@ export function TaskModal({
             hasNavigation && currentTask && onSelectTask ? (
               <TaskModalSwitcher
                 current={currentTask}
-                currentIndex={currentIndex}
                 next={nextTask}
                 onSelectTask={onSelectTask}
                 previous={previousTask}
-                total={navigationItems!.length}
               />
             ) : undefined
           }
