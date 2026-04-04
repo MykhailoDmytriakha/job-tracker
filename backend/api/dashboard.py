@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy.orm import Session, joinedload, subqueryload
+from sqlalchemy import text, func
 from datetime import datetime, timezone, timedelta, date as date_type
 
 from ..database import get_db
@@ -45,9 +45,15 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db)):
     ).fetchall()
     blocked_ids = {r[0] for r in blocked_rows}
 
-    # All active root tasks (scoped to project if given)
+    # All active root tasks - EAGER LOAD relationships to avoid N+1
     q = (
         db.query(models.Task)
+        .options(
+            subqueryload(models.Task.activities),
+            subqueryload(models.Task.subtask_items),
+            subqueryload(models.Task.checklist_items),
+            joinedload(models.Task.project),
+        )
         .filter(models.Task.status.notin_(["done", "closed"]))
         .filter(models.Task.parent_id.is_(None))
     )

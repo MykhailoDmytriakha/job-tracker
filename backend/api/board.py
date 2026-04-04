@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, subqueryload
 from sqlalchemy import text
 from typing import Optional
 
@@ -34,6 +34,11 @@ def get_board(project_id: Optional[int] = None, db: Session = Depends(get_db)):
 
         q = (
             db.query(models.Task)
+            .options(
+                subqueryload(models.Task.subtask_items),
+                subqueryload(models.Task.checklist_items),
+                joinedload(models.Task.project),
+            )
             .filter(models.Task.stage_id.in_(stage_ids))
             .filter(models.Task.parent_id.is_(None))
         )
