@@ -510,19 +510,19 @@ export function MeetingCockpit() {
             />
           ))}
         </div>
-      </div>
 
-      {/* Toolbar — always visible at bottom, not overlapping */}
-      <div className="ck-toolbar">
-        <div className="ck-toolbar-inner">
-          {toolbarGroups.map((group) => (
-            <ToolbarGroup
-              key={group.key}
-              label={group.label}
-              tone={group.tone}
-              items={group.items}
-            />
-          ))}
+        {/* Toolbar — sticky inside the scroll surface */}
+        <div className="ck-toolbar">
+          <div className="ck-toolbar-inner">
+            {toolbarGroups.map((group) => (
+              <ToolbarGroup
+                key={group.key}
+                label={group.label}
+                tone={group.tone}
+                items={group.items}
+              />
+            ))}
+          </div>
         </div>
       </div>
 

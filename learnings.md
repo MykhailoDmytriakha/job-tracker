@@ -266,6 +266,12 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Add a Cockpit-only content text-size control, persist the preference locally, and apply the same scale to both reading and editing states of section content.
 **Rule:** For long-form prep, notes, or writing surfaces, content typography must be user-adjustable independently from surrounding UI chrome. Read mode and edit mode must stay in sync.
 
+### L040: Bottom app bars inside fixed-height shells must use dynamic viewport units and safe-area padding
+**Context:** User reported that the Cockpit footer looked correct on desktop but was half-cut on iPad and could disappear on Android.
+**Root cause:** The app shell used `100vh`, which can exceed the visible viewport on mobile browsers when browser chrome is present. Cockpit also rendered its footer as a plain bottom flex item without sticky positioning or bottom safe-area compensation.
+**Fix:** Move the app shell to dynamic viewport sizing (`100dvh` with `100vh` fallback) and make the Cockpit footer sticky with `env(safe-area-inset-bottom)` padding so it stays fully visible above browser UI.
+**Rule:** In mobile webviews/browsers, any bottom toolbar inside a fixed app shell must account for dynamic viewport height and bottom safe areas. `100vh` alone is not reliable.
+
 ---
 
 ## Meta-patterns observed across all learnings

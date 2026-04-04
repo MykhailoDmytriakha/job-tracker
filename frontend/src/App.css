@@ -2806,6 +2806,8 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .ck-scroll {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -3181,10 +3183,16 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 /* ── Toolbar (fixed bottom) ── */
 
 .ck-toolbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
+  margin-top: auto;
   flex-shrink: 0;
-  background: var(--bg-card);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--border);
-  padding: 10px 28px;
+  padding: 10px 28px calc(10px + env(safe-area-inset-bottom, 0px));
 }
 .ck-toolbar-inner {
   display: flex;
@@ -3501,7 +3509,7 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   .ck-header-actions { width: 100%; }
   .ck-font-control { width: 100%; justify-content: space-between; }
   .ck-join { width: 100%; justify-content: center; order: 10; margin-top: 0; }
-  .ck-toolbar { padding: 6px 10px; }
+  .ck-toolbar { padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); }
   .ck-toolbar-inner {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -3533,7 +3541,7 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 @media (min-width: 1200px) {
   .ck-header { padding: 24px 40px; }
   .ck-grid { padding: 20px 40px 100px; gap: 10px; }
-  .ck-toolbar { padding: 12px 40px; }
+  .ck-toolbar { padding: 12px 40px calc(12px + env(safe-area-inset-bottom, 0px)); }
 }
 
 

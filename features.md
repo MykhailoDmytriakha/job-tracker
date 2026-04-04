@@ -173,6 +173,7 @@ Route: `/tasks/:taskId/meeting/:meetingId/cockpit`
 - Each panel supports inline markdown editing
 - Edit shortcuts: `Cmd+Enter` saves, `Esc` cancels
 - Bottom toolbar stays sticky inside the cockpit, centers its content, and groups related docs, companies, contacts, and links into color-coded clusters
+- On iPad/mobile browsers, the bottom toolbar remains fully visible above browser chrome/home indicator via dynamic viewport sizing and bottom safe-area padding
 - Footer resources open in a viewport-bounded modal with internal scrolling for long documents; highlighted items use subtle accent emphasis, not a primary CTA look
 - Modal navigation preserves the same grouped resource structure as the footer (`Docs / Companies / Contacts`) so the user can switch resources in-place without closing the popup
 - When grouped modal navigation is present, the standalone left-side title is hidden to avoid repeating the active item twice
