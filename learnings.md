@@ -220,6 +220,14 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 
 ## 2026-04-04
 
+### L044: Read paths must degrade gracefully during schema drift
+**Context:** Production `/api/board` started returning 500 from the blocked-task lookup query inside a serverless deployment.
+**Root cause:** The same dependency raw SQL was duplicated across `tasks`, `board`, and `dashboard`. When the dependency schema in production drifted or lagged behind code, a non-critical badge/count query took down whole read endpoints.
+**Fix:** Centralized blocked-state lookup in one helper and added a targeted fallback for missing dependency schema objects so reads return data instead of crashing.
+**Rule:** Auxiliary read-time enrichments must never be able to take down primary read endpoints. Centralize fragile DB logic and fail soft when a legacy schema only affects secondary metadata.
+
+## 2026-04-04
+
 ### L032: Cockpit creation must be explicit in the meeting workflow
 **Context:** User created a meeting in task detail, saw that a cockpit page exists, but had no clear action for creating the cockpit itself. The existing `Cockpit` button looked like navigation, not initialization.
 **Root cause:** The UI exposed the cockpit destination but not the state transition from “meeting exists” to “cockpit workspace created.” That made the workflow conceptually incomplete.

@@ -1,25 +1,17 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload, subqueryload
-from sqlalchemy import text
 from typing import Optional
 
 from ..database import get_db
 from .. import models, schemas
+from ..dependencies import get_unresolved_blocked_ids
 
 router = APIRouter(prefix="/api/board", tags=["board"])
 
 
 @router.get("/", response_model=schemas.BoardView)
 def get_board(project_id: Optional[int] = None, db: Session = Depends(get_db)):
-    blocked_rows = db.execute(
-        text("""
-            SELECT DISTINCT td.task_id
-            FROM task_dependencies td
-            JOIN tasks t ON t.id = td.depends_on_id
-            WHERE t.status NOT IN ('done', 'closed')
-        """)
-    ).fetchall()
-    blocked_ids = {r[0] for r in blocked_rows}
+    blocked_ids = get_unresolved_blocked_ids(db)
 
     main_stages = (
         db.query(models.Stage)

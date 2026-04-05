@@ -8,6 +8,7 @@ from typing import Optional
 
 from ..database import get_db
 from .. import models, schemas
+from ..dependencies import get_unresolved_blocked_ids, is_task_blocked
 from ..usertime import user_today
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -54,30 +55,11 @@ def _description_diff(old: str, new: str) -> str:
 
 
 def _get_blocked_ids(db: Session) -> set[int]:
-    """Return set of task IDs that have at least one unresolved dependency."""
-    rows = db.execute(
-        text("""
-            SELECT DISTINCT td.task_id
-            FROM task_dependencies td
-            JOIN tasks t ON t.id = td.depends_on_id
-            WHERE t.status NOT IN ('done', 'closed')
-        """)
-    ).fetchall()
-    return {r[0] for r in rows}
+    return get_unresolved_blocked_ids(db)
 
 
 def _is_task_blocked(db: Session, task_id: int) -> bool:
-    row = db.execute(
-        text("""
-            SELECT 1
-            FROM task_dependencies td
-            JOIN tasks t ON t.id = td.depends_on_id
-            WHERE td.task_id = :tid AND t.status NOT IN ('done', 'closed')
-            LIMIT 1
-        """),
-        {"tid": task_id},
-    ).fetchone()
-    return row is not None
+    return is_task_blocked(db, task_id)
 
 
 def _check_circular(db: Session, task_id: int, depends_on_id: int) -> bool:

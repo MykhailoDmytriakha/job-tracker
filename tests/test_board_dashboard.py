@@ -1,5 +1,18 @@
 """Board and Dashboard endpoints."""
 
+from contextlib import contextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from backend.api import stages, tasks, board, dashboard, projects, documents, categories, contacts, companies, search
+from backend.database import Base, get_db
+from backend.models import Project, Stage, Task
+
 
 def test_board_returns_columns(client):
     r = client.get("/api/board/")
@@ -25,6 +38,71 @@ def test_board_blocked_flag(client):
     triaged_tasks = data["columns"][1]["tasks"]
     blocked_task = next(t for t in triaged_tasks if t["id"] == b["id"])
     assert blocked_task["is_blocked"] is True
+
+
+@contextmanager
+def _legacy_client_without_dependency_table():
+    app = FastAPI(title="Job Tracker Legacy Schema Test")
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+    app.include_router(projects.router)
+    app.include_router(stages.router)
+    app.include_router(tasks.router)
+    app.include_router(board.router)
+    app.include_router(dashboard.router)
+    app.include_router(documents.router)
+    app.include_router(categories.router)
+    app.include_router(contacts.router)
+    app.include_router(companies.router)
+    app.include_router(search.router)
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    @event.listens_for(engine, "connect")
+    def _fk(dbapi_connection, _):
+        dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
+    Base.metadata.create_all(bind=engine)
+    TestSession = sessionmaker(bind=engine)
+    s = TestSession()
+    for i, name in enumerate(["INBOX", "TRIAGED", "TO APPLY", "SUBMITTED", "HUMAN LANE",
+                               "WAITING", "RESPONSE", "OFFER", "CLOSED"]):
+        s.add(Stage(name=name, position=i, is_default=True))
+    s.add(Project(name="Legacy Project", short_key="LEG"))
+    s.commit()
+    s.add(Task(project_id=1, sequence_num=1, title="Legacy inbox task", stage_id=1))
+    s.commit()
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE task_dependencies"))
+    s.close()
+
+    def _override():
+        session = TestSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = _override
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
+    engine.dispose()
+
+
+def test_legacy_schema_missing_dependency_table_does_not_break_reads():
+    with _legacy_client_without_dependency_table() as client:
+        board_response = client.get("/api/board/")
+        assert board_response.status_code == 200
+        board_data = board_response.json()
+        assert any(task["title"] == "Legacy inbox task" for task in board_data["columns"][0]["tasks"])
+
+        dashboard_response = client.get("/api/dashboard/")
+        assert dashboard_response.status_code == 200
+        assert "stats" in dashboard_response.json()
 
 
 def test_dashboard_stats(client):

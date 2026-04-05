@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session, joinedload, subqueryload
-from sqlalchemy import text, func
+from sqlalchemy import func
 from datetime import datetime, timezone, timedelta, date as date_type
 
 from ..database import get_db
 from .. import models, schemas
+from ..dependencies import get_unresolved_blocked_ids
 from ..usertime import user_today
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -36,15 +37,7 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db), x_timez
     week_end_date = today + timedelta(days=7)
 
     # Blocked task IDs
-    blocked_rows = db.execute(
-        text("""
-            SELECT DISTINCT td.task_id
-            FROM task_dependencies td
-            JOIN tasks t ON t.id = td.depends_on_id
-            WHERE t.status NOT IN ('done', 'closed')
-        """)
-    ).fetchall()
-    blocked_ids = {r[0] for r in blocked_rows}
+    blocked_ids = get_unresolved_blocked_ids(db)
 
     # All active root tasks - EAGER LOAD relationships to avoid N+1
     q = (
