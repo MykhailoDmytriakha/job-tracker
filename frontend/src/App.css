@@ -319,6 +319,51 @@ main {
   height: 100%; overflow: hidden;
 }
 
+.route-sync-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--orange-soft);
+  border-left: 3px solid var(--orange);
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--orange);
+}
+.route-sync-banner-btn,
+.route-load-error-btn {
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.route-sync-banner-btn:hover,
+.route-load-error-btn:hover {
+  opacity: 0.8;
+}
+
+.route-load-error {
+  height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  text-align: center;
+  padding: 24px;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.route-load-error-title {
+  font-size: 15px; font-weight: 700; color: var(--text);
+}
+.route-load-error-body {
+  max-width: 420px;
+  font-size: 13px; line-height: 1.5;
+  color: var(--text-muted);
+}
+.route-load-error-btn {
+  color: var(--accent);
+}
+
 /* Stat cards - clickable, always single row */
 .dash-stats {
   display: flex; gap: 8px; flex-shrink: 0;

@@ -16,7 +16,15 @@ if DATABASE_URL.startswith("postgres://"):
 is_sqlite = DATABASE_URL.startswith("sqlite")
 
 connect_args = {"check_same_thread": False} if is_sqlite else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+engine_kwargs = {"connect_args": connect_args}
+if not is_sqlite:
+    engine_kwargs.update(
+        pool_pre_ping=True,
+        pool_recycle=int(os.environ.get("DB_POOL_RECYCLE_SECONDS", "300")),
+        pool_use_lifo=True,
+    )
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 if is_sqlite:
     @event.listens_for(engine, "connect")

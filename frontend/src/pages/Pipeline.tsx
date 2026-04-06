@@ -19,6 +19,15 @@ type ModalTaskItem = {
   title: string;
 };
 
+const boardCache = new Map<number, BoardView>();
+
+function getLoadMessage(hasFallbackData: boolean): string {
+  if (hasFallbackData) {
+    return "Couldn't refresh pipeline. Showing the last loaded snapshot.";
+  }
+  return "Pipeline couldn't load. Retry the request.";
+}
+
 function getColumnTasksForTask(board: BoardView, taskId: number): ModalTaskItem[] {
   const col = board.columns.find((c) => c.tasks.some((t) => t.id === taskId));
   if (!col) return [];
@@ -27,11 +36,16 @@ function getColumnTasksForTask(board: BoardView, taskId: number): ModalTaskItem[
 
 export function Pipeline() {
   const { active: project } = useProject();
+  const projectId = project?.id ?? null;
   const navigate = useNavigate();
   const [board, setBoard] = useState<BoardView | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [modalTasks, setModalTasks] = useState<ModalTaskItem[]>([]);
   const activeStageRef = useRef<number | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const loadRequestIdRef = useRef(0);
 
   const selectedTaskId = searchParams.get("task") ? Number(searchParams.get("task")) : null;
 
@@ -54,26 +68,75 @@ export function Pipeline() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const load = () => {
-    if (project) boardApi.get(project.id).then(setBoard);
-  };
+  useEffect(() => {
+    const requestId = ++loadRequestIdRef.current;
+    if (!projectId) {
+      setBoard(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
 
-  useEffect(() => { load(); }, [project]);
+    const activeProjectId = projectId;
+    const cached = boardCache.get(activeProjectId) ?? null;
+    setBoard(cached);
+    setError(null);
+    setLoading(!cached);
+
+    async function load() {
+      try {
+        const next = await boardApi.get(activeProjectId);
+        if (requestId !== loadRequestIdRef.current) return;
+        boardCache.set(activeProjectId, next);
+        setBoard(next);
+        setError(null);
+      } catch {
+        if (requestId !== loadRequestIdRef.current) return;
+        setError(getLoadMessage(Boolean(cached)));
+        if (!cached) setBoard(null);
+      } finally {
+        if (requestId === loadRequestIdRef.current) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+  }, [projectId, reloadKey]);
+
+  function retryLoad() {
+    setReloadKey((value) => value + 1);
+  }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     await tasksApi.update(Number(active.id), { stage_id: Number(over.id) } as any);
-    load();
+    retryLoad();
   }
 
-  if (!board) return <div className="loading">Loading board...</div>;
+  if (!board) {
+    if (loading) return <div className="loading">Loading board...</div>;
+    return (
+      <div className="route-load-error">
+        <div className="route-load-error-title">Pipeline unavailable</div>
+        <div className="route-load-error-body">{error || "Pipeline couldn't load."}</div>
+        <button type="button" className="route-load-error-btn" onClick={retryLoad}>Retry</button>
+      </div>
+    );
+  }
 
   const activeColumns = board.columns.filter((col) => col.stage.name.toLowerCase() !== "closed");
   const closedColumns = board.columns.filter((col) => col.stage.name.toLowerCase() === "closed");
 
   return (
     <div className="board-page">
+      {error && (
+        <div className="route-sync-banner">
+          <span>{error}</span>
+          <button type="button" className="route-sync-banner-btn" onClick={retryLoad}>Retry</button>
+        </div>
+      )}
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="board-active-area">
           <div className="board">
@@ -99,10 +162,10 @@ export function Pipeline() {
           onNavigate={(id) => navigate(`/tasks/${id}`)}
           onOpenFull={() => navigate(`/tasks/${selectedTaskId}`)}
           navigationItems={modalTasks}
-          onUpdate={load}
+          onUpdate={retryLoad}
           onDelete={() => {
             clearSelection();
-            load();
+            retryLoad();
           }}
         />
       )}

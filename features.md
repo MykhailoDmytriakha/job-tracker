@@ -139,6 +139,9 @@ Default page ("/"). One-glance overview.
 - The modal header shows previous/current/next task IDs so you can move through the queue without closing the popup
 - `Left` / `Right` arrow keys switch tasks in-place when focus is not inside an input, textarea, or select
 - `Open full page` still navigates to `/tasks/:id`
+- Route resilience: revisiting Dashboard in the same app session reuses the last successful snapshot for the active project and refreshes it in the background
+- If a background refresh fails, Dashboard keeps the last snapshot visible and shows an inline `Retry` banner instead of dropping back to an empty loader
+- If the first load fails and there is no cached snapshot yet, Dashboard shows an explicit retry state instead of spinning forever
 
 ---
 
@@ -207,6 +210,8 @@ INBOX, TRIAGED, TO APPLY, SUBMITTED, HUMAN LANE, WAITING, RESPONSE, OFFER, CLOSE
 - Clicking a card opens task detail in a modal on the pipeline route (`/pipeline?task=ID`)
 - The modal header shows previous/current/next task IDs using the current board order: column order first, then card order inside each column
 - `Left` / `Right` arrow keys switch cards in-place when focus is not inside an input, textarea, or select
+- Route resilience: revisiting Pipeline in the same app session reuses the last successful board snapshot for the active project and refreshes it in the background
+- If a refresh fails, Pipeline keeps the last snapshot visible and shows an inline `Retry` banner; if the initial load fails, it shows a retry state instead of an endless loader
 
 ---
 

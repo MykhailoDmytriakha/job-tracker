@@ -17,6 +17,15 @@ type ModalTaskItem = {
 
 type DashColumn = "today" | "upcoming" | "recurring";
 
+const dashboardCache = new Map<number, DashboardView>();
+
+function getLoadMessage(viewName: string, hasFallbackData: boolean): string {
+  if (hasFallbackData) {
+    return `Couldn't refresh ${viewName}. Showing the last loaded snapshot.`;
+  }
+  return `${viewName[0].toUpperCase()}${viewName.slice(1)} couldn't load. Retry the request.`;
+}
+
 function getColumnTasks(data: DashboardView, column: DashColumn): ModalTaskItem[] {
   return data[column].map(({ id, display_id, title }) => ({ id, display_id, title }));
 }
@@ -49,9 +58,14 @@ function staleDays(dateStr: string | null): number {
 
 export function Dashboard() {
   const { active: project } = useProject();
+  const projectId = project?.id ?? null;
   const [data, setData] = useState<DashboardView | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [reloadKey, setReloadKey] = useState(0);
+  const loadRequestIdRef = useRef(0);
 
   const selectedTaskId = searchParams.get("task") ? Number(searchParams.get("task")) : null;
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -67,9 +81,40 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!project) return;
-    dashboardApi.get(project.id).then(setData);
-  }, [project]);
+    const requestId = ++loadRequestIdRef.current;
+    if (!projectId) {
+      setData(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    const activeProjectId = projectId;
+    const cached = dashboardCache.get(activeProjectId) ?? null;
+    setData(cached);
+    setError(null);
+    setLoading(!cached);
+
+    async function load() {
+      try {
+        const next = await dashboardApi.get(activeProjectId);
+        if (requestId !== loadRequestIdRef.current) return;
+        dashboardCache.set(activeProjectId, next);
+        setData(next);
+        setError(null);
+      } catch {
+        if (requestId !== loadRequestIdRef.current) return;
+        setError(getLoadMessage("dashboard", Boolean(cached)));
+        if (!cached) setData(null);
+      } finally {
+        if (requestId === loadRequestIdRef.current) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+  }, [projectId, reloadKey]);
 
   useEffect(() => {
     if (!selectedTaskId) {
@@ -99,14 +144,33 @@ export function Dashboard() {
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
+  function retryLoad() {
+    setReloadKey((value) => value + 1);
+  }
+
   const isCollapsed = (key: string) => isMobile && collapsed[key];
 
-  if (!data) return <div className="loading">Loading...</div>;
+  if (!data) {
+    if (loading) return <div className="loading">Loading...</div>;
+    return (
+      <div className="route-load-error">
+        <div className="route-load-error-title">Dashboard unavailable</div>
+        <div className="route-load-error-body">{error || "Dashboard couldn't load."}</div>
+        <button type="button" className="route-load-error-btn" onClick={retryLoad}>Retry</button>
+      </div>
+    );
+  }
 
   const { stats } = data;
 
   return (
     <div className="dashboard">
+      {error && (
+        <div className="route-sync-banner">
+          <span>{error}</span>
+          <button type="button" className="route-sync-banner-btn" onClick={retryLoad}>Retry</button>
+        </div>
+      )}
       {/* Stat cards - clickable */}
       <div className="dash-stats">
         <button className="stat-card" onClick={() => goToFiltered("open")} title="View all open tasks">
@@ -185,7 +249,7 @@ export function Dashboard() {
             data.recurring.map((t) => (
               <RecurringCard key={t.id} task={t} onClick={() => goToTask(t.id, "recurring")} onLogProgress={async (id) => {
                 await tasksApi.addLog(id, "Progress logged");
-                if (project) dashboardApi.get(project.id).then(setData);
+                retryLoad();
               }} />
             ))
           ))}
@@ -200,12 +264,10 @@ export function Dashboard() {
           onNavigate={(id) => navigate(`/tasks/${id}`)}
           onOpenFull={() => navigate(`/tasks/${selectedTaskId}`)}
           navigationItems={modalTasks}
-          onUpdate={() => {
-            if (project) dashboardApi.get(project.id).then(setData);
-          }}
+          onUpdate={retryLoad}
           onDelete={() => {
             closeTask();
-            if (project) dashboardApi.get(project.id).then(setData);
+            retryLoad();
           }}
         />
       )}

@@ -307,6 +307,14 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Create the skill under the current repository instead of `~/.codex/skills` and treat global installation as opt-in only.
 **Rule:** When the user asks to create tooling, skills, templates, or automations during repo work, default to repository-local placement unless they explicitly ask for a global install.
 
+## 2026-04-06
+
+### L044: Post-idle route loads must survive both slow serverless boots and stale DB connections
+**Context:** User reported that after sitting on another page for about 10 minutes and then switching to Dashboard, the page could get stuck on `Loading...`.
+**Root cause:** Two separate failures could collapse into the same symptom. On the backend, serverless Postgres connections can go stale after idle time, and the first query then fails unless the pool checks liveness before reuse. On the frontend, Dashboard/Pipeline treated `data === null` as "keep showing loader" and did not surface retry/error state or reuse the last successful snapshot, so any transient post-idle failure looked like an endless spinner.
+**Fix:** Harden the DB engine for serverless idle reuse and make route overview pages resilient: reuse the last loaded snapshot, refresh in the background, and replace infinite loading with explicit retry/error state.
+**Rule:** In serverless apps, overview pages must assume the first request after inactivity may be slow or transiently fail. Backend connection pools need liveness checks; frontend loaders must never spin forever on fetch failure.
+
 ---
 
 ## Meta-patterns observed across all learnings

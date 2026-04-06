@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from threading import Lock
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,12 +14,22 @@ from .api import (
     documents, categories, contacts, companies, search, activities,
 )
 
+_db_init_lock = Lock()
+_db_initialized = False
+
 
 def init_db():
     """Create tables and run migrations. Called both from lifespan and module-level for serverless."""
-    models.Base.metadata.create_all(bind=engine)
-    run_migrations(engine)
-    seed_default_stages()
+    global _db_initialized
+    if _db_initialized:
+        return
+    with _db_init_lock:
+        if _db_initialized:
+            return
+        models.Base.metadata.create_all(bind=engine)
+        run_migrations(engine)
+        seed_default_stages()
+        _db_initialized = True
 
 
 @asynccontextmanager
