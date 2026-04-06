@@ -266,11 +266,29 @@ Every task has a chronological activity log:
 
 ## Planned Features (not yet built)
 
-- [ ] CLI tool for agent integration (token-based auth)
-- [ ] Data migration from ELEKS markdown files
-- [ ] Recurring task reminders (system nudges to log progress)
+### UI & UX
+- [ ] Calendar page (visual calendar view for meetings, due dates, follow-ups)
 - [ ] Bulk operations (multi-select + batch status change)
 - [ ] Tags/labels (flexible categorization beyond single category)
 - [ ] Task reordering within list (manual sort)
 - [ ] Keyboard shortcuts (j/k navigate, x toggle, n new task)
 - [ ] Undo delete (soft delete with 10s undo window)
+
+### Agent & CLI
+- [ ] CLI tool for agent integration (token-based auth)
+- [ ] Document chunk editing API (PATCH /api/documents/{id}/replace for targeted text replacement)
+
+### Data & Migration
+- [ ] Data migration from ELEKS markdown files (active, recurring, completed)
+- [ ] Recurring task reminders (system nudges to log progress)
+
+### Contacts & Documents
+- [ ] Contact interaction tracking (ContactInteraction model, interaction history per contact)
+- [ ] Resume template engine (2-3 CSS templates for markdown-to-PDF rendering)
+
+### Product (long-term)
+- [ ] Projects as namespace (project_id scoping, multi-project support)
+- [ ] Multi-user support + auth (JWT/session, per-user stages)
+- [ ] Cloud deployment
+- [ ] Onboarding starter tasks (templates: "Layoff plan", "Career change", etc.)
+- [ ] Public-facing landing page
