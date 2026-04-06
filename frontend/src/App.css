@@ -2160,6 +2160,15 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .docs-task-link.clickable:hover { color: var(--accent); }
 .docs-editor { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .docs-editor-toolbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.docs-editor-id {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
 .docs-editor-title { flex: 1 1 320px; min-width: 220px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text); font-size: 16px; font-weight: 600; }
 .docs-editor-title:focus { outline: none; border-color: var(--accent); }
 .docs-editor-type { padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text); font-size: 12px; }

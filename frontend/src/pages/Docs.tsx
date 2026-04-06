@@ -16,6 +16,10 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "type",    label: "Type"     },
 ];
 
+function documentLabel(id: number): string {
+  return `#${id}`;
+}
+
 function sortDocs(docs: DocumentBrief[], sortBy: SortKey): DocumentBrief[] {
   return [...docs].sort((a, b) => {
     switch (sortBy) {
@@ -213,7 +217,7 @@ export function Docs() {
               className={`docs-item ${d.id === selectedId ? "selected" : ""}`}
               onClick={() => navigate(`/docs/${d.id}`)}
             >
-              <span className="docs-item-title">{d.title}</span>
+              <span className="docs-item-title"><span className="task-id">{documentLabel(d.id)}</span> {d.title}</span>
               {d.doc_type && <span className={`docs-type-badge type-${d.doc_type}`}>{d.doc_type}</span>}
             </div>
           ))}
@@ -247,7 +251,7 @@ export function Docs() {
             <div className="docs-view">
               <div className="docs-view-top">
                 <div className="docs-view-title-block">
-                  <h2 className="docs-view-title">{doc.title}</h2>
+                  <h2 className="docs-view-title"><span className="task-id">{documentLabel(doc.id)}</span> {doc.title}</h2>
                   {doc.doc_type && <span className={`docs-type-badge docs-view-type type-${doc.doc_type}`}>{doc.doc_type}</span>}
                 </div>
                 <button className="docs-edit-btn" onClick={startEdit}>Edit</button>
@@ -274,6 +278,7 @@ export function Docs() {
           ) : (
             <div className="docs-editor">
               <div className="docs-editor-toolbar">
+                <span className="docs-editor-id">{documentLabel(doc.id)}</span>
                 <input
                   className="docs-editor-title"
                   value={editTitle}

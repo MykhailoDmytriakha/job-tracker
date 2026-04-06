@@ -315,6 +315,12 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Harden the DB engine for serverless idle reuse and make route overview pages resilient: reuse the last loaded snapshot, refresh in the background, and replace infinite loading with explicit retry/error state.
 **Rule:** In serverless apps, overview pages must assume the first request after inactivity may be slow or transiently fail. Backend connection pools need liveness checks; frontend loaders must never spin forever on fetch failure.
 
+### L045: Entity pages need visible stable IDs when users reference records conversationally
+**Context:** User works with a local agent by referring to records via IDs and reported that `/docs` does not show document IDs the way tasks show their IDs.
+**Root cause:** Documents had stable numeric IDs in the API and route (`/docs/:id`), but the docs UI rendered only the title. That made document references invisible at the exact point where the user needs them for navigation and agent collaboration.
+**Fix:** Show the document ID before the title in both the docs list and the selected document header.
+**Rule:** Any entity page that can be addressed by ID in routes, logs, or agent conversations must show that stable ID prominently in the primary title line.
+
 ---
 
 ## Meta-patterns observed across all learnings
