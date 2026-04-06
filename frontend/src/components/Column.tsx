@@ -33,9 +33,15 @@ export function Column({ column, onSelectTask, isHorizontal }: { column: BoardCo
       </div>
       {!isCollapsed && (
         <div className={`column-cards ${isHorizontal ? "column-cards-horizontal" : ""}`}>
-          {column.tasks.map((task) => (
-            <Card key={task.id} task={task} onSelect={onSelectTask} />
-          ))}
+          {[...column.tasks]
+            .sort((a, b) => {
+              const ta = a.last_activity_at ? new Date(a.last_activity_at).getTime() : 0;
+              const tb = b.last_activity_at ? new Date(b.last_activity_at).getTime() : 0;
+              return tb - ta;
+            })
+            .map((task) => (
+              <Card key={task.id} task={task} onSelect={onSelectTask} />
+            ))}
         </div>
       )}
     </div>
