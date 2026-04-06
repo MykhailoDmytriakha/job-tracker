@@ -142,6 +142,16 @@ Default page ("/"). One-glance overview.
 
 ---
 
+## Docs / Contacts / Companies
+
+- These routes use the same split-view pattern on desktop: list/filter panel on the left, selected entity detail on the right
+- On narrow screens, selecting an entity collapses the route into a single detail column and hides the list panel until the user goes `Back`
+- Detail headers use the shared library pattern: `Back` navigation on the left, destructive action in the right-side action group
+- Document detail stacks title, optional type badge, and `Edit` action above the markdown body instead of forcing all controls into one row
+- Contact and Company detail pages reuse the same header shell, then show inline-editable fields and linked entities/notes below
+
+---
+
 ## Meetings
 
 - Meetings live inside task detail as a dedicated section

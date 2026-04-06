@@ -179,14 +179,24 @@ export function Companies() {
 
       {selectedId && company && (
         <div className="contacts-detail-panel">
-          <div className="docs-detail-header">
+          <div className="detail-header">
             <button className="detail-close" onClick={() => navigate("/companies")} title="Back to list">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Back
             </button>
-            <button className="detail-delete" onClick={async () => { await companiesApi.delete(company.id); loadList(); navigate("/companies"); }}>Delete</button>
+            <div className="detail-header-actions">
+              <button
+                className="detail-delete"
+                onClick={async () => { await companiesApi.delete(company.id); loadList(); navigate("/companies"); }}
+                title="Delete company"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <h2 className="contacts-detail-name">{company.name}</h2>

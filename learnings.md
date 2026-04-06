@@ -217,7 +217,6 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Root cause:** Cockpit modal was rendered inside the transformed scroll container and had no `max-height`, so long markdown documents expanded the whole modal to content height instead of keeping the shell fixed and scrolling inside the body.
 **Fix:** Render the modal through a portal to `document.body`, cap modal height to the viewport, keep the header fixed, and let only the modal body scroll. Also softened the featured footer chip styling so emphasis stays subtle.
 **Rule:** Any modal that can open unbounded content must be viewport-constrained and portal-based. The frame stays fixed; only the content area scrolls.
-
 ## 2026-04-04
 
 ### L044: Read paths must degrade gracefully during schema drift
@@ -225,6 +224,14 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Root cause:** The same dependency raw SQL was duplicated across `tasks`, `board`, and `dashboard`. When the dependency schema in production drifted or lagged behind code, a non-critical badge/count query took down whole read endpoints.
 **Fix:** Centralized blocked-state lookup in one helper and added a targeted fallback for missing dependency schema objects so reads return data instead of crashing.
 **Rule:** Auxiliary read-time enrichments must never be able to take down primary read endpoints. Centralize fragile DB logic and fail soft when a legacy schema only affects secondary metadata.
+
+## 2026-04-05
+
+### L045: Shared detail layouts must stay structurally aligned across pages
+**Context:** The Docs detail view visually broke: header actions drifted out of the common pattern, title/type/edit controls competed on one line, and responsive CSS still targeted old list class names.
+**Root cause:** Similar entity pages (`Docs`, `Contacts`, `Companies`) stopped sharing the same structural header/layout contract. One page mixed shared classes with inline styles, while mobile rules still referenced pre-refactor selectors like `.docs-list` instead of the actual container `.docs-list-panel`.
+**Fix:** Re-align entity detail pages to one header structure (`Back` + shared action group), stack title/meta/actions in Docs instead of forcing them into one row, and update responsive selectors to match the current DOM.
+**Rule:** When several pages intentionally share one UI pattern, keep the DOM shape and CSS hooks aligned. After renaming containers, update every responsive selector immediately or mobile regressions will silently survive.
 
 ## 2026-04-04
 

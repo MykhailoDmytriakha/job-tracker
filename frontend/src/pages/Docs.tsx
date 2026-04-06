@@ -230,7 +230,7 @@ export function Docs() {
               </svg>
               Back
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div className="detail-header-actions">
               <button
                 className="detail-delete"
                 onClick={() => setDeleteConfirm({ show: true, message: `Delete "${doc.title}"? This cannot be undone.` })}
@@ -245,9 +245,11 @@ export function Docs() {
 
           {!editing ? (
             <div className="docs-view">
-              <div className="docs-view-header">
-                <h2 className="docs-view-title">{doc.title}</h2>
-                {doc.doc_type && <span className={`docs-type-badge type-${doc.doc_type}`}>{doc.doc_type}</span>}
+              <div className="docs-view-top">
+                <div className="docs-view-title-block">
+                  <h2 className="docs-view-title">{doc.title}</h2>
+                  {doc.doc_type && <span className={`docs-type-badge docs-view-type type-${doc.doc_type}`}>{doc.doc_type}</span>}
+                </div>
                 <button className="docs-edit-btn" onClick={startEdit}>Edit</button>
               </div>
               <div className="docs-markdown">

@@ -2042,9 +2042,9 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 /* ============================================================
    DOCS PAGE
    ============================================================ */
-.docs-layout { display: grid; grid-template-columns: 1fr; gap: 0; height: 100%; }
-.docs-layout.has-detail { grid-template-columns: 300px 1fr; }
-.docs-list-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-right: 1px solid var(--border); overflow-y: auto; }
+.docs-layout { display: grid; grid-template-columns: 1fr; gap: 0; height: 100%; min-height: 0; }
+.docs-layout.has-detail { grid-template-columns: minmax(280px, 300px) minmax(0, 1fr); }
+.docs-list-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-right: 1px solid var(--border); overflow-y: auto; min-width: 0; }
 .docs-toolbar { display: flex; gap: 6px; }
 .docs-toolbar .filter-search { flex: 1; }
 .docs-new-btn { padding: 6px 12px; background: var(--accent); color: white; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
@@ -2065,12 +2065,33 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .type-reference { background: var(--bg-muted); color: var(--text-faint); }
 .type-journal { background: var(--purple-soft); color: var(--purple); }
 .docs-empty { padding: 24px; text-align: center; color: var(--text-faint); font-size: 13px; }
-.docs-detail-panel { display: flex; flex-direction: column; padding: 16px 24px; overflow-y: auto; height: 100%; }
-.docs-detail-header { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 12px; }
-.docs-view { flex: 1; }
-.docs-view-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.docs-view-title { font-size: 20px; font-weight: 700; color: var(--text); margin: 0; flex: 1; }
-.docs-edit-btn { padding: 5px 14px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+.docs-detail-panel { display: flex; flex-direction: column; padding: 16px 24px 24px; overflow-y: auto; height: 100%; min-width: 0; }
+.docs-view { flex: 1; min-width: 0; }
+.docs-view-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.docs-view-title-block {
+  flex: 1 1 360px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.docs-view-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.docs-view-type { align-self: flex-start; }
+.docs-edit-btn { padding: 5px 14px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; align-self: flex-start; }
 .docs-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
 .docs-markdown { font-size: 14px; line-height: 1.7; color: var(--text); }
 .docs-markdown h1 { font-size: 22px; font-weight: 700; margin: 24px 0 12px; }
@@ -2092,9 +2113,9 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .docs-task-link:last-child { border-bottom: none; }
 .docs-task-link.clickable { cursor: pointer; transition: color var(--transition); }
 .docs-task-link.clickable:hover { color: var(--accent); }
-.docs-editor { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-.docs-editor-toolbar { display: flex; gap: 6px; align-items: center; }
-.docs-editor-title { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text); font-size: 16px; font-weight: 600; }
+.docs-editor { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.docs-editor-toolbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.docs-editor-title { flex: 1 1 320px; min-width: 220px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text); font-size: 16px; font-weight: 600; }
 .docs-editor-title:focus { outline: none; border-color: var(--accent); }
 .docs-editor-type { padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text); font-size: 12px; }
 .docs-save-btn { padding: 6px 14px; background: var(--green); color: white; border: none; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; }
@@ -2164,9 +2185,9 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 /* ============================================================
    CONTACTS PAGE + COMPONENTS
    ============================================================ */
-.contacts-layout { display: grid; grid-template-columns: 1fr; gap: 0; height: 100%; }
-.contacts-layout.has-detail { grid-template-columns: 300px 1fr; }
-.contacts-list-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-right: 1px solid var(--border); overflow-y: auto; }
+.contacts-layout { display: grid; grid-template-columns: 1fr; gap: 0; height: 100%; min-height: 0; }
+.contacts-layout.has-detail { grid-template-columns: minmax(280px, 300px) minmax(0, 1fr); }
+.contacts-list-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-right: 1px solid var(--border); overflow-y: auto; min-width: 0; }
 .contacts-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; transition: background var(--transition); }
 .contacts-item:hover { background: var(--bg-hover); }
 .contacts-item.selected { background: var(--bg-active); }
@@ -2182,7 +2203,7 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .ctype-reference { background: var(--orange-soft); color: var(--orange); }
 .ctype-hiring_manager { background: var(--red-soft); color: var(--red); }
 
-.contacts-detail-panel { display: flex; flex-direction: column; padding: 16px 24px; overflow-y: auto; height: 100%; }
+.contacts-detail-panel { display: flex; flex-direction: column; padding: 16px 24px 24px; overflow-y: auto; height: 100%; min-width: 0; }
 .contacts-detail-name { font-size: 20px; font-weight: 700; color: var(--text); margin: 0 0 8px; }
 
 .contacts-fields { margin: 16px 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
@@ -3946,8 +3967,12 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   /* Docs/Contacts/Companies: single column */
   .docs-layout.has-detail { grid-template-columns: 1fr; }
   .contacts-layout.has-detail { grid-template-columns: 1fr; }
-  .docs-layout.has-detail .docs-list,
-  .contacts-layout.has-detail .contacts-list { display: none; }
+  .docs-layout.has-detail .docs-list-panel,
+  .contacts-layout.has-detail .contacts-list-panel { display: none; }
+  .docs-detail-panel,
+  .contacts-detail-panel { padding: 14px 16px 20px; }
+  .docs-view-top { gap: 12px; }
+  .docs-editor-title { min-width: 0; }
 }
 
 
