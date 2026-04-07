@@ -6,10 +6,18 @@ from .task import parse_kvs
 
 @click.group("meeting")
 def meeting_group():
-    """Manage meetings for a task.
+    """Manage meetings. Per-task CRUD + cross-task aggregated views.
 
     \b
-    Examples:
+    Cross-task (use these at session start to not miss anything):
+      jt meeting upcoming                      # next 14 days across ALL tasks
+      jt meeting upcoming --days=3             # next 3 days
+      jt meeting upcoming --include-past       # also show past scheduled
+      jt meeting next                          # single closest meeting
+      jt meeting today                         # today + tomorrow
+
+    \b
+    Per-task CRUD:
       jt meeting add 97 phone_screen scheduled_at=2026-04-06T14:30:00 platform=teams
       jt meeting ls 97
       jt meeting up 97 1 status=completed result=passed
@@ -58,6 +66,65 @@ def ls_cmd(ctx, task_id):
     """List meetings for a task."""
     client = ctx.obj["client"]
     data = client.get(f"/api/tasks/{task_id}/meetings")
+    print_json(data)
+
+
+@meeting_group.command("upcoming")
+@click.option("--days", type=int, default=14, help="Window in days from now (default: 14)")
+@click.option("--include-past", is_flag=True, help="Include past meetings too")
+@click.option("--status", default=None, help="Filter by status: scheduled|completed|cancelled|rescheduled|no_show")
+@click.option("--limit", type=int, default=50, help="Max rows (default: 50)")
+@click.pass_context
+def upcoming_cmd(ctx, days, include_past, status, limit):
+    """List upcoming meetings across ALL tasks, sorted by scheduled time.
+
+    \b
+    Default: scheduled meetings in the next 14 days across every task in the project.
+    Use this at session start to not miss anything.
+
+    \b
+    Examples:
+      jt meeting upcoming                    # next 14 days
+      jt meeting upcoming --days=3           # next 3 days
+      jt meeting upcoming --days=1           # today + tomorrow
+      jt meeting upcoming --include-past     # also show past scheduled
+      jt meeting upcoming --status=scheduled
+    """
+    client = ctx.obj["client"]
+    params = {"days": days, "limit": limit}
+    if include_past:
+        params["include_past"] = "true"
+    if status:
+        params["status"] = status
+    data = client.get("/api/meetings", params=params)
+    print_json(data)
+
+
+@meeting_group.command("next")
+@click.pass_context
+def next_cmd(ctx):
+    """Show only the single closest upcoming meeting across all tasks.
+
+    \b
+    Example:
+      jt meeting next
+    """
+    client = ctx.obj["client"]
+    data = client.get("/api/meetings", params={"days": 90, "limit": 1})
+    print_json(data)
+
+
+@meeting_group.command("today")
+@click.pass_context
+def today_cmd(ctx):
+    """Show meetings scheduled for today and tomorrow.
+
+    \b
+    Example:
+      jt meeting today
+    """
+    client = ctx.obj["client"]
+    data = client.get("/api/meetings", params={"days": 1, "limit": 50})
     print_json(data)
 
 

@@ -244,6 +244,35 @@ class MeetingOut(BaseModel):
         from_attributes = True
 
 
+class MeetingWithContext(BaseModel):
+    """Meeting aggregated across tasks, enriched with parent task context.
+
+    Used by /api/meetings aggregated listing and dashboard meetings_next column.
+    Keeps task_id (from Meeting) plus denormalized task fields to avoid round-trips.
+    """
+    id: int
+    task_id: int
+    task_display_id: str = ""
+    task_title: str = ""
+    task_status: str = ""
+    task_stage_id: Optional[int] = None
+    task_pipeline_heat: Optional[str] = None
+    meeting_type: str
+    scheduled_at: Optional[datetime] = None
+    interviewer: Optional[str] = None
+    platform: Optional[str] = None
+    join_url: Optional[str] = None
+    status: str
+    result: Optional[str] = None
+    brief_doc_id: Optional[int] = None
+    notes_doc_id: Optional[int] = None
+    notes: Optional[str] = None
+    position: int
+    cockpit_section_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
 # --- Cockpit Section ---
 
 
@@ -676,6 +705,7 @@ class DashboardStats(BaseModel):
     blocked: int = 0
     recurring: int = 0
     attention: int = 0
+    meetings_this_week: int = 0
 
 
 class DashboardView(BaseModel):
@@ -683,3 +713,4 @@ class DashboardView(BaseModel):
     today: list[TaskBrief] = []
     upcoming: list[TaskBrief] = []
     recurring: list[TaskBrief] = []
+    meetings_next: list[MeetingWithContext] = []

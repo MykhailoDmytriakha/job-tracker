@@ -7,6 +7,7 @@ from ..database import get_db
 from .. import models, schemas
 from ..dependencies import get_unresolved_blocked_ids
 from ..usertime import user_today
+from .meetings import _to_context as _meeting_to_context
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -144,6 +145,36 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db), x_timez
 
     attention_count = sum(1 for t in active if _needs_attention(t))
 
+    # ── Meetings: aggregated across all tasks (first-class dashboard concept) ──
+    # Meeting.scheduled_at is stored naive in SQLite; compare with naive UTC now.
+    now_naive = now.replace(tzinfo=None)
+    week_end_naive = now_naive + timedelta(days=7)
+
+    meetings_q = (
+        db.query(models.Meeting)
+        .options(
+            joinedload(models.Meeting.task),
+            joinedload(models.Meeting.cockpit_sections),
+        )
+        .filter(models.Meeting.status == "scheduled")
+        .filter(models.Meeting.scheduled_at.isnot(None))
+        .filter(models.Meeting.scheduled_at >= now_naive)
+    )
+    if project_id is not None:
+        meetings_q = meetings_q.join(
+            models.Task, models.Meeting.task_id == models.Task.id
+        ).filter(models.Task.project_id == project_id)
+
+    all_upcoming_meetings = meetings_q.all()
+    all_upcoming_meetings.sort(
+        key=lambda m: (m.scheduled_at or datetime.max, m.id)
+    )
+
+    meetings_this_week_count = sum(
+        1 for m in all_upcoming_meetings if m.scheduled_at and m.scheduled_at <= week_end_naive
+    )
+    meetings_next_list = all_upcoming_meetings[:5]
+
 
     def brief(t):
         return schemas.TaskBrief(
@@ -184,8 +215,10 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db), x_timez
             blocked=sum(1 for t in active if t.id in blocked_ids),
             recurring=len(recurring_tasks),
             attention=attention_count,
+            meetings_this_week=meetings_this_week_count,
         ),
         today=[brief(t) for t in today_tasks],
         upcoming=[brief(t) for t in upcoming_tasks],
         recurring=[brief(t) for t in recurring_tasks],
+        meetings_next=[_meeting_to_context(m) for m in meetings_next_list],
     )

@@ -6,6 +6,7 @@ import { StripTooltip } from "../components/StripTooltip";
 import type { DashboardView, TaskBrief } from "../api";
 import { useProject } from "../ProjectContext";
 import { TaskModal } from "../components/TaskModal";
+import { DashboardMeetingsTile } from "../components/DashboardMeetingsTile";
 
 import { calculateDaysDiff, isDateOverdue } from "../utils/date";
 
@@ -194,6 +195,10 @@ export function Dashboard() {
           <span className="stat-label">Recurring</span>
         </button>
         <AttentionCard count={stats.attention} onNavigate={() => goToFiltered("attention")} />
+        <DashboardMeetingsTile
+          count={stats.meetings_this_week ?? 0}
+          next={data.meetings_next?.[0] ?? null}
+        />
       </div>
 
       {/* 3-column layout */}

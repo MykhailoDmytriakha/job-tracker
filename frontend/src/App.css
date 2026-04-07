@@ -382,6 +382,14 @@ main {
 .stat-value.danger { color: var(--red); }
 .stat-value.warning { color: var(--orange); }
 
+/* Meetings tile — same dimensions as sibling stat cards, urgency via border color */
+.meetings-tile--warning { border-color: var(--orange); }
+.meetings-tile--urgent {
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+.meetings-tile--stale { opacity: 0.75; border-style: dashed; }
+
 /* Attention card — special variant with info button */
 .attention-card {
   position: relative; padding: 0 !important; overflow: visible;
@@ -4064,4 +4072,98 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 
   /* Login */
   .login-ambient { display: none; }
+}
+
+/* ================= Meetings page =================
+   Reuses .tasks-layout / .tasks-toolbar / .task-item / .task-content /
+   .task-meta-row / .status-tag.* / .task-category / .progress-pill.
+   Adds only the bits that don't exist in the shared primitives:
+     - time column at the start of a row (date + clock + delta)
+     - urgency modifiers on .task-item (.meeting-imminent / .meeting-soon / .meeting-past)
+     - trailing icon actions (cockpit, copy join URL)
+     - toolbar count display + tiny urgency banner
+*/
+
+.meetings-toolbar-count {
+  margin-left: auto;
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  padding: 3px 8px;
+  background: var(--bg-muted); border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.meetings-toolbar-total { color: var(--text-faint); font-weight: 500; }
+
+.meetings-urgency-bar {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 4px 2px 0;
+}
+.meetings-urgency {
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 99px;
+  white-space: nowrap;
+}
+.meetings-urgency.imminent { background: var(--red-soft); color: var(--red); }
+.meetings-urgency.soon { background: var(--orange-soft); color: var(--orange); }
+
+/* Row — extend .task-item with a leading time column and urgency borders */
+.meetings-row .meetings-time-col {
+  min-width: 68px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  align-items: flex-end; justify-content: center; gap: 0;
+  padding-right: 2px;
+}
+.meetings-time-date {
+  font-size: 9px; font-weight: 700; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.2;
+}
+.meetings-time-clock {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.meetings-time-delta {
+  font-size: 10px; color: var(--text-faint); font-weight: 500;
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.meetings-time-delta.imminent { color: var(--red); font-weight: 700; }
+.meetings-time-delta.soon { color: var(--orange); font-weight: 700; }
+
+/* Urgency left-border signals on the row itself (reuses .task-item's border-left slot) */
+.task-item.meeting-imminent {
+  border-left-color: var(--red);
+  background: var(--red-soft);
+}
+.task-item.meeting-imminent:hover { background: var(--red-soft); }
+.task-item.meeting-soon { border-left-color: var(--orange); }
+.task-item.meeting-past { opacity: 0.55; }
+.task-item.meeting-past .meetings-time-delta { color: var(--text-faint); font-weight: 500; }
+
+/* Trailing icon actions — invisible until row hover, always visible when imminent */
+.meetings-actions {
+  display: flex; gap: 2px; flex-shrink: 0; align-items: center;
+  opacity: 0.4; transition: opacity var(--transition);
+}
+.task-item:hover .meetings-actions,
+.task-item.meeting-imminent .meetings-actions,
+.task-item.meeting-soon .meetings-actions,
+.task-item.task-selected .meetings-actions {
+  opacity: 1;
+}
+.meetings-action-btn {
+  background: none; border: none;
+  width: 26px; height: 26px; border-radius: var(--radius-sm);
+  color: var(--text-muted); cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.meetings-action-btn:hover {
+  background: var(--bg-card); color: var(--accent);
+}
+.meetings-action-btn.ready { color: var(--green); }
+.meetings-action-btn.ready:hover { background: var(--green-soft); color: var(--green); }
+.meetings-action-btn.copied { color: var(--green); }
+
+@media (max-width: 768px) {
+  .meetings-row .meetings-time-col { min-width: 58px; }
+  .meetings-actions { opacity: 1; }
 }

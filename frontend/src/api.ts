@@ -194,6 +194,30 @@ export interface Meeting {
   updated_at: string;
 }
 
+export interface MeetingWithContext {
+  id: number;
+  task_id: number;
+  task_display_id: string;
+  task_title: string;
+  task_status: string;
+  task_stage_id: number | null;
+  task_pipeline_heat: string | null;
+  meeting_type: string;
+  scheduled_at: string | null;
+  interviewer: string | null;
+  platform: string | null;
+  join_url: string | null;
+  status: string;
+  result: string | null;
+  brief_doc_id: number | null;
+  notes_doc_id: number | null;
+  notes: string | null;
+  position: number;
+  cockpit_section_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TaskFull extends TaskBrief {
   description: string;
   meetings: Meeting[];
@@ -409,6 +433,7 @@ export interface DashboardStats {
   blocked: number;
   recurring: number;
   attention: number;
+  meetings_this_week: number;
 }
 
 export interface DashboardView {
@@ -416,6 +441,7 @@ export interface DashboardView {
   today: TaskBrief[];
   upcoming: TaskBrief[];
   recurring: TaskBrief[];
+  meetings_next: MeetingWithContext[];
 }
 
 // --- Board ---
@@ -505,9 +531,35 @@ export const tasksApi = {
 
 // --- Meetings ---
 
+export interface MeetingsAggregatedQuery {
+  projectId?: number;
+  status?: string;
+  meetingType?: string;
+  since?: string;     // ISO-8601
+  until?: string;     // ISO-8601
+  days?: number;      // convenience window from now
+  includePast?: boolean;
+  includeUnscheduled?: boolean;
+  limit?: number;
+}
+
 export const meetingsApi = {
   list: (taskId: number) =>
     request<Meeting[]>(`/tasks/${taskId}/meetings`),
+  listAggregated: (q: MeetingsAggregatedQuery = {}) => {
+    const p = new URLSearchParams();
+    if (q.projectId !== undefined) p.set("project_id", String(q.projectId));
+    if (q.status) p.set("status", q.status);
+    if (q.meetingType) p.set("meeting_type", q.meetingType);
+    if (q.since) p.set("since", q.since);
+    if (q.until) p.set("until", q.until);
+    if (q.days !== undefined) p.set("days", String(q.days));
+    if (q.includePast) p.set("include_past", "true");
+    if (q.includeUnscheduled === false) p.set("include_unscheduled", "false");
+    if (q.limit !== undefined) p.set("limit", String(q.limit));
+    const qs = p.toString();
+    return request<MeetingWithContext[]>(`/meetings${qs ? `?${qs}` : ""}`);
+  },
   add: (taskId: number, data: Partial<Meeting>) =>
     request<Meeting>(`/tasks/${taskId}/meetings`, {
       method: "POST",

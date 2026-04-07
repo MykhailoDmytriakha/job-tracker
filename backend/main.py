@@ -12,6 +12,7 @@ from .migrations import run_migrations
 from .api import (
     auth, stages, tasks, board, dashboard, projects,
     documents, categories, contacts, companies, search, activities,
+    meetings,
 )
 
 _db_init_lock = Lock()
@@ -77,6 +78,7 @@ app.include_router(contacts.router)
 app.include_router(companies.router)
 app.include_router(search.router)
 app.include_router(activities.router)
+app.include_router(meetings.router)
 
 
 @app.get("/api/health")

@@ -13,6 +13,7 @@ _PROJECT_SCOPED_PATHS = {
     "/api/activities/",
     "/api/dashboard/",
     "/api/board/",
+    "/api/meetings",
 }
 
 # Hint messages for common errors

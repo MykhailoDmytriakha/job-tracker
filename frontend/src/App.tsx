@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from "re
 import { Dashboard } from "./pages/Dashboard";
 import { Pipeline } from "./pages/Pipeline";
 import { Tasks } from "./pages/Tasks";
+import { Meetings } from "./pages/Meetings";
 import { Settings } from "./pages/Settings";
 import { MeetingCockpit } from "./pages/MeetingCockpit";
 import { Docs } from "./pages/Docs";
@@ -70,6 +71,7 @@ function AppInner() {
         <NavLink to="/">Dashboard</NavLink>
         <NavLink to="/pipeline">Pipeline</NavLink>
         <NavLink to="/tasks">Tasks</NavLink>
+        <NavLink to="/meetings">Meetings</NavLink>
         <NavLink to="/docs">Docs</NavLink>
         <NavLink to="/companies">Companies</NavLink>
         <NavLink to="/contacts">Contacts</NavLink>
@@ -84,6 +86,7 @@ function AppInner() {
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/tasks/:taskId" element={<Tasks />} />
+          <Route path="/meetings" element={<Meetings />} />
           <Route path="/docs" element={<Docs />} />
           <Route path="/docs/:docId" element={<Docs />} />
           <Route path="/companies" element={<Companies />} />
