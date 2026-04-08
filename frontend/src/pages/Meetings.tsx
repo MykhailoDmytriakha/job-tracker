@@ -629,11 +629,9 @@ function MeetingRow({
         : "meeting-past";
 
   const cockpitReady = meeting.cockpit_section_count >= 6;
-  const cockpitEmpty = meeting.cockpit_section_count === 0;
-  const showCockpitWarning =
-    meeting.status === "scheduled" &&
-    cockpitEmpty &&
-    (delta?.urgency === "imminent" || delta?.urgency === "soon");
+  // Binary cockpit state: for every scheduled meeting, show ✓ or ✗.
+  // No hidden/conditional state — either it's there or it isn't.
+  const showCockpitState = meeting.status === "scheduled";
 
   return (
     <div
@@ -672,21 +670,21 @@ function MeetingRow({
               {meeting.interviewer}
             </span>
           )}
-          {cockpitReady && meeting.status === "scheduled" && (
-            <span
-              className="progress-pill cl"
-              title={`Cockpit ${meeting.cockpit_section_count}/7 sections filled`}
-            >
-              cockpit {meeting.cockpit_section_count}/7
-            </span>
-          )}
-          {showCockpitWarning && (
-            <span
-              className="status-tag waiting"
-              title="Cockpit has no sections yet — prep before the call"
-            >
-              cockpit empty
-            </span>
+          {showCockpitState && (
+            cockpitReady ? (
+              <span
+                className="progress-pill cl"
+                title={`Cockpit ready — ${meeting.cockpit_section_count}/7 sections filled`}
+              >
+                ✓ cockpit
+              </span>
+            ) : (
+              <span
+                className="status-tag overdue"
+                title={`Cockpit not ready — only ${meeting.cockpit_section_count}/7 sections filled, prep before the call`}
+              >
+                ✗ cockpit</span>
+            )
           )}
           {meeting.status === "completed" && meeting.result && (
             <span
