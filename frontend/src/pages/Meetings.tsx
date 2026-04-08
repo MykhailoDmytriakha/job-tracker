@@ -664,18 +664,25 @@ function MeetingRow({
 
       <div className="task-content">
         <span className="task-title">
-          <span className="task-id">{meeting.task_display_id}</span>{" "}
-          {meeting.task_title}
+          {meeting.interviewer && meeting.interviewer.trim() !== "" ? (
+            meeting.interviewer
+          ) : (
+            <>
+              <span className="task-id">{meeting.task_display_id}</span>{" "}
+              {meeting.task_title}
+            </>
+          )}
         </span>
+        {meeting.interviewer && meeting.interviewer.trim() !== "" && (
+          <div className="meetings-task-ref" title={meeting.task_title}>
+            <span className="task-id">{meeting.task_display_id}</span>{" "}
+            <span className="meetings-task-ref-title">{meeting.task_title}</span>
+          </div>
+        )}
         <div className="task-meta-row">
           <span className="task-category">{typeLabel}</span>
           {platformLabel && (
             <span className="task-category">{platformLabel}</span>
-          )}
-          {meeting.interviewer && (
-            <span className="task-category" title={meeting.interviewer}>
-              {meeting.interviewer}
-            </span>
           )}
           {showCockpitState && (
             cockpitReady ? (

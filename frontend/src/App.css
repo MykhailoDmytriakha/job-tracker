@@ -4128,6 +4128,24 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .meetings-time-delta.imminent { color: var(--red); font-weight: 700; }
 .meetings-time-delta.soon { color: var(--orange); font-weight: 700; }
 
+/* Secondary task ref line: shown under primary subject (interviewer) when present.
+   Visual hierarchy: subject = primary (large), task ref = secondary (small/muted),
+   meta tags = tertiary. Lets the user scan "what is this meeting about" first,
+   then "which task does it belong to" second. */
+.meetings-task-ref {
+  font-size: 11px; color: var(--text-muted);
+  margin-top: 2px; line-height: 1.3;
+  display: flex; align-items: baseline; gap: 4px;
+  white-space: nowrap; overflow: hidden;
+}
+.meetings-task-ref .task-id {
+  font-size: 10px; opacity: 0.85;
+}
+.meetings-task-ref-title {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0; flex: 1;
+}
+
 /* Urgency left-border signals on the row itself (reuses .task-item's border-left slot) */
 .task-item.meeting-imminent {
   border-left-color: var(--red);
