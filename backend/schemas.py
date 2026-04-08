@@ -1,6 +1,49 @@
-from pydantic import BaseModel
-from datetime import datetime, date
-from typing import Optional
+from pydantic import BaseModel, field_serializer, field_validator
+from datetime import datetime, date, timezone
+from typing import Any, Optional
+
+
+def _normalize_scheduled_at(v: Any) -> Optional[datetime]:
+    """Normalize incoming scheduled_at to naive UTC for storage.
+
+    Accepts: None, ISO-8601 string (with or without tz), aware datetime, naive datetime.
+    Returns: naive datetime in UTC, or None.
+
+    Naive input is assumed to already be UTC. Clients (frontend, CLI) are
+    expected to convert local time to UTC before sending. The frontend uses
+    new Date(local).toISOString(), the CLI uses parse_kvs auto-conversion.
+    """
+    if v is None:
+        return None
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return None
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            v = datetime.fromisoformat(s)
+        except ValueError:
+            return v  # let pydantic raise its own validation error
+    if not isinstance(v, datetime):
+        return v
+    if v.tzinfo is not None:
+        return v.astimezone(timezone.utc).replace(tzinfo=None)
+    return v
+
+
+def _serialize_scheduled_at(dt: Optional[datetime]) -> Optional[str]:
+    """Serialize naive-UTC scheduled_at to ISO-8601 with explicit Z suffix.
+
+    JS `new Date(iso)` interprets Z-suffixed strings as UTC and renders in
+    browser local time via `toLocaleString()`. Naive ISO without Z would be
+    interpreted as local browser tz, breaking display when traveling.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # --- Auth ---
@@ -207,6 +250,11 @@ class MeetingCreate(BaseModel):
     notes: Optional[str] = None
     position: int = 0
 
+    @field_validator("scheduled_at", mode="before")
+    @classmethod
+    def _normalize_scheduled_at(cls, v):
+        return _normalize_scheduled_at(v)
+
 
 class MeetingUpdate(BaseModel):
     meeting_type: Optional[str] = None
@@ -220,6 +268,11 @@ class MeetingUpdate(BaseModel):
     notes_doc_id: Optional[int] = None
     notes: Optional[str] = None
     position: Optional[int] = None
+
+    @field_validator("scheduled_at", mode="before")
+    @classmethod
+    def _normalize_scheduled_at(cls, v):
+        return _normalize_scheduled_at(v)
 
 
 class MeetingOut(BaseModel):
@@ -242,6 +295,10 @@ class MeetingOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_serializer("scheduled_at")
+    def _serialize_scheduled_at(self, dt: Optional[datetime]) -> Optional[str]:
+        return _serialize_scheduled_at(dt)
 
 
 class MeetingWithContext(BaseModel):
@@ -271,6 +328,10 @@ class MeetingWithContext(BaseModel):
     cockpit_section_count: int = 0
     created_at: datetime
     updated_at: datetime
+
+    @field_serializer("scheduled_at")
+    def _serialize_scheduled_at(self, dt: Optional[datetime]) -> Optional[str]:
+        return _serialize_scheduled_at(dt)
 
 
 # --- Cockpit Section ---

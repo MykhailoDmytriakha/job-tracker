@@ -11,6 +11,32 @@ _INT_FIELDS = {
 _BOOL_FIELDS = {
     "is_recurring", "is_blocked",
 }
+_DATETIME_FIELDS = {
+    "scheduled_at",
+}
+
+
+def _to_utc_iso(value: str) -> str:
+    """Convert a user-typed datetime to UTC ISO with Z suffix.
+
+    The CLI is interactive: users type wall-clock time in their local tz
+    (e.g. `scheduled_at=2026-04-15T10:00`). The backend stores naive UTC,
+    so we attach the system's local tz, convert to UTC, and emit Z form.
+    Already-aware ISO strings (with Z or +offset) are normalized as-is.
+    """
+    if not value:
+        return value
+    try:
+        s = value.strip()
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return value
+    if dt.tzinfo is None:
+        # Attach system local tz (datetime.astimezone() with no arg uses local).
+        dt = dt.astimezone()
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def parse_kvs(kvs: tuple) -> dict:
@@ -34,6 +60,8 @@ def parse_kvs(kvs: tuple) -> dict:
             result[key] = value.lower() in ("true", "1", "yes")
         elif value == "null" or value == "none":
             result[key] = None
+        elif key in _DATETIME_FIELDS:
+            result[key] = _to_utc_iso(value)
         else:
             result[key] = value
     return result

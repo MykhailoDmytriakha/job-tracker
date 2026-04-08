@@ -98,11 +98,26 @@ function formatScheduledAt(s: string | null): string {
   });
 }
 
-// Strip seconds from datetime-local value for input
+// Convert UTC ISO from API to <input type="datetime-local"> format in browser local tz.
+// API returns Z-suffixed ISO; new Date() parses as UTC, then we read local components.
 function toDatetimeLocal(s: string | null): string {
   if (!s) return "";
-  // Take first 16 chars: "YYYY-MM-DDTHH:MM"
-  return s.slice(0, 16);
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  );
+}
+
+// Convert <input type="datetime-local"> string (naive local) to UTC ISO with Z.
+// new Date("YYYY-MM-DDTHH:MM") interprets as browser local; toISOString() gives UTC.
+function fromDatetimeLocal(s: string): string | null {
+  if (!s) return null;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 // ── Blank form state ─────────────────────────────────────────────────────────
@@ -431,7 +446,7 @@ function MeetingCard({
     try {
       await meetingsApi.update(taskId, meeting.id, {
         meeting_type: f.meeting_type,
-        scheduled_at: f.scheduled_at || null,
+        scheduled_at: fromDatetimeLocal(f.scheduled_at),
         interviewer: f.interviewer || null,
         platform: f.platform || null,
         join_url: f.join_url || null,
@@ -713,7 +728,7 @@ export function MeetingSection({
     try {
       await meetingsApi.add(taskId, {
         meeting_type: f.meeting_type,
-        scheduled_at: f.scheduled_at || null,
+        scheduled_at: fromDatetimeLocal(f.scheduled_at),
         interviewer: f.interviewer || null,
         platform: f.platform || null,
         join_url: f.join_url || null,
