@@ -629,9 +629,12 @@ function MeetingRow({
         : "meeting-past";
 
   const cockpitReady = meeting.cockpit_section_count >= 6;
-  // Binary cockpit state: for every scheduled meeting, show ✓ or ✗.
-  // No hidden/conditional state — either it's there or it isn't.
-  const showCockpitState = meeting.status === "scheduled";
+  // Binary cockpit state: for every meeting that's still going to happen
+  // (scheduled or rescheduled), show ✓ or ✗. No hidden/conditional state —
+  // either it's there or it isn't. For cancelled/completed/no_show cockpit
+  // is no longer actionable so we skip.
+  const showCockpitState =
+    meeting.status === "scheduled" || meeting.status === "rescheduled";
 
   return (
     <div
