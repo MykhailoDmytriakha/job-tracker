@@ -615,8 +615,14 @@ function MeetingRow({
     ? PLATFORM_LABELS[meeting.platform] || meeting.platform
     : null;
 
-  const urgencyClass =
-    meeting.status === "scheduled" && delta
+  // A meeting is "live" (still going to happen) if it's scheduled or
+  // rescheduled. Only completed / cancelled / no_show are truly finished and
+  // should fade. For live meetings we color by time-delta urgency.
+  const isLive =
+    meeting.status === "scheduled" || meeting.status === "rescheduled";
+  const urgencyClass = !isLive
+    ? "meeting-past"
+    : delta
       ? delta.urgency === "imminent"
         ? "meeting-imminent"
         : delta.urgency === "soon"
@@ -624,9 +630,7 @@ function MeetingRow({
           : delta.urgency === "past"
             ? "meeting-past"
             : ""
-      : meeting.status === "scheduled"
-        ? ""
-        : "meeting-past";
+      : "";
 
   const cockpitReady = meeting.cockpit_section_count >= 6;
   // Binary cockpit state: for every meeting that's still going to happen
