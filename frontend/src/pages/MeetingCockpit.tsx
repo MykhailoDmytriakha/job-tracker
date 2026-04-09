@@ -18,18 +18,34 @@ import type {
   CompanyFull,
 } from "../api";
 
-// ── Section config with grid placement ──────────────────────────────────────
+// ── Section config: known keys get nice labels + colors, unknown keys auto-derive ──
 
-const SECTIONS = [
-  { key: "pitch", label: "My Pitch", area: "pitch", accent: "#10b981", placeholder: "\"I'm a Senior Backend Engineer with 10+ years...\"" },
-  { key: "rescue_phrases", label: "Rescue Phrases", area: "rescue", accent: "#ef4444", placeholder: "\"That's a great question, let me think of the best example...\"\n\"Could you clarify what aspect you're most interested in?\"\n\"Let me walk you through a specific situation...\"" },
-  { key: "tough_questions", label: "Tough Questions", area: "tough", accent: "#dc2626", placeholder: "\"Why are you leaving?\"\n→ \"My engagement is winding down...\"\n\n\"What's your current comp?\"\n→ \"I prefer to focus on fair market...\"" },
-  { key: "quick_facts", label: "Quick Facts", area: "quickfacts", accent: "#3b82f6", placeholder: "**Comp:** $175K-$210K\n**Auth:** US Citizen\n**Start:** 2 weeks\n**Location:** Remote, Seattle area" },
-  { key: "story_cards", label: "Story Cards", area: "stories", accent: "#f59e0b", placeholder: "🟢 **PERFORMANCE**\nRedis + dedup + N+1 | DB +50% | Tests 5×\n→ \"billing estimation was slow...\"\n\n🔵 **JAVA MIGRATION**\n8→11→17→21 | javax→jakarta | 90+ ARO\n→ \"inherited Java 8 monolith...\"" },
-  { key: "questions", label: "My Questions", area: "questions", accent: "#8b5cf6", placeholder: "1. ...\n2. ...\n3. ..." },
-  { key: "closing", label: "Closing", area: "closing", accent: "#06b6d4", placeholder: "\"Thank you. What's the timeline for next steps?\"" },
-  { key: "post_call", label: "Post-Call Notes", area: "postcall", accent: "#f97316", placeholder: "What they asked:\n\nWhat went well:\n\nWhat was weak:\n\nNext steps:" },
-];
+const KNOWN_SECTIONS: Record<string, { label: string; accent: string; placeholder: string }> = {
+  pitch:             { label: "My Pitch",        accent: "#10b981", placeholder: "\"I'm a Senior Backend Engineer with 10+ years...\"" },
+  rescue_phrases:    { label: "Rescue Phrases",  accent: "#ef4444", placeholder: "\"That's a great question, let me think of the best example...\"" },
+  tough_questions:   { label: "Tough Questions",  accent: "#dc2626", placeholder: "\"Why are you leaving?\" → \"My engagement is winding down...\"" },
+  quick_facts:       { label: "Quick Facts",      accent: "#3b82f6", placeholder: "**Comp:** $175K-$210K | **Auth:** US Citizen | **Start:** 2 weeks" },
+  story_cards:       { label: "Story Cards",      accent: "#f59e0b", placeholder: "🟢 **PERFORMANCE** | 🔵 **MIGRATION** | 🟡 **MODERNIZATION**" },
+  questions:         { label: "My Questions",     accent: "#8b5cf6", placeholder: "1. ... 2. ... 3. ..." },
+  closing:           { label: "Closing",          accent: "#06b6d4", placeholder: "\"Thank you. What's the timeline for next steps?\"" },
+  post_call:         { label: "Post-Call Notes",  accent: "#f97316", placeholder: "What they asked:\nWhat went well:\nWhat was weak:" },
+  coderpad_boilerplate: { label: "CoderPad Boilerplate", accent: "#6366f1", placeholder: "import java.util.*; ..." },
+};
+
+const ACCENT_PALETTE = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#ec4899", "#6366f1", "#14b8a6"];
+
+function humanizeKey(key: string): string {
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function getSectionMeta(key: string, index: number) {
+  const known = KNOWN_SECTIONS[key];
+  return {
+    label: known?.label ?? humanizeKey(key),
+    accent: known?.accent ?? ACCENT_PALETTE[index % ACCENT_PALETTE.length],
+    placeholder: known?.placeholder ?? "",
+  };
+}
 
 const TYPE_LABELS: Record<string, string> = {
   phone_screen: "Phone Screen", technical: "Technical", behavioral: "Behavioral",
@@ -209,12 +225,12 @@ function CockpitModal({
 // ── Panel component ─────────────────────────────────────────────────────────
 
 function Panel({
-  label, accent, area, placeholder,
+  label, accent, placeholder,
   content, mode, isEditing,
   onHeaderClick, onEdit, onSave, onCancel,
   editDraft, setEditDraft, saving,
 }: {
-  label: string; accent: string; area: string; placeholder: string;
+  label: string; accent: string; placeholder: string;
   content: string; mode: "default" | "expanded" | "collapsed"; isEditing: boolean;
   onHeaderClick: () => void; onEdit: () => void; onSave: () => void; onCancel: () => void;
   editDraft: string; setEditDraft: (v: string) => void; saving: boolean;
@@ -227,7 +243,7 @@ function Panel({
   return (
     <article
       className={`ck-panel ck-panel--${mode}${isEditing ? " ck-panel--editing" : ""}`}
-      style={{ "--accent": accent, gridArea: area } as React.CSSProperties}
+      style={{ "--accent": accent } as React.CSSProperties}
     >
       <div className="ck-panel-head" onClick={onHeaderClick}>
         <div className="ck-panel-bar" />
@@ -326,6 +342,7 @@ export function MeetingCockpit() {
   const [task, setTask] = useState<TaskFull | null>(null);
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [sections, setSections] = useState<Record<string, string>>({});
+  const [sectionOrder, setSectionOrder] = useState<string[]>([]);
   const [focused, setFocused] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
@@ -351,9 +368,15 @@ export function MeetingCockpit() {
     const m = meetings.find((x) => x.id === meetingId);
     if (m) {
       setMeeting(m);
+      const sorted = [...(m.cockpit_sections || [])].sort((a, b) => a.position - b.position);
       const secs: Record<string, string> = {};
-      for (const s of m.cockpit_sections || []) secs[s.section_key] = normalizeCockpitMarkdown(s.content);
+      const order: string[] = [];
+      for (const s of sorted) {
+        secs[s.section_key] = normalizeCockpitMarkdown(s.content);
+        order.push(s.section_key);
+      }
       setSections(secs);
+      setSectionOrder(order);
     }
     requestAnimationFrame(() => setLoaded(true));
   }, [taskId, meetingId]);
@@ -495,27 +518,29 @@ export function MeetingCockpit() {
           </div>
         </header>
 
-        {/* Two-column grid */}
+        {/* Dynamic sections from API, ordered by position */}
         <div className="ck-grid">
-          {SECTIONS.map((def) => (
-            <Panel
-              key={def.key}
-              label={def.label}
-              accent={def.accent}
-              area={def.area}
-              placeholder={def.placeholder}
-              content={sections[def.key] || ""}
-              mode={panelMode(def.key)}
-              isEditing={editing === def.key}
-              onHeaderClick={() => handlePanelClick(def.key)}
-              onEdit={() => startEdit(def.key)}
-              onSave={saveEdit}
-              onCancel={() => setEditing(null)}
-              editDraft={editDraft}
-              setEditDraft={setEditDraft}
-              saving={saving}
-            />
-          ))}
+          {sectionOrder.map((key, idx) => {
+            const meta = getSectionMeta(key, idx);
+            return (
+              <Panel
+                key={key}
+                label={meta.label}
+                accent={meta.accent}
+                placeholder={meta.placeholder}
+                content={sections[key] || ""}
+                mode={panelMode(key)}
+                isEditing={editing === key}
+                onHeaderClick={() => handlePanelClick(key)}
+                onEdit={() => startEdit(key)}
+                onSave={saveEdit}
+                onCancel={() => setEditing(null)}
+                editDraft={editDraft}
+                setEditDraft={setEditDraft}
+                saving={saving}
+              />
+            );
+          })}
         </div>
 
         {/* Toolbar — sticky inside the scroll surface */}

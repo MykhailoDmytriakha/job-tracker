@@ -3163,30 +3163,14 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 }
 .ck-join:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(48, 164, 108, 0.4); filter: brightness(1.08); }
 
-/* ── TWO-COLUMN GRID — the core layout ──
-   pitch       pitch        (full — first thing you see = first thing you say)
-   rescue    | quick_facts  (compact side-by-side reference)
-   stories     stories      (full — main content, expandable story cards)
-   questions   questions    (full)
-   closing     closing      (full)
-   postcall    postcall     (full)
- */
+/* ── Dynamic section layout — renders whatever sections the API returns ── */
 
 .ck-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas:
-    "pitch pitch"
-    "rescue tough"
-    "quickfacts quickfacts"
-    "stories stories"
-    "questions questions"
-    "closing closing"
-    "postcall postcall";
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   padding: 16px 28px 120px;
   flex: 1;
-  align-content: start;
 }
 
 /* ── Panel ── */
@@ -3667,16 +3651,6 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   .ck-font-control { width: 100%; justify-content: space-between; }
   .ck-join { width: 100%; justify-content: center; order: 10; margin-top: 0; }
   .ck-grid {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "pitch"
-      "rescue"
-      "tough"
-      "quickfacts"
-      "stories"
-      "questions"
-      "closing"
-      "postcall";
     padding: 12px;
     padding-bottom: 80px;
     gap: 6px;
@@ -3703,10 +3677,6 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 /* Cockpit mobile: catch iPad + Z Fold unfolded (884px) */
 @media (max-width: 1024px) {
   .ck-grid {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "pitch" "rescue" "tough" "quickfacts" "stories"
-      "questions" "closing" "postcall";
     padding: 12px 12px 80px;
     gap: 6px;
   }
