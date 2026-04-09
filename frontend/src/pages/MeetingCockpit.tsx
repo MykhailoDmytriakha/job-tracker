@@ -524,28 +524,20 @@ export function MeetingCockpit() {
           onClose={() => setModal(null)}
           contentScale={activeContentSize.scale}
           switcher={modal.groups.reduce((sum, group) => sum + group.items.length, 0) > 1 ? (
-            <div className="ck-modal-nav">
-              {modal.groups.map((group) => (
-                <section
-                  key={group.key}
-                  className={`ck-chip-group ck-chip-group--${group.tone} ck-modal-nav-group`}
-                >
-                  <div className="ck-chip-group-label ck-modal-nav-label">{group.label}</div>
-                  <div className="ck-chip-group-chips ck-modal-nav-chips">
-                    {group.items.map((item) => (
-                      <button
-                        key={item.key}
-                        className={`ck-chip ck-modal-nav-chip${modal.activeItem.key === item.key ? " ck-modal-nav-chip--active" : ""}${item.featured ? " ck-chip--featured" : ""}`}
-                        onClick={() => { void openModalItem(item, modal.groups); }}
-                        disabled={modal.activeItem.key === item.key && modal.loading}
-                        type="button"
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              ))}
+            <div className="ck-modal-nav ck-toolbar-flat">
+              {modal.groups.flatMap((group) =>
+                group.items.map((item) => (
+                  <button
+                    key={item.key}
+                    className={`ck-chip ck-chip--tone-${group.tone} ck-modal-nav-chip${modal.activeItem.key === item.key ? " ck-modal-nav-chip--active" : ""}${"featured" in item && item.featured ? " ck-chip--featured" : ""}`}
+                    onClick={() => { void openModalItem(item, modal.groups); }}
+                    disabled={modal.activeItem.key === item.key && modal.loading}
+                    type="button"
+                  >
+                    {item.label}
+                  </button>
+                ))
+              )}
             </div>
           ) : undefined}
         >

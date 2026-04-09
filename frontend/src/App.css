@@ -3575,32 +3575,10 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   line-height: 1;
   opacity: 0.82;
 }
+/* Modal nav reuses .ck-toolbar-flat for the flat scroll strip */
 .ck-modal-nav {
-  display: flex;
-  align-items: stretch;
-  gap: 10px;
+  padding: 4px 12px;
   min-width: 0;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
-}
-.ck-modal-nav::-webkit-scrollbar {
-  display: none;
-}
-.ck-modal-nav-group {
-  flex: 0 0 auto;
-  gap: 6px;
-  padding: 6px 8px 8px;
-  border-radius: 12px;
-}
-.ck-modal-nav-label {
-  text-align: left;
-  font-size: 0.62rem;
-}
-.ck-modal-nav-chips {
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  gap: 6px;
 }
 .ck-modal-nav-chip {
   padding: 5px 9px;
