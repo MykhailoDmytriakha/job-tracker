@@ -499,7 +499,7 @@ export function MeetingCockpit() {
 
         {/* Toolbar — flat single-row chips, horizontal scroll */}
         <div className="ck-toolbar">
-          <div className="ck-toolbar-inner ck-toolbar-flat">
+          <div className="ck-toolbar-flat">
             {toolbarGroups.flatMap((group) =>
               group.items.map((item) => {
                 const featured = "featured" in item && item.featured;

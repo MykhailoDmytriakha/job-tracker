@@ -3382,44 +3382,43 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--border);
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+  max-width: 100%;
 }
-.ck-toolbar-inner {
-  display: flex;
-  width: 100%;
-  gap: 10px;
-  justify-content: center;
-  align-items: stretch;
-  flex-wrap: wrap;
-}
+
+/* Flat single-row scrollable chip strip - used by toolbar and modal nav */
 .ck-toolbar-flat {
-  position: relative;
+  display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   gap: 6px;
   align-items: center;
-  justify-content: flex-start;
   padding: 4px 24px;
   mask-image: linear-gradient(
     to right,
     transparent 0,
-    black 20px,
-    black calc(100% - 20px),
+    black 24px,
+    black calc(100% - 24px),
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0,
-    black 20px,
-    black calc(100% - 20px),
+    black 24px,
+    black calc(100% - 24px),
     transparent 100%
   );
 }
 .ck-toolbar-flat::-webkit-scrollbar { display: none; }
-/* First and last chip get extra margin so they're not hidden by fade */
 .ck-toolbar-flat > :first-child { margin-left: 4px; }
 .ck-toolbar-flat > :last-child { margin-right: 4px; }
+.ck-toolbar-flat .ck-chip {
+  padding: 5px 10px;
+  font-size: 0.76rem;
+  border-radius: 8px;
+}
 
 /* Tone-based chip colors (flat toolbar, no group wrapper) */
 .ck-chip--tone-docs { --group-color: #3b82f6; --group-soft: rgba(59, 130, 246, 0.12); }
@@ -3569,6 +3568,7 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 }
 .ck-modal-switcher-wrap {
   min-width: 0;
+  overflow: hidden;
 }
 .ck-chip-external {
   font-size: 0.84em;
@@ -3579,6 +3579,8 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .ck-modal-nav {
   padding: 4px 12px;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 .ck-modal-nav-chip {
   padding: 5px 9px;
