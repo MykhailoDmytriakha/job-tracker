@@ -543,17 +543,21 @@ export function MeetingCockpit() {
           })}
         </div>
 
-        {/* Toolbar — sticky inside the scroll surface */}
+        {/* Toolbar — flat single-row chips, horizontal scroll */}
         <div className="ck-toolbar">
-          <div className="ck-toolbar-inner">
-            {toolbarGroups.map((group) => (
-              <ToolbarGroup
-                key={group.key}
-                label={group.label}
-                tone={group.tone}
-                items={group.items}
-              />
-            ))}
+          <div className="ck-toolbar-inner ck-toolbar-flat">
+            {toolbarGroups.flatMap((group) =>
+              group.items.map((item) => {
+                const className = `ck-chip ck-chip--tone-${group.tone}${item.featured ? " ck-chip--featured" : ""}`;
+                return item.kind === "link" ? (
+                  <a key={item.key} className={className} href={item.href} target="_blank" rel="noopener noreferrer">
+                    {item.label}<span className="ck-chip-external" aria-hidden="true">↗</span>
+                  </a>
+                ) : (
+                  <button key={item.key} className={className} onClick={item.onClick}>{item.label}</button>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

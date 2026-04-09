@@ -3393,6 +3393,23 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   align-items: stretch;
   flex-wrap: wrap;
 }
+.ck-toolbar-flat {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  padding-bottom: 2px;
+}
+.ck-toolbar-flat::-webkit-scrollbar { display: none; }
+
+/* Tone-based chip colors (flat toolbar, no group wrapper) */
+.ck-chip--tone-docs { --group-color: #3b82f6; --group-soft: rgba(59, 130, 246, 0.12); }
+.ck-chip--tone-companies { --group-color: #d97706; --group-soft: rgba(217, 119, 6, 0.12); }
+.ck-chip--tone-contacts { --group-color: #059669; --group-soft: rgba(5, 150, 105, 0.12); }
+.ck-chip--tone-links { --group-color: #7c3aed; --group-soft: rgba(124, 58, 237, 0.12); }
 
 .ck-chip-group {
   --group-color: var(--accent);
