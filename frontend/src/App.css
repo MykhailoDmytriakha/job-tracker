@@ -3177,7 +3177,8 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   grid-template-columns: 1fr 1fr;
   grid-template-areas:
     "pitch pitch"
-    "rescue quickfacts"
+    "rescue tough"
+    "quickfacts quickfacts"
     "stories stories"
     "questions questions"
     "closing closing"
@@ -3670,6 +3671,7 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
     grid-template-areas:
       "pitch"
       "rescue"
+      "tough"
       "quickfacts"
       "stories"
       "questions"
@@ -3703,7 +3705,7 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   .ck-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "pitch" "rescue" "quickfacts" "stories"
+      "pitch" "rescue" "tough" "quickfacts" "stories"
       "questions" "closing" "postcall";
     padding: 12px 12px 80px;
     gap: 6px;
