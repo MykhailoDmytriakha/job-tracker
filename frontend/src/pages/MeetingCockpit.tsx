@@ -23,6 +23,7 @@ import type {
 const SECTIONS = [
   { key: "pitch", label: "My Pitch", area: "pitch", accent: "#10b981", placeholder: "\"I'm a Senior Backend Engineer with 10+ years...\"" },
   { key: "rescue_phrases", label: "Rescue Phrases", area: "rescue", accent: "#ef4444", placeholder: "\"That's a great question, let me think of the best example...\"\n\"Could you clarify what aspect you're most interested in?\"\n\"Let me walk you through a specific situation...\"" },
+  { key: "tough_questions", label: "Tough Questions", area: "tough", accent: "#dc2626", placeholder: "\"Why are you leaving?\"\n→ \"My engagement is winding down...\"\n\n\"What's your current comp?\"\n→ \"I prefer to focus on fair market...\"" },
   { key: "quick_facts", label: "Quick Facts", area: "quickfacts", accent: "#3b82f6", placeholder: "**Comp:** $175K-$210K\n**Auth:** US Citizen\n**Start:** 2 weeks\n**Location:** Remote, Seattle area" },
   { key: "story_cards", label: "Story Cards", area: "stories", accent: "#f59e0b", placeholder: "🟢 **PERFORMANCE**\nRedis + dedup + N+1 | DB +50% | Tests 5×\n→ \"billing estimation was slow...\"\n\n🔵 **JAVA MIGRATION**\n8→11→17→21 | javax→jakarta | 90+ ARO\n→ \"inherited Java 8 monolith...\"" },
   { key: "questions", label: "My Questions", area: "questions", accent: "#8b5cf6", placeholder: "1. ...\n2. ...\n3. ..." },
