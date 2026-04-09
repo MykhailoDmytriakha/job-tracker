@@ -749,6 +749,9 @@ function RowActions({
 }: RowActionsProps) {
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<number | null>(null);
+  const cockpitTitle = cockpitReady
+    ? "Open cockpit"
+    : "Open cockpit and finish prep";
   useEffect(
     () => () => {
       if (copyTimer.current) window.clearTimeout(copyTimer.current);
@@ -769,29 +772,32 @@ function RowActions({
     <div className="meetings-actions" onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
-        className={`meetings-action-btn ${cockpitReady ? "ready" : ""}`}
+        className={`meetings-action-btn meetings-action-btn--cockpit ${cockpitReady ? "ready" : "pending"}`}
         onClick={(e) => {
           e.stopPropagation();
           onOpenCockpit();
         }}
-        title="Open cockpit"
-        aria-label="Open cockpit"
+        title={cockpitTitle}
+        aria-label={cockpitTitle}
       >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <circle
-            cx="7"
-            cy="7"
-            r="5.4"
-            stroke="currentColor"
-            strokeWidth="1.4"
-          />
-          <circle cx="7" cy="7" r="1.6" fill="currentColor" />
-        </svg>
+        <span className="meetings-action-btn-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle
+              cx="8"
+              cy="8"
+              r="6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <circle cx="8" cy="8" r="1.9" fill="currentColor" />
+          </svg>
+        </span>
+        <span className="meetings-action-btn-text">Cockpit</span>
       </button>
       {meeting.join_url && (
         <button
           type="button"
-          className={`meetings-action-btn ${copied ? "copied" : ""}`}
+          className={`meetings-action-btn meetings-action-btn--icon ${copied ? "copied" : ""}`}
           onClick={handleCopy}
           title={copied ? "Copied!" : "Copy join URL"}
           aria-label="Copy join URL"

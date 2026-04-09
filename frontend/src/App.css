@@ -4156,32 +4156,94 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .task-item.meeting-past { opacity: 0.55; }
 .task-item.meeting-past .meetings-time-delta { color: var(--text-faint); font-weight: 500; }
 
-/* Trailing icon actions — invisible until row hover, always visible when imminent */
+/* Trailing row actions: cockpit is a primary CTA, join copy stays secondary. */
 .meetings-actions {
-  display: flex; gap: 2px; flex-shrink: 0; align-items: center;
-  opacity: 0.4; transition: opacity var(--transition);
-}
-.task-item:hover .meetings-actions,
-.task-item.meeting-imminent .meetings-actions,
-.task-item.meeting-soon .meetings-actions,
-.task-item.task-selected .meetings-actions {
-  opacity: 1;
+  display: flex; gap: 6px; flex-shrink: 0; align-items: center;
+  margin-left: 8px;
 }
 .meetings-action-btn {
-  background: none; border: none;
-  width: 26px; height: 26px; border-radius: var(--radius-sm);
-  color: var(--text-muted); cursor: pointer; padding: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: all var(--transition);
+  gap: 8px;
+  min-height: 36px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  transition:
+    color var(--transition),
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
+  touch-action: manipulation;
 }
 .meetings-action-btn:hover {
-  background: var(--bg-card); color: var(--accent);
+  color: var(--accent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
-.meetings-action-btn.ready { color: var(--green); }
-.meetings-action-btn.ready:hover { background: var(--green-soft); color: var(--green); }
+.meetings-action-btn--cockpit {
+  min-width: 120px;
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+.meetings-action-btn--cockpit.pending:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.meetings-action-btn.ready {
+  color: var(--green);
+  background: var(--green-soft);
+  border-color: transparent;
+}
+.meetings-action-btn.ready:hover {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.meetings-action-btn--icon {
+  min-width: 44px;
+  height: 44px;
+  padding: 0 10px;
+  border-radius: 8px;
+}
+.meetings-action-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.meetings-action-btn-text {
+  white-space: nowrap;
+  line-height: 1;
+}
 .meetings-action-btn.copied { color: var(--green); }
+
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+  .meetings-actions {
+    gap: 8px;
+  }
+  .meetings-action-btn {
+    min-height: 44px;
+  }
+  .meetings-action-btn--cockpit {
+    min-width: 130px;
+    padding: 8px 18px;
+    font-size: 13.5px;
+  }
+  .meetings-action-btn--icon {
+    min-width: 52px;
+    height: 52px;
+    padding: 0 12px;
+  }
+}
 
 @media (max-width: 768px) {
   .meetings-row .meetings-time-col { min-width: 58px; }
-  .meetings-actions { opacity: 1; }
 }

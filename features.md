@@ -161,6 +161,7 @@ Default page ("/"). One-glance overview.
 - Meetings live inside task detail as a dedicated section
 - A meeting can be created first with operational data: type, date/time, platform, interviewer, status, result, join URL, notes, linked brief doc, linked notes doc
 - Each meeting card can be expanded to inspect details and related documents
+- The aggregated `/meetings` page gives each row a dedicated `Cockpit` CTA on the right; it stays visible as a real button instead of a tiny hover icon, and touch/tablet layouts enlarge it for comfortable launching from iPad/mobile/foldable screens
 - Cockpit has an explicit lifecycle:
   - Before initialization, the meeting shows `Create cockpit`
   - Creating a cockpit seeds a starter prep workspace and then opens the cockpit page

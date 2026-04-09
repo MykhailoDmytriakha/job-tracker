@@ -321,6 +321,14 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Show the document ID before the title in both the docs list and the selected document header.
 **Rule:** Any entity page that can be addressed by ID in routes, logs, or agent conversations must show that stable ID prominently in the primary title line.
 
+## 2026-04-08
+
+### L046: Primary touch actions cannot be tiny hover-only icons
+**Context:** User reported that the cockpit launch control on the Meetings page felt too small and awkward to trigger from an iPad and Samsung Z Fold6.
+**Root cause:** The Meetings row exposed cockpit as a `26x26` icon-only control with weak default visibility. That assumes mouse precision and hover discovery, which breaks on touch-first tablet and foldable layouts.
+**Fix:** Redesign the Meetings cockpit launcher as an explicit labeled CTA, keep it visible by default, and raise touch targets to at least `44px` on tablet/touch layouts.
+**Rule:** Any primary route-navigation action that users need on tablets or phones must be explicitly labeled, visibly present without hover, and sized like a real touch target. Tiny icon-only affordances are secondary actions, not primary navigation.
+
 ---
 
 ## Meta-patterns observed across all learnings
