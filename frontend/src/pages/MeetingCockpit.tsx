@@ -83,14 +83,7 @@ type ModalResourceGroup = {
   items: ModalResourceItem[];
 };
 
-type ToolbarItem = {
-  key: string;
-  label: string;
-  featured?: boolean;
-} & (
-  | { kind: "button"; onClick: () => void }
-  | { kind: "link"; href: string }
-);
+// ToolbarItem inferred from toolbarGroups items
 
 function isContentSizeId(value: string | null): value is ContentSizeId {
   return CONTENT_SIZE_OPTIONS.some((option) => option.id === value);
@@ -289,45 +282,6 @@ function Panel({
         </div>
       </div>
     </article>
-  );
-}
-
-function ToolbarGroup({
-  label,
-  tone,
-  items,
-}: {
-  label: string;
-  tone: ToolbarTone;
-  items: ToolbarItem[];
-}) {
-  if (items.length === 0) return null;
-
-  return (
-    <section className={`ck-chip-group ck-chip-group--${tone}`}>
-      <div className="ck-chip-group-label">{label}</div>
-      <div className="ck-chip-group-chips">
-        {items.map((item) => {
-          const className = `ck-chip${item.featured ? " ck-chip--featured" : ""}`;
-          return item.kind === "link" ? (
-            <a
-              key={item.key}
-              className={className}
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {item.label}
-              <span className="ck-chip-external" aria-hidden="true">↗</span>
-            </a>
-          ) : (
-            <button key={item.key} className={className} onClick={item.onClick}>
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-    </section>
   );
 }
 
@@ -548,7 +502,8 @@ export function MeetingCockpit() {
           <div className="ck-toolbar-inner ck-toolbar-flat">
             {toolbarGroups.flatMap((group) =>
               group.items.map((item) => {
-                const className = `ck-chip ck-chip--tone-${group.tone}${item.featured ? " ck-chip--featured" : ""}`;
+                const featured = "featured" in item && item.featured;
+                const className = `ck-chip ck-chip--tone-${group.tone}${featured ? " ck-chip--featured" : ""}`;
                 return item.kind === "link" ? (
                   <a key={item.key} className={className} href={item.href} target="_blank" rel="noopener noreferrer">
                     {item.label}<span className="ck-chip-external" aria-hidden="true">↗</span>
