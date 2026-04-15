@@ -34,6 +34,22 @@ const KNOWN_SECTIONS: Record<string, { label: string; accent: string; placeholde
 
 const ACCENT_PALETTE = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#ec4899", "#6366f1", "#14b8a6"];
 
+// ── Section emoji for quick-nav bar (first emoji from content, or default) ──
+const SECTION_EMOJI: Record<string, string> = {
+  battle_card: "⚔️", red_team: "🎭", caller_id: "📞",
+  tier1_tapan: "🟢", tier2_middle: "🟡", tier3_anupam: "🔴",
+  quick_facts: "⚡", rescue_phrases: "🛟", objectives: "🎯",
+  post_call: "📝", pitch: "🎤", story_cards: "📖",
+  questions: "❓", closing: "🏁", tough_questions: "🔥",
+};
+
+function getSectionEmoji(key: string, content: string): string {
+  if (SECTION_EMOJI[key]) return SECTION_EMOJI[key];
+  const match = content.match(/^##?\s*([\p{Emoji_Presentation}\p{Extended_Pictographic}])/u);
+  if (match) return match[1];
+  return "📄";
+}
+
 function humanizeKey(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -306,6 +322,7 @@ export function MeetingCockpit() {
     const saved = localStorage.getItem(COCKPIT_TEXT_SIZE_KEY);
     return isContentSizeId(saved) ? saved : "m";
   });
+  const panelRefs = useRef<Record<string, HTMLElement | null>>({});
   const docCacheRef = useRef(new Map<number, DocumentFull>());
   const contactCacheRef = useRef(new Map<number, ContactFull>());
   const companyCacheRef = useRef(new Map<number, CompanyFull>());
@@ -472,27 +489,54 @@ export function MeetingCockpit() {
           </div>
         </header>
 
+        {/* Quick-nav: sticky emoji bar for instant section jumps */}
+        {sectionOrder.length > 0 && (
+          <nav className="ck-quicknav" aria-label="Section quick navigation">
+            {sectionOrder.map((key) => {
+              const emoji = getSectionEmoji(key, sections[key] || "");
+              const label = KNOWN_SECTIONS[key]?.label ?? humanizeKey(key);
+              return (
+                <button
+                  key={key}
+                  className={`ck-quicknav-btn${focused === key ? " ck-quicknav-btn--active" : ""}`}
+                  title={label}
+                  aria-label={`Jump to ${label}`}
+                  onClick={() => {
+                    setFocused(key);
+                    requestAnimationFrame(() => {
+                      panelRefs.current[key]?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    });
+                  }}
+                >
+                  {emoji}
+                </button>
+              );
+            })}
+          </nav>
+        )}
+
         {/* Dynamic sections from API, ordered by position */}
         <div className="ck-grid">
           {sectionOrder.map((key, idx) => {
             const meta = getSectionMeta(key, idx);
             return (
-              <Panel
-                key={key}
-                label={meta.label}
-                accent={meta.accent}
-                placeholder={meta.placeholder}
-                content={sections[key] || ""}
-                mode={panelMode(key)}
-                isEditing={editing === key}
-                onHeaderClick={() => handlePanelClick(key)}
-                onEdit={() => startEdit(key)}
-                onSave={saveEdit}
-                onCancel={() => setEditing(null)}
-                editDraft={editDraft}
-                setEditDraft={setEditDraft}
-                saving={saving}
-              />
+              <div key={key} ref={(el) => { panelRefs.current[key] = el; }}>
+                <Panel
+                  label={meta.label}
+                  accent={meta.accent}
+                  placeholder={meta.placeholder}
+                  content={sections[key] || ""}
+                  mode={panelMode(key)}
+                  isEditing={editing === key}
+                  onHeaderClick={() => handlePanelClick(key)}
+                  onEdit={() => startEdit(key)}
+                  onSave={saveEdit}
+                  onCancel={() => setEditing(null)}
+                  editDraft={editDraft}
+                  setEditDraft={setEditDraft}
+                  saving={saving}
+                />
+              </div>
             );
           })}
         </div>
