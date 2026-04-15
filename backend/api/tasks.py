@@ -1177,8 +1177,6 @@ def upsert_cockpit_sections(
     ).first()
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
-    if meeting.cockpit_sections:
-        return meeting.cockpit_sections
     db.query(models.CockpitSection).filter(
         models.CockpitSection.meeting_id == meeting_id
     ).delete()

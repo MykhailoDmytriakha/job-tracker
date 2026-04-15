@@ -25,6 +25,17 @@ def meeting_group():
       jt meeting del 97 1
 
     \b
+    Unscheduled meetings (persistent pending safety net):
+      scheduled_at is optional at creation and can be cleared back to null later.
+      Unscheduled meetings (scheduled_at IS NULL) always surface in
+      `jt meeting upcoming` regardless of the --days window; they act as
+      persistent pending-meeting alerts until a real time is set or the meeting
+      is marked completed/cancelled. Use this to encode "meeting exists, time
+      unknown" in a machine-readable way that survives session boundaries.
+      jt meeting add 226 other interviewer="Tiger Senior TBD" platform=google_meet
+      jt meeting up 226 7 scheduled_at=null status=rescheduled notes="time dropped, waiting"
+
+    \b
     Cockpit (live interview reference screen):
       jt meeting cockpit ls 97 1
       jt meeting cockpit set 97 1 pitch "My 60-sec pitch text..."
@@ -48,9 +59,16 @@ def add_cmd(ctx, task_id, meeting_type, kvs):
     result:       passed | failed | pending | unknown
 
     \b
+    scheduled_at is OPTIONAL. Omit it to create an unscheduled meeting (time TBD).
+    Unscheduled meetings surface in `jt meeting upcoming` by default and stay there
+    until you set a real time or mark the meeting completed/cancelled. Use this
+    for pending bookings where someone committed to schedule but hasn't yet.
+
+    \b
     Examples:
       jt meeting add 97 phone_screen scheduled_at=2026-04-06T14:30:00 platform=teams
       jt meeting add 97 technical interviewer="Jane Smith" platform=zoom
+      jt meeting add 226 other interviewer="Tiger Senior TBD" platform=google_meet
     """
     client = ctx.obj["client"]
     body = parse_kvs(kvs)
@@ -79,16 +97,21 @@ def upcoming_cmd(ctx, days, include_past, status, limit):
     """List upcoming meetings across ALL tasks, sorted by scheduled time.
 
     \b
-    Default: scheduled meetings in the next 14 days across every task in the project.
-    Use this at session start to not miss anything.
+    Default: scheduled meetings in the next 14 days across every task in the
+    project, PLUS any unscheduled meetings (scheduled_at IS NULL) regardless of
+    the --days window. Unscheduled meetings act as a persistent safety net for
+    pending/TBD bookings; they stay surfaced until a real time is set or the
+    meeting is marked completed/cancelled. Sort order: scheduled ASC, then
+    unscheduled (NULLs) pushed to the end. Use this at session start to not
+    miss anything, including pending meetings without a confirmed slot.
 
     \b
     Examples:
-      jt meeting upcoming                    # next 14 days
-      jt meeting upcoming --days=3           # next 3 days
-      jt meeting upcoming --days=1           # today + tomorrow
+      jt meeting upcoming                    # next 14 days + all unscheduled
+      jt meeting upcoming --days=3           # next 3 days + all unscheduled
+      jt meeting upcoming --days=1           # today + tomorrow + all unscheduled
       jt meeting upcoming --include-past     # also show past scheduled
-      jt meeting upcoming --status=scheduled
+      jt meeting upcoming --status=scheduled # filter by status (unscheduled still included)
     """
     client = ctx.obj["client"]
     params = {"days": days, "limit": limit}
@@ -257,23 +280,27 @@ def cockpit_get(ctx, task_id, meeting_id, section_key):
 @click.argument("meeting_id", type=int)
 @click.argument("section_key")
 @click.argument("content")
+@click.option("--position", "-p", type=int, default=None, help="Display order (0=first, 1=second, etc.)")
 @click.pass_context
-def cockpit_set(ctx, task_id, meeting_id, section_key, content):
+def cockpit_set(ctx, task_id, meeting_id, section_key, content, position):
     """Set (create or update) a cockpit section.
 
     \b
-    Section keys: pitch | rescue_phrases | quick_facts | story_cards | questions | closing | post_call
+    Section keys: any string (e.g. pitch, rescue_phrases, quick_facts, battle_card, tier1_tapan)
 
     \b
     Examples:
       jt meeting cockpit set 97 1 pitch "I'm a Senior Engineer with ~10 years..."
-      jt meeting cockpit set 97 1 quick_facts "$(cat facts.md)"
-      jt meeting cockpit set 97 1 story_cards "$(cat stories.md)"
+      jt meeting cockpit set 97 1 quick_facts "$(cat facts.md)" --position=2
+      jt meeting cockpit set 97 1 battle_card "..." -p 0
     """
     client = ctx.obj["client"]
+    payload = {"content": content}
+    if position is not None:
+        payload["position"] = position
     data = client.put(
         f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit/{section_key}",
-        json={"content": content},
+        json=payload,
     )
     print_json(data)
 
@@ -313,17 +340,37 @@ def cockpit_bulk(ctx, task_id, meeting_id, json_file):
 @cockpit_group.command("del")
 @click.argument("task_id", type=int)
 @click.argument("meeting_id", type=int)
+@click.argument("section_key", required=False, default=None)
 @click.pass_context
-def cockpit_del(ctx, task_id, meeting_id):
-    """Delete all cockpit sections for a meeting.
+def cockpit_del(ctx, task_id, meeting_id, section_key):
+    """Delete cockpit section(s) for a meeting.
 
     \b
-    Example:
-      jt meeting cockpit del 97 1
+    Omit section_key to delete ALL sections.
+    Provide section_key to delete just one.
+
+    \b
+    Examples:
+      jt meeting cockpit del 97 1              # delete all
+      jt meeting cockpit del 97 1 mindset      # delete only 'mindset'
     """
     client = ctx.obj["client"]
-    data = client.put(
-        f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit",
-        json=[],
-    )
+    if section_key:
+        current = client.get(
+            f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit"
+        )
+        filtered = [
+            {"section_key": s["section_key"], "content": s["content"], "position": s.get("position", 0)}
+            for s in current
+            if s["section_key"] != section_key
+        ]
+        data = client.put(
+            f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit",
+            json=filtered,
+        )
+    else:
+        data = client.put(
+            f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit",
+            json=[],
+        )
     print_json(data)
