@@ -502,7 +502,7 @@ export function MeetingCockpit() {
                   title={label}
                   aria-label={`Jump to ${label}`}
                   onClick={() => {
-                    setFocused(key);
+                    if (focused !== null) setFocused(null);
                     requestAnimationFrame(() => {
                       panelRefs.current[key]?.scrollIntoView({ behavior: "smooth", block: "start" });
                     });
