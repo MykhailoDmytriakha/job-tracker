@@ -3185,10 +3185,15 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   -webkit-overflow-scrolling: touch;
   gap: 4px;
   align-items: center;
-  justify-content: center;
   padding: 6px 16px;
 }
 .ck-quicknav-strip::-webkit-scrollbar { display: none; }
+.ck-quicknav-strip::before,
+.ck-quicknav-strip::after {
+  content: "";
+  flex-shrink: 0;
+  width: 4px;
+}
 
 .ck-quicknav-btn {
   display: flex;
