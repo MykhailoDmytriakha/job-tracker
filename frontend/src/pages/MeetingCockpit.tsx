@@ -508,7 +508,8 @@ export function MeetingCockpit() {
                     });
                   }}
                 >
-                  {emoji}
+                  <span className="ck-quicknav-emoji">{emoji}</span>
+                  <span className="ck-quicknav-label">{label}</span>
                 </button>
               );
             })}
