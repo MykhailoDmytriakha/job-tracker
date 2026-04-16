@@ -492,6 +492,7 @@ export function MeetingCockpit() {
         {/* Quick-nav: sticky emoji bar for instant section jumps */}
         {sectionOrder.length > 0 && (
           <nav className="ck-quicknav" aria-label="Section quick navigation">
+            <div className="ck-quicknav-strip">
             {sectionOrder.map((key) => {
               const emoji = getSectionEmoji(key, sections[key] || "");
               const label = KNOWN_SECTIONS[key]?.label ?? humanizeKey(key);
@@ -513,6 +514,7 @@ export function MeetingCockpit() {
                 </button>
               );
             })}
+            </div>
           </nav>
         )}
 
