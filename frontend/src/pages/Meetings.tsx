@@ -308,10 +308,14 @@ export function Meetings() {
       windowFilter === "all" ||
       statusFilter === "completed" ||
       statusFilter === "cancelled";
+    const needsCancelled =
+      windowFilter === "all" ||
+      statusFilter === "cancelled";
     meetingsApi
       .listAggregated({
         projectId,
         includePast: needsPast,
+        includeCancelled: needsCancelled,
         limit: 200,
         days: needsPast ? undefined : 60,
       })

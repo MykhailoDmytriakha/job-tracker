@@ -82,6 +82,7 @@ def list_meetings_aggregated(
     days: Optional[int] = Query(None, ge=0, le=365, description="Convenience: scheduled_at within next N days from now (ignored if since/until set)"),
     include_past: bool = Query(False, description="If true, include meetings with scheduled_at < now"),
     include_unscheduled: bool = Query(True, description="If true, include meetings with scheduled_at IS NULL"),
+    include_cancelled: bool = Query(False, description="If true, include cancelled/no_show meetings (default: excluded from upcoming view)"),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
@@ -111,6 +112,9 @@ def list_meetings_aggregated(
 
     if status:
         q = q.filter(models.Meeting.status == status)
+    elif not include_cancelled:
+        # Default upcoming semantics: cancelled/no_show are not "upcoming" — they never will happen
+        q = q.filter(models.Meeting.status.notin_(['cancelled', 'no_show']))
     if meeting_type:
         q = q.filter(models.Meeting.meeting_type == meeting_type)
 

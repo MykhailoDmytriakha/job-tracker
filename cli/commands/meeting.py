@@ -2,6 +2,7 @@ import json as json_mod
 import click
 from ..output import print_json
 from .task import parse_kvs
+from ..params import TASK_ID
 
 
 @click.group("meeting")
@@ -17,9 +18,11 @@ def meeting_group():
       jt meeting today                         # today + tomorrow
 
     \b
-    Per-task CRUD:
+    Per-task CRUD (task_id accepts numeric ID or display_id like EJS-225):
       jt meeting add 97 phone_screen scheduled_at=2026-04-06T14:30:00 platform=teams
+      jt meeting add EJS-225 technical interviewer="Eldhose" platform=google_meet
       jt meeting ls 97
+      jt meeting ls EJS-225
       jt meeting up 97 1 status=completed result=passed
       jt meeting done 97 1 --result=passed
       jt meeting del 97 1
@@ -45,7 +48,7 @@ def meeting_group():
 
 
 @meeting_group.command("add")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_type")
 @click.argument("kvs", nargs=-1)
 @click.pass_context
@@ -78,7 +81,7 @@ def add_cmd(ctx, task_id, meeting_type, kvs):
 
 
 @meeting_group.command("ls")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.pass_context
 def ls_cmd(ctx, task_id):
     """List meetings for a task."""
@@ -152,7 +155,7 @@ def today_cmd(ctx):
 
 
 @meeting_group.command("up")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
 @click.argument("kvs", nargs=-1, required=True)
 @click.pass_context
@@ -171,7 +174,7 @@ def up_cmd(ctx, task_id, meeting_id, kvs):
 
 
 @meeting_group.command("done")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
 @click.option("--result", default="pending", help="Result: passed|failed|pending|unknown")
 @click.pass_context
@@ -190,7 +193,7 @@ def done_cmd(ctx, task_id, meeting_id, result):
 
 
 @meeting_group.command("del")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
 @click.pass_context
 def del_cmd(ctx, task_id, meeting_id):
@@ -239,7 +242,7 @@ def cockpit_group():
 
 
 @cockpit_group.command("ls")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
 @click.pass_context
 def cockpit_ls(ctx, task_id, meeting_id):
@@ -255,7 +258,7 @@ def cockpit_ls(ctx, task_id, meeting_id):
 
 
 @cockpit_group.command("get")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
 @click.argument("section_key")
 @click.pass_context
@@ -276,7 +279,7 @@ def cockpit_get(ctx, task_id, meeting_id, section_key):
 
 
 @cockpit_group.command("set")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
 @click.argument("section_key")
 @click.argument("content")
@@ -306,7 +309,7 @@ def cockpit_set(ctx, task_id, meeting_id, section_key, content, position):
 
 
 @cockpit_group.command("bulk")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
 @click.argument("json_file", type=click.Path(exists=True))
 @click.pass_context
@@ -338,7 +341,7 @@ def cockpit_bulk(ctx, task_id, meeting_id, json_file):
 
 
 @cockpit_group.command("del")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
 @click.argument("section_key", required=False, default=None)
 @click.pass_context

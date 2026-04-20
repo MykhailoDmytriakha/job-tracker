@@ -1,5 +1,6 @@
 import click
 from ..output import print_json
+from ..params import TASK_ID
 
 
 @click.group("check")
@@ -7,8 +8,12 @@ def check_group():
     """Manage checklist items for a task.
 
     \b
+    task_id accepts numeric ID (180) or display_id (EJS-180).
+
+    \b
     Examples:
       jt check 180 add "Review JD requirements"
+      jt check EJS-225 add "Confirm agenda with Eldhose before call"
       jt check 180 done 42
       jt check 180 undone 42
       jt check 180 del 42
@@ -17,7 +22,7 @@ def check_group():
 
 
 @check_group.command("add")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("text")
 @click.pass_context
 def add_cmd(ctx, task_id, text):
@@ -28,7 +33,7 @@ def add_cmd(ctx, task_id, text):
 
 
 @check_group.command("done")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("item_id", type=int)
 @click.pass_context
 def done_cmd(ctx, task_id, item_id):
@@ -39,7 +44,7 @@ def done_cmd(ctx, task_id, item_id):
 
 
 @check_group.command("undone")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("item_id", type=int)
 @click.pass_context
 def undone_cmd(ctx, task_id, item_id):
@@ -50,7 +55,7 @@ def undone_cmd(ctx, task_id, item_id):
 
 
 @check_group.command("edit")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("item_id", type=int)
 @click.argument("text")
 @click.pass_context
@@ -62,7 +67,7 @@ def edit_cmd(ctx, task_id, item_id, text):
 
 
 @check_group.command("del")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("item_id", type=int)
 @click.pass_context
 def del_cmd(ctx, task_id, item_id):
@@ -73,7 +78,7 @@ def del_cmd(ctx, task_id, item_id):
 
 
 @check_group.command("ls")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.pass_context
 def ls_cmd(ctx, task_id):
     """List checklist items for a task (from task detail)."""
@@ -90,8 +95,12 @@ def sub_group():
     """Manage subtask items for a task.
 
     \b
+    task_id accepts numeric ID (97) or display_id (EJS-97).
+
+    \b
     Examples:
       jt sub 97 add "Prepare 60-sec pitch"
+      jt sub EJS-225 add "Build cockpit for Eldhose meeting"
       jt sub 97 done 15
       jt sub 97 del 15
       jt sub 97 ls
@@ -99,7 +108,7 @@ def sub_group():
 
 
 @sub_group.command("add")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("title")
 @click.option("--desc", "description", default=None, help="Optional description")
 @click.pass_context
@@ -114,7 +123,7 @@ def sub_add_cmd(ctx, task_id, title, description):
 
 
 @sub_group.command("done")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("item_id", type=int)
 @click.pass_context
 def sub_done_cmd(ctx, task_id, item_id):
@@ -125,7 +134,7 @@ def sub_done_cmd(ctx, task_id, item_id):
 
 
 @sub_group.command("undone")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("item_id", type=int)
 @click.pass_context
 def sub_undone_cmd(ctx, task_id, item_id):
@@ -136,7 +145,7 @@ def sub_undone_cmd(ctx, task_id, item_id):
 
 
 @sub_group.command("edit")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("item_id", type=int)
 @click.argument("title")
 @click.pass_context
@@ -148,7 +157,7 @@ def sub_edit_cmd(ctx, task_id, item_id, title):
 
 
 @sub_group.command("del")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("item_id", type=int)
 @click.pass_context
 def sub_del_cmd(ctx, task_id, item_id):
@@ -159,7 +168,7 @@ def sub_del_cmd(ctx, task_id, item_id):
 
 
 @sub_group.command("ls")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.pass_context
 def sub_ls_cmd(ctx, task_id):
     """List subtask items for a task."""

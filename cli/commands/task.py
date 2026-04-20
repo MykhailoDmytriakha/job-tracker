@@ -1,6 +1,7 @@
 import click
 from datetime import datetime, date, timezone, timedelta
 from ..output import print_json, print_error, filter_fields, brief_task
+from ..params import TASK_ID
 
 
 # ---------- key=value parser ----------
@@ -70,15 +71,19 @@ def parse_kvs(kvs: tuple) -> dict:
 # ---------- commands ----------
 
 @click.command("get")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.option("--fields", default=None, help="Comma-separated fields to include")
 @click.pass_context
 def get_cmd(ctx, task_id, fields):
     """Get full task detail (description, activities, contacts, companies, docs, checklist).
 
     \b
+    Task ID: accepts either numeric ID (180) or display_id (EJS-180).
+
+    \b
     Examples:
-      jt get 180                               full detail
+      jt get 180                               full detail by numeric ID
+      jt get EJS-225                           full detail by display_id
       jt get 180 --fields=title,status,stage_id specific fields only
     """
     client = ctx.obj["client"]
@@ -189,16 +194,19 @@ def new_cmd(ctx, title, kvs, link_contact, link_company, link_doc, force):
 
 
 @click.command("up")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("kvs", nargs=-1, required=True)
 @click.pass_context
 def up_cmd(ctx, task_id, kvs):
     """Update task fields using key=value pairs.
 
     \b
+    Task ID: accepts either numeric ID (180) or display_id (EJS-180).
+
+    \b
     Examples:
       jt up 180 status=done
-      jt up 180 stage_id=4 pipeline_heat=hot
+      jt up EJS-225 stage_id=4 pipeline_heat=hot
       jt up 180 follow_up_date=2026-04-15 status=waiting
       jt up 180 description="..." note="Changed Next Step from X to Y"
     """
@@ -212,16 +220,19 @@ def up_cmd(ctx, task_id, kvs):
 
 
 @click.command("note")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("text")
 @click.pass_context
 def note_cmd(ctx, task_id, text):
     """Add a note/log entry to a task.
 
     \b
+    Task ID: accepts either numeric ID (180) or display_id (EJS-180).
+
+    \b
     Examples:
       jt note 180 "[2026-04-03] Applied via Workday. Confirmation #12345."
-      jt note 97  "[2026-04-03] Phone screen completed. Next: technical."
+      jt note EJS-225 "[2026-04-20] Email sent to Tapan with agenda."
     """
     client = ctx.obj["client"]
     data = client.post(f"/api/tasks/{task_id}/log", json={"text": text})
@@ -229,7 +240,7 @@ def note_cmd(ctx, task_id, text):
 
 
 @click.command("del")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.option("--force", is_flag=True, help="Force delete even if task has dependents")
 @click.pass_context
 def del_cmd(ctx, task_id, force):
@@ -247,7 +258,7 @@ def del_cmd(ctx, task_id, force):
 
 
 @click.command("link")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("entity_type", type=click.Choice(["contact", "company", "doc"]))
 @click.argument("entity_id", type=int)
 @click.pass_context
@@ -270,7 +281,7 @@ def link_cmd(ctx, task_id, entity_type, entity_id):
 
 
 @click.command("unlink")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("entity_type", type=click.Choice(["contact", "company", "doc"]))
 @click.argument("entity_id", type=int)
 @click.pass_context
@@ -284,7 +295,7 @@ def unlink_cmd(ctx, task_id, entity_type, entity_id):
 
 
 @click.command("deps")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.pass_context
 def deps_cmd(ctx, task_id):
     """Show dependencies (blockers and what this task blocks)."""
@@ -294,7 +305,7 @@ def deps_cmd(ctx, task_id):
 
 
 @click.command("chain")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.pass_context
 def chain_cmd(ctx, task_id):
     """Show full dependency chain as a graph."""
@@ -304,7 +315,7 @@ def chain_cmd(ctx, task_id):
 
 
 @click.command("block")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("blocker_id", type=int)
 @click.pass_context
 def block_cmd(ctx, task_id, blocker_id):
@@ -315,7 +326,7 @@ def block_cmd(ctx, task_id, blocker_id):
 
 
 @click.command("unblock")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("blocker_id", type=int)
 @click.pass_context
 def unblock_cmd(ctx, task_id, blocker_id):
@@ -438,7 +449,7 @@ def evaluate_attention(task: dict) -> dict:
 
 
 @click.command("why")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.pass_context
 def why_cmd(ctx, task_id):
     """Check if a task needs attention and why (evaluates all 7 criteria).
@@ -491,7 +502,7 @@ def _resolve_stage(stage_str: str) -> int:
 
 
 @click.command("mv")
-@click.argument("task_id", type=int)
+@click.argument("task_id", type=TASK_ID)
 @click.argument("stage", nargs=-1, required=True)
 @click.pass_context
 def mv_cmd(ctx, task_id, stage):

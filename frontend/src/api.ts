@@ -540,6 +540,7 @@ export interface MeetingsAggregatedQuery {
   days?: number;      // convenience window from now
   includePast?: boolean;
   includeUnscheduled?: boolean;
+  includeCancelled?: boolean;
   limit?: number;
 }
 
@@ -556,6 +557,7 @@ export const meetingsApi = {
     if (q.days !== undefined) p.set("days", String(q.days));
     if (q.includePast) p.set("include_past", "true");
     if (q.includeUnscheduled === false) p.set("include_unscheduled", "false");
+    if (q.includeCancelled) p.set("include_cancelled", "true");
     if (q.limit !== undefined) p.set("limit", String(q.limit));
     const qs = p.toString();
     return request<MeetingWithContext[]>(`/meetings${qs ? `?${qs}` : ""}`);

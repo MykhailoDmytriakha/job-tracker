@@ -45,6 +45,12 @@ def cli(ctx, project_id, url):
       jt contact/company/doc ls    entity lists
 
     \b
+    Task ID formats (any command that takes <id>):
+      226                          internal numeric ID
+      EJS-225                      display_id (project short_key + sequence_num)
+      Both resolve to the same task. Use whichever is handy.
+
+    \b
     Task fields (key=value):
       status          open | in_progress | waiting | done | closed
       priority        high | medium | low
