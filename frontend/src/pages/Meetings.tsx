@@ -103,19 +103,49 @@ function sortMeetings(
   const sorted = [...rows];
   switch (sort) {
     case "soonest": {
-      // "Soonest" = closest to now in absolute time distance.
-      // Future meetings (next upcoming) rank highest, then recent past, then
-      // older past. Unscheduled always last.
+      // "Soonest" = next in relevance, not just next on the clock.
+      // Meetings are task-like items with 2 dimensions: status x time.
+      // Order reflects actionability gradient:
+      //   1. Future active (scheduled/rescheduled, scheduled_at >= now) — ASC
+      //   2. Unscheduled active (committed, pending date) — stable
+      //   3. Past-done (completed, or active but scheduled_at past) — DESC
+      //   4. Cancelled/no_show — DESC (at bottom)
       const now = Date.now();
+
+      const category = (m: MeetingWithContext): number => {
+        const active =
+          m.status === "scheduled" || m.status === "rescheduled";
+        const cancelled =
+          m.status === "cancelled" || m.status === "no_show";
+        const t = m.scheduled_at ? new Date(m.scheduled_at).getTime() : null;
+
+        if (cancelled) return 3;
+        if (active && t === null) return 1;
+        if (active && t !== null && t >= now) return 0;
+        return 2;
+      };
+
       sorted.sort((a, b) => {
+        const ca = category(a);
+        const cb = category(b);
+        if (ca !== cb) return ca - cb;
+
         const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : null;
         const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : null;
-        if (ta === null && tb === null) return a.id - b.id;
+
+        if (ca === 0) {
+          // Future active: ASC (nearest first)
+          return (ta! - tb!) || a.id - b.id;
+        }
+        if (ca === 1) {
+          // Unscheduled active: stable by id
+          return a.id - b.id;
+        }
+        // Past / Cancelled: DESC (most recent first)
+        if (ta === null && tb === null) return b.id - a.id;
         if (ta === null) return 1;
         if (tb === null) return -1;
-        const diff = Math.abs(ta - now) - Math.abs(tb - now);
-        if (diff !== 0) return diff;
-        return a.id - b.id;
+        return (tb - ta) || b.id - a.id;
       });
       break;
     }
