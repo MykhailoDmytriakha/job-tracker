@@ -102,12 +102,23 @@ function sortMeetings(
     s ? new Date(s).getTime() : Number.MAX_SAFE_INTEGER;
   const sorted = [...rows];
   switch (sort) {
-    case "soonest":
-      sorted.sort(
-        (a, b) =>
-          toTime(a.scheduled_at) - toTime(b.scheduled_at) || a.id - b.id,
-      );
+    case "soonest": {
+      // "Soonest" = closest to now in absolute time distance.
+      // Future meetings (next upcoming) rank highest, then recent past, then
+      // older past. Unscheduled always last.
+      const now = Date.now();
+      sorted.sort((a, b) => {
+        const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : null;
+        const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : null;
+        if (ta === null && tb === null) return a.id - b.id;
+        if (ta === null) return 1;
+        if (tb === null) return -1;
+        const diff = Math.abs(ta - now) - Math.abs(tb - now);
+        if (diff !== 0) return diff;
+        return a.id - b.id;
+      });
       break;
+    }
     case "latest":
       sorted.sort((a, b) => {
         const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
