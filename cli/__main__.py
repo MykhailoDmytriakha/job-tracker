@@ -16,6 +16,7 @@ from .commands.entity import contact_group, company_group, doc_group
 from .commands.checklist import check_group, sub_group
 from .commands.meeting import meeting_group
 from .commands.config_cmd import config_group
+from .commands.agent_help import agent_help_cmd
 
 
 @click.group()
@@ -122,6 +123,9 @@ cli.add_command(meeting_group, "meeting")
 
 # Config
 cli.add_command(config_group, "config")
+
+# Agent reference (dense single-page help for LLMs)
+cli.add_command(agent_help_cmd, "agent-help")
 
 
 if __name__ == "__main__":

@@ -3429,9 +3429,12 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
 .ck-edit-hint { font-size: 0.76rem; color: var(--text-faint); flex: 1; font-family: 'JetBrains Mono', monospace; }
 
 .ck-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: 'Outfit', sans-serif;
   font-weight: 600; font-size: 0.84rem;
-  padding: 7px 16px;
+  padding: 7px 14px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s;

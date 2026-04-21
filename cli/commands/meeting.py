@@ -216,11 +216,15 @@ def cockpit_group():
     """Manage cockpit sections for a meeting.
 
     \b
-    Section keys: pitch | rescue_phrases | quick_facts | story_cards | questions | closing | post_call
+    Section keys: ANY STRING — open set, not an enum.
+    Canonical keys (recommended for standard interviews):
+      pitch | rescue_phrases | quick_facts | story_cards | questions | closing | post_call
+    Custom keys welcome (e.g. trajectory, map_compass, scenarios, bench_protection,
+    scenario_1_clean, market_data_gift — any descriptive snake_case string).
 
     \b
     Cockpit = live reference screen for during-interview use.
-    Sections follow interview flow top-to-bottom:
+    Canonical sections follow interview flow top-to-bottom:
       pitch          60-sec opening speech (first thing you see = first thing you say)
       rescue_phrases buy-time phrases for blank-outs
       quick_facts    comp, auth, start date, location
@@ -244,17 +248,38 @@ def cockpit_group():
 @cockpit_group.command("ls")
 @click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
+@click.option("--keys", "keys_only", is_flag=True,
+              help="Compact view: show section_keys + content size only, not full JSON.")
 @click.pass_context
-def cockpit_ls(ctx, task_id, meeting_id):
+def cockpit_ls(ctx, task_id, meeting_id, keys_only):
     """List all cockpit sections for a meeting.
 
     \b
-    Example:
-      jt meeting cockpit ls 97 1
+    Examples:
+      jt meeting cockpit ls 97 1              # full JSON (all sections + content)
+      jt meeting cockpit ls 97 1 --keys       # compact: position | key | chars
     """
     client = ctx.obj["client"]
     data = client.get(f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit")
-    print_json(data)
+
+    if keys_only:
+        if not data:
+            click.echo("(no cockpit sections)")
+            return
+        # Sort by position for stable scan order
+        ordered = sorted(data, key=lambda s: s.get("position", 0))
+        # Header
+        click.echo(f"{'pos':>3}  {'section_key':<24}  {'chars':>6}")
+        click.echo(f"{'---':>3}  {'-' * 24}  {'-' * 6}")
+        for s in ordered:
+            pos = s.get("position", 0)
+            key = s.get("section_key", "(unknown)")
+            chars = len(s.get("content", "") or "")
+            click.echo(f"{pos:>3}  {key:<24}  {chars:>6}")
+        click.echo(f"\ntotal: {len(ordered)} sections, "
+                   f"{sum(len(s.get('content', '') or '') for s in ordered)} chars")
+    else:
+        print_json(data)
 
 
 @cockpit_group.command("get")
@@ -312,27 +337,96 @@ def cockpit_set(ctx, task_id, meeting_id, section_key, content, position):
 @click.argument("task_id", type=TASK_ID)
 @click.argument("meeting_id", type=int)
 @click.argument("json_file", type=click.Path(exists=True))
+@click.option("--backup", "backup_path", type=click.Path(),
+              help="Write current cockpit state (array format) to PATH before replace. "
+                   "Use if existing sections matter — bulk REPLACES, does not merge.")
 @click.pass_context
-def cockpit_bulk(ctx, task_id, meeting_id, json_file):
+def cockpit_bulk(ctx, task_id, meeting_id, json_file, backup_path):
     """Bulk-set all cockpit sections from a JSON file.
 
     \b
-    JSON format (array):
+    Accepts two formats (pick whichever is ergonomic to generate):
+
+    \b
+    Format A — array (explicit positions):
       [
         {"section_key": "pitch", "content": "...", "position": 0},
         {"section_key": "rescue_phrases", "content": "...", "position": 1},
-        {"section_key": "quick_facts", "content": "...", "position": 2},
-        {"section_key": "story_cards", "content": "...", "position": 3},
         ...
       ]
+
+    \b
+    Format B — dict (insertion order = position):
+      {
+        "pitch": "...",
+        "rescue_phrases": "...",
+        "quick_facts": "..."
+      }
+
+    \b
+    Format B also accepts nested {content, position} values:
+      {
+        "pitch": {"content": "...", "position": 0},
+        "rescue_phrases": {"content": "...", "position": 1}
+      }
 
     \b
     Example:
       jt meeting cockpit bulk 97 1 cockpit.json
     """
     client = ctx.obj["client"]
+
+    # Optional backup — fetch current state and dump to file BEFORE replace.
+    if backup_path:
+        current = client.get(
+            f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit"
+        )
+        backup_array = [
+            {
+                "section_key": s["section_key"],
+                "content": s["content"],
+                "position": s.get("position", 0),
+            }
+            for s in (current or [])
+        ]
+        with open(backup_path, "w") as f:
+            json_mod.dump(backup_array, f, indent=2)
+        click.echo(
+            f"Backed up {len(backup_array)} current sections to {backup_path}",
+            err=True,
+        )
+
     with open(json_file, "r") as f:
         sections = json_mod.load(f)
+
+    # Accept dict {key: content} or {key: {content, position}} — convert to array.
+    if isinstance(sections, dict):
+        converted = []
+        for idx, (key, val) in enumerate(sections.items()):
+            if isinstance(val, str):
+                converted.append({
+                    "section_key": key,
+                    "content": val,
+                    "position": idx,
+                })
+            elif isinstance(val, dict) and "content" in val:
+                converted.append({
+                    "section_key": key,
+                    "content": val["content"],
+                    "position": val.get("position", idx),
+                })
+            else:
+                raise click.ClickException(
+                    f"Invalid value for section '{key}': expected string "
+                    f"or object with 'content' field. Got: {type(val).__name__}"
+                )
+        sections = converted
+    elif not isinstance(sections, list):
+        raise click.ClickException(
+            f"Expected JSON array or dict at top level. Got: {type(sections).__name__}. "
+            f"See 'jt meeting cockpit bulk --help' for accepted formats."
+        )
+
     data = client.put(
         f"/api/tasks/{task_id}/meetings/{meeting_id}/cockpit",
         json=sections,

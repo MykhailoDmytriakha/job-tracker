@@ -10,6 +10,14 @@ import {
   contactsApi,
   companiesApi,
 } from "../api";
+import {
+  IconBack,
+  IconChevronDown,
+  IconEdit,
+  IconSave,
+  IconCancel,
+  IconExternalLink,
+} from "../components/icons";
 import type {
   TaskFull,
   Meeting,
@@ -262,14 +270,12 @@ function Panel({
         )}
         <div className="ck-panel-tools" onClick={(e) => e.stopPropagation()}>
           {!isEditing && (
-            <button className="ck-btn-icon" onClick={onEdit} title="Edit">
-              <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M11.08 1.67a1.5 1.5 0 012.12 0l.13.13a1.5 1.5 0 010 2.12L5.5 11.75l-3 .75.75-3L11.08 1.67z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <button className="ck-btn-icon" onClick={onEdit} title="Edit" aria-label="Edit section">
+              <IconEdit size={14} strokeWidth={1.75} />
             </button>
           )}
         </div>
-        <svg className="ck-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
+        <IconChevronDown className="ck-chevron" size={16} strokeWidth={1.75} aria-hidden="true" />
       </div>
 
       <div className="ck-panel-body">
@@ -286,8 +292,14 @@ function Panel({
               />
               <div className="ck-edit-row">
                 <span className="ck-edit-hint">Cmd+Enter save / Esc cancel</span>
-                <button className="ck-btn ck-btn--ghost" onClick={onCancel}>Cancel</button>
-                <button className="ck-btn ck-btn--primary" onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
+                <button className="ck-btn ck-btn--ghost" onClick={onCancel}>
+                  <IconCancel size={14} strokeWidth={2} aria-hidden="true" />
+                  <span>Cancel</span>
+                </button>
+                <button className="ck-btn ck-btn--primary" onClick={onSave} disabled={saving}>
+                  <IconSave size={14} strokeWidth={2} aria-hidden="true" />
+                  <span>{saving ? "Saving..." : "Save"}</span>
+                </button>
               </div>
             </div>
           ) : normalizedContent ? (
@@ -450,8 +462,8 @@ export function MeetingCockpit() {
       <div className="ck-scroll">
         {/* Header */}
         <header className="ck-header">
-          <button className="ck-back" onClick={() => navigate(`/tasks/${taskId}`)}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <button className="ck-back" onClick={() => navigate(`/tasks/${taskId}`)} aria-label="Back to task">
+            <IconBack size={20} strokeWidth={2} />
           </button>
           <div className="ck-header-text">
             <h1 className="ck-company">{companyName}</h1>
@@ -483,7 +495,8 @@ export function MeetingCockpit() {
             </div>
             {meeting.join_url && (
               <a className="ck-join" href={meeting.join_url} target="_blank" rel="noopener noreferrer">
-                Join {meeting.platform ? meeting.platform.charAt(0).toUpperCase() + meeting.platform.slice(1) : "Call"}
+                <IconExternalLink size={14} strokeWidth={2} aria-hidden="true" />
+                <span>Join {meeting.platform ? meeting.platform.charAt(0).toUpperCase() + meeting.platform.slice(1) : "Call"}</span>
               </a>
             )}
           </div>
