@@ -44,11 +44,24 @@ const ACCENT_PALETTE = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "
 
 // ── Section emoji for quick-nav bar (first emoji from content, or default) ──
 const SECTION_EMOJI: Record<string, string> = {
+  // Navigation layer
+  trajectory: "📍", map_compass: "🧭", objectives: "🎯",
+
+  // Substance layer
+  quick_facts: "⚡", story_cards: "📖", pitch: "🎤",
+
+  // Engagement layer (branches, asks, strategy, probing)
+  scenarios: "🌿", questions: "❓", question_strategy: "♟️", their_probes: "🔍",
+
+  // Defense layer
+  rescue_phrases: "🛟", tough_questions: "🔥",
+
+  // Closure layer
+  closing: "🏁", post_call: "📝",
+
+  // Legacy keys (kept for backward compat with prior meeting cockpits)
   battle_card: "⚔️", red_team: "🎭", caller_id: "📞",
   tier1_tapan: "🟢", tier2_middle: "🟡", tier3_anupam: "🔴",
-  quick_facts: "⚡", rescue_phrases: "🛟", objectives: "🎯",
-  post_call: "📝", pitch: "🎤", story_cards: "📖",
-  questions: "❓", closing: "🏁", tough_questions: "🔥",
 };
 
 function getSectionEmoji(key: string, content: string): string {
