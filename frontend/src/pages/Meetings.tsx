@@ -97,32 +97,39 @@ const PLATFORM_LABELS: Record<string, string> = {
 function sortMeetings(
   rows: MeetingWithContext[],
   sort: SortKey,
+  windowFilter: WindowFilter,
 ): MeetingWithContext[] {
   const toTime = (s: string | null) =>
     s ? new Date(s).getTime() : Number.MAX_SAFE_INTEGER;
   const sorted = [...rows];
   switch (sort) {
     case "soonest": {
-      // "Soonest" = next in relevance, not just next on the clock.
-      // Meetings are task-like items with 2 dimensions: status x time.
-      // Order reflects actionability gradient:
-      //   1. Future active (scheduled/rescheduled, scheduled_at >= now) — ASC
-      //   2. Unscheduled active (committed, pending date) — stable
-      //   3. Past-done (completed, or active but scheduled_at past) — DESC
-      //   4. Cancelled/no_show — DESC (at bottom)
+      // "Soonest" is agenda-first, but the "all" window also needs the
+      // history tail to respect visible chronology.
       const now = Date.now();
+      const isAllWindow = windowFilter === "all";
 
       const category = (m: MeetingWithContext): number => {
         const active =
           m.status === "scheduled" || m.status === "rescheduled";
-        const cancelled =
-          m.status === "cancelled" || m.status === "no_show";
+        const terminal =
+          m.status === "completed" ||
+          m.status === "cancelled" ||
+          m.status === "no_show";
         const t = m.scheduled_at ? new Date(m.scheduled_at).getTime() : null;
 
-        if (cancelled) return 3;
-        if (active && t === null) return 1;
+        if (!isAllWindow) {
+          if (m.status === "cancelled" || m.status === "no_show") return 3;
+          if (active && t === null) return 1;
+          if (active && t !== null && t >= now) return 0;
+          return 2;
+        }
+
         if (active && t !== null && t >= now) return 0;
-        return 2;
+        if (active && t === null) return 1;
+        if (active && t !== null && t < now) return 2;
+        if (terminal && t !== null) return 3;
+        return 4;
       };
 
       sorted.sort((a, b) => {
@@ -138,10 +145,18 @@ function sortMeetings(
           return (ta! - tb!) || a.id - b.id;
         }
         if (ca === 1) {
-          // Unscheduled active: stable by id
+          // Active without a date: stable by id
           return a.id - b.id;
         }
-        // Past / Cancelled: DESC (most recent first)
+
+        if (isAllWindow && ca === 4) {
+          // Terminal without a date: no timeline anchor, keep them at the end.
+          if (ta === null && tb === null) return b.id - a.id;
+          if (ta === null) return 1;
+          if (tb === null) return -1;
+        }
+
+        // Past active/history: DESC (most recent first)
         if (ta === null && tb === null) return b.id - a.id;
         if (ta === null) return 1;
         if (tb === null) return -1;
@@ -386,7 +401,7 @@ export function Meetings() {
       if (!matchSearch(m, q)) return false;
       return true;
     });
-    return sortMeetings(filtered, sortBy);
+    return sortMeetings(filtered, sortBy, windowFilter);
   }, [rows, windowFilter, statusFilter, typeFilter, debouncedSearch, sortBy]);
 
   const counts = useMemo(() => {

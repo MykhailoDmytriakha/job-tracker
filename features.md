@@ -161,6 +161,11 @@ Default page ("/"). One-glance overview.
 - Meetings live inside task detail as a dedicated section
 - A meeting can be created first with operational data: type, date/time, platform, interviewer, status, result, join URL, notes, linked brief doc, linked notes doc
 - Each meeting card can be expanded to inspect details and related documents
+- Aggregated `/meetings` sorting semantics:
+  - `Soonest` means the next meetings that still matter operationally should stay at the top
+  - In `upcoming`, `today`, and `week`, `Soonest` behaves like an agenda: active future meetings first, nearest time first
+  - In `all`, `Soonest` still keeps active future meetings at the top, but the history block below them is ordered by actual meeting time so completed/cancelled items do not break visible chronology
+  - Unscheduled meetings stay at the end because they have no anchor on the timeline
 - The aggregated `/meetings` page gives each row a dedicated `Cockpit` CTA on the right; it stays visible as a real button instead of a tiny hover icon, and touch/tablet layouts enlarge it for comfortable launching from iPad/mobile/foldable screens
 - Cockpit has an explicit lifecycle:
   - Before initialization, the meeting shows `Create cockpit`

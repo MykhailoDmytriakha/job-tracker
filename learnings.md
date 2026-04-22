@@ -233,6 +233,14 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Re-align entity detail pages to one header structure (`Back` + shared action group), stack title/meta/actions in Docs instead of forcing them into one row, and update responsive selectors to match the current DOM.
 **Rule:** When several pages intentionally share one UI pattern, keep the DOM shape and CSS hooks aligned. After renaming containers, update every responsive selector immediately or mobile regressions will silently survive.
 
+## 2026-04-21
+
+### L047: "All meetings" must not hide chronology behind agenda sorting
+**Context:** On `/meetings?w=all`, cancelled meetings from today appeared below much older completed meetings from prior days, which made the bottom of the list look chronologically broken.
+**Root cause:** The `Soonest` sort mixed two different jobs into one flat order: agenda prioritization for upcoming meetings and archival ordering for past/terminal meetings. `cancelled` items were forcibly pushed to the very bottom regardless of date, so the list contradicted the visible time labels.
+**Fix:** Keep `Soonest` as an agenda view for upcoming meetings, but when the window is `all`, treat future active meetings as the top block and then sort terminal/past history by actual meeting time instead of hiding cancelled items at the bottom.
+**Rule:** If a list mixes future agenda and past history, the transition between them must still respect the visible time axis. Status can affect grouping, but it must not silently break chronology.
+
 ## 2026-04-04
 
 ### L032: Cockpit creation must be explicit in the meeting workflow
