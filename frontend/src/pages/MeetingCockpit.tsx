@@ -40,6 +40,7 @@ const KNOWN_SECTIONS: Record<string, { label: string; accent: string; placeholde
   story_observability:      { label: "Observability",      accent: "#10b981", placeholder: "Cross-cutting concern → platform-level framework" },
   story_test_ownership:     { label: "Test Ownership",     accent: "#8b5cf6", placeholder: "Argued call + owned fidelity tradeoff" },
   story_ai_workflow:        { label: "AI Workflow",        accent: "#ec4899", placeholder: "Approve-loop + project memory + governance" },
+  story_token_sync:         { label: "Token Sync Debug",   accent: "#14b8a6", placeholder: "12-hour cycle, clock skew, pre-expiry refresh" },
   questions:         { label: "My Questions",     accent: "#8b5cf6", placeholder: "1. ... 2. ... 3. ..." },
   closing:           { label: "Closing",          accent: "#06b6d4", placeholder: "\"Thank you. What's the timeline for next steps?\"" },
   post_call:         { label: "Post-Call Notes",  accent: "#f97316", placeholder: "What they asked:\nWhat went well:\nWhat was weak:" },
@@ -63,6 +64,7 @@ const SECTION_EMOJI: Record<string, string> = {
   story_observability: "📊",
   story_test_ownership: "🧪",
   story_ai_workflow: "🤖",
+  story_token_sync: "🔑",
 
   // Engagement layer (branches, asks, strategy, probing)
   scenarios: "🌿", questions: "❓", question_strategy: "♟️", their_probes: "🔍",
