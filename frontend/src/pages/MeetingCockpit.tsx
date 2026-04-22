@@ -41,6 +41,7 @@ const KNOWN_SECTIONS: Record<string, { label: string; accent: string; placeholde
   story_test_ownership:     { label: "Test Ownership",     accent: "#8b5cf6", placeholder: "Argued call + owned fidelity tradeoff" },
   story_ai_workflow:        { label: "AI Workflow",        accent: "#ec4899", placeholder: "Approve-loop + project memory + governance" },
   story_token_sync:         { label: "Token Sync Debug",   accent: "#14b8a6", placeholder: "12-hour cycle, clock skew, pre-expiry refresh" },
+  keyword_grid:             { label: "Keyword Grid",       accent: "#0ea5e9", placeholder: "Handwritten distillation ritual — pre-call, your hand" },
   questions:         { label: "My Questions",     accent: "#8b5cf6", placeholder: "1. ... 2. ... 3. ..." },
   closing:           { label: "Closing",          accent: "#06b6d4", placeholder: "\"Thank you. What's the timeline for next steps?\"" },
   post_call:         { label: "Post-Call Notes",  accent: "#f97316", placeholder: "What they asked:\nWhat went well:\nWhat was weak:" },
@@ -65,6 +66,7 @@ const SECTION_EMOJI: Record<string, string> = {
   story_test_ownership: "🧪",
   story_ai_workflow: "🤖",
   story_token_sync: "🔑",
+  keyword_grid: "✍️",
 
   // Engagement layer (branches, asks, strategy, probing)
   scenarios: "🌿", questions: "❓", question_strategy: "♟️", their_probes: "🔍",
@@ -80,21 +82,59 @@ const SECTION_EMOJI: Record<string, string> = {
   tier1_tapan: "🟢", tier2_middle: "🟡", tier3_anupam: "🔴",
 };
 
+// Extract first emoji anywhere in the first line of content (handles prefixes like ① ② before emoji)
+function extractEmojiFromContent(content: string): string | null {
+  const firstLine = (content || "").split("\n")[0] || "";
+  const match = firstLine.match(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u);
+  return match ? match[0] : null;
+}
+
+// Extract title from first heading, stripping markdown, circled numbers, and emojis
+// Pattern: "# [① optional] [🎯 optional] Title — optional subtitle"
+function extractLabelFromContent(content: string): string | null {
+  const firstLine = (content || "").split("\n")[0] || "";
+  if (!/^#{1,6}\s/.test(firstLine)) return null;
+  const cleaned = firstLine
+    .replace(/^#{1,6}\s+/, "")
+    // Strip enclosed alphanumerics (circled numbers ①-⑳, parenthesized, etc.)
+    .replace(/[①-⓿㉑-㉟㊱-㊿]/g, "")
+    // Strip emojis (presentation + extended pictographic + variation selector)
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]️?/gu, "")
+    .trim();
+  // Take text before em-dash/en-dash/hyphen separator if present
+  const sepMatch = cleaned.match(/^([^—–]+?)(?:\s+[—–-]\s+.+)?$/);
+  const title = (sepMatch ? sepMatch[1] : cleaned).trim();
+  return title || null;
+}
+
 function getSectionEmoji(key: string, content: string): string {
+  // Priority 1: explicit override (legacy keys, special overrides)
   if (SECTION_EMOJI[key]) return SECTION_EMOJI[key];
-  const match = content.match(/^##?\s*([\p{Emoji_Presentation}\p{Extended_Pictographic}])/u);
-  if (match) return match[1];
-  return "📄";
+  // Priority 2: extract from content first line (adaptive — no code change per new section)
+  const fromContent = extractEmojiFromContent(content);
+  if (fromContent) return fromContent;
+  // Priority 3: sensible default
+  return "📝";
 }
 
 function humanizeKey(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function getSectionMeta(key: string, index: number) {
+function getSectionLabel(key: string, content: string): string {
+  // Priority 1: explicit override
+  if (KNOWN_SECTIONS[key]?.label) return KNOWN_SECTIONS[key].label;
+  // Priority 2: extract from content heading (adaptive)
+  const fromContent = extractLabelFromContent(content);
+  if (fromContent) return fromContent;
+  // Priority 3: humanize the key
+  return humanizeKey(key);
+}
+
+function getSectionMeta(key: string, content: string, index: number) {
   const known = KNOWN_SECTIONS[key];
   return {
-    label: known?.label ?? humanizeKey(key),
+    label: getSectionLabel(key, content),
     accent: known?.accent ?? ACCENT_PALETTE[index % ACCENT_PALETTE.length],
     placeholder: known?.placeholder ?? "",
   };
@@ -537,7 +577,7 @@ export function MeetingCockpit() {
             <div className="ck-quicknav-strip">
             {sectionOrder.map((key) => {
               const emoji = getSectionEmoji(key, sections[key] || "");
-              const label = KNOWN_SECTIONS[key]?.label ?? humanizeKey(key);
+              const label = getSectionLabel(key, sections[key] || "");
               return (
                 <button
                   key={key}
@@ -563,7 +603,7 @@ export function MeetingCockpit() {
         {/* Dynamic sections from API, ordered by position */}
         <div className="ck-grid">
           {sectionOrder.map((key, idx) => {
-            const meta = getSectionMeta(key, idx);
+            const meta = getSectionMeta(key, sections[key] || "", idx);
             return (
               <div key={key} ref={(el) => { panelRefs.current[key] = el; }}>
                 <Panel
