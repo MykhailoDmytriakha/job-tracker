@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { meetingsApi, documentsApi } from "../api";
 import type { Meeting, DocumentBrief } from "../api";
@@ -719,6 +719,17 @@ export function MeetingSection({
 
   const upcoming = meetings.filter(m => m.status === "scheduled").length;
 
+  // Sort chronologically by scheduled_at ascending; unscheduled (null) go last.
+  const sortedMeetings = useMemo(
+    () => [...meetings].sort((a, b) => {
+      if (!a.scheduled_at && !b.scheduled_at) return 0;
+      if (!a.scheduled_at) return 1;
+      if (!b.scheduled_at) return -1;
+      return new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime();
+    }),
+    [meetings]
+  );
+
   useEffect(() => {
     documentsApi.list(projectId).then(setDocs).catch(() => {});
   }, [projectId]);
@@ -761,7 +772,7 @@ export function MeetingSection({
 
       {meetings.length > 0 && (
         <div className="meeting-list">
-          {meetings.map(m => (
+          {sortedMeetings.map(m => (
             <MeetingCard
               key={m.id}
               meeting={m}
