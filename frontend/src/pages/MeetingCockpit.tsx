@@ -45,10 +45,18 @@ const ACCENT_PALETTE = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "
 // ── Section emoji for quick-nav bar (first emoji from content, or default) ──
 const SECTION_EMOJI: Record<string, string> = {
   // Navigation layer
-  trajectory: "📍", map_compass: "🧭", objectives: "🎯",
+  trajectory: "📍", map_compass: "🧭", objectives: "🎯", entry_signal_read: "🔍",
 
   // Substance layer
   quick_facts: "⚡", story_cards: "📖", pitch: "🎤",
+
+  // Per-story cards (topic-relevant)
+  story_db_performance: "🗄️",
+  story_platform_migration: "☁️",
+  story_java_modernization: "☕",
+  story_observability: "📊",
+  story_test_ownership: "🧪",
+  story_ai_workflow: "🤖",
 
   // Engagement layer (branches, asks, strategy, probing)
   scenarios: "🌿", questions: "❓", question_strategy: "♟️", their_probes: "🔍",
