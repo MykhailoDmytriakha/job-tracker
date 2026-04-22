@@ -3222,7 +3222,11 @@ mark.search-highlight { background: #ffe066; color: inherit; border-radius: 2px;
   color: var(--text-muted);
   line-height: 1.1;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+  max-width: 60px;
 }
 .ck-quicknav-btn:hover {
   background: var(--bg-hover);
