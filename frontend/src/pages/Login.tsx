@@ -10,7 +10,12 @@ export function Login() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+    <GoogleOAuthProvider
+      clientId={GOOGLE_CLIENT_ID}
+      onScriptLoadError={() => {
+        setError("Google sign-in could not load. Check browser extensions, content blockers, or network filtering.");
+      }}
+    >
       <div className="login">
         <div className="login-ambient" />
         <div className="login-card">
@@ -52,8 +57,9 @@ export function Login() {
                   }
                 }}
                 onError={() => {
-                  setError("Google sign-in was cancelled or failed.");
+                  setError("Google sign-in was blocked or cancelled. Allow popups for this site or disable the blocking extension, then try again.");
                 }}
+                use_fedcm_for_button
                 theme={document.documentElement.getAttribute("data-theme") === "dark" ? "filled_black" : "outline"}
                 size="large"
                 width="300"

@@ -217,6 +217,7 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Root cause:** Cockpit modal was rendered inside the transformed scroll container and had no `max-height`, so long markdown documents expanded the whole modal to content height instead of keeping the shell fixed and scrolling inside the body.
 **Fix:** Render the modal through a portal to `document.body`, cap modal height to the viewport, keep the header fixed, and let only the modal body scroll. Also softened the featured footer chip styling so emphasis stays subtle.
 **Rule:** Any modal that can open unbounded content must be viewport-constrained and portal-based. The frame stays fixed; only the content area scrolls.
+
 ## 2026-04-04
 
 ### L044: Read paths must degrade gracefully during schema drift
@@ -336,6 +337,14 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Root cause:** The Meetings row exposed cockpit as a `26x26` icon-only control with weak default visibility. That assumes mouse precision and hover discovery, which breaks on touch-first tablet and foldable layouts.
 **Fix:** Redesign the Meetings cockpit launcher as an explicit labeled CTA, keep it visible by default, and raise touch targets to at least `44px` on tablet/touch layouts.
 **Rule:** Any primary route-navigation action that users need on tablets or phones must be explicitly labeled, visibly present without hover, and sized like a real touch target. Tiny icon-only affordances are secondary actions, not primary navigation.
+
+## 2026-05-12
+
+### L048: Google sign-in popup failures need browser-mediated fallback and clear recovery
+**Context:** Production login showed `[GSI_LOGGER]: Failed to open popup window... Maybe blocked by the browser?` and `net::ERR_BLOCKED_BY_CLIENT` from Google Identity Services.
+**Root cause:** The login flow used the default Google Identity Services popup mode. When browser popup settings, content blockers, extensions, or embedded browser policy prevent the popup, the credential callback never reaches the app and the user sees a generic failure.
+**Fix:** Enable FedCM button flow for supported Chrome browsers and show explicit login recovery messages when the GSI script cannot load or the sign-in flow is blocked/cancelled.
+**Rule:** Third-party identity UI is partly controlled by the browser. Auth surfaces need a browser-mediated path where available and must tell the user exactly what local blocker to check when identity scripts or popups fail.
 
 ---
 

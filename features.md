@@ -251,6 +251,20 @@ Three options: Light, Dark, System (auto)
 
 ---
 
+## Authentication
+
+- Production auth is enabled when both frontend and backend Google client IDs are configured:
+  - Frontend uses `VITE_GOOGLE_CLIENT_ID`
+  - Backend uses `GOOGLE_CLIENT_ID`
+- Local dev skips auth when no frontend Google client ID is configured and creates a synthetic local user.
+- Login route renders the official Google Identity Services button through `@react-oauth/google`.
+- Successful Google sign-in returns a Google ID token to the browser, posts it to `/api/auth/google`, verifies it on the backend, and stores the app JWT in `localStorage`.
+- Google button sign-in enables FedCM button flow for supported Chrome versions, reducing dependence on popup windows when the browser can mediate the identity flow.
+- If Google Identity Services cannot load or the popup/button flow is blocked by browser settings, extensions, or content blockers, the login screen shows a direct recovery message instead of a generic failure.
+- Profile route can create personal API tokens for agent/CLI access; tokens are shown once and stored hashed.
+
+---
+
 ## Developer Scripts
 
 - `./run_dev.sh` is the default dev launcher and forwards to `./start_dev.sh`
