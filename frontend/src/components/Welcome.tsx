@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { projectsApi } from "../api";
 import { useProject } from "../ProjectContext";
+import { useAuth } from "../AuthContext";
 
 export function Welcome() {
   const { reload, setActiveId } = useProject();
+  const { user, logout, authRequired } = useAuth();
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
@@ -79,6 +81,16 @@ export function Welcome() {
         <p className="welcome-future">
           In the future, you'll be able to choose from templates with pre-built task lists.
         </p>
+
+        {authRequired && user && (
+          <div className="welcome-account">
+            Signed in as <strong>{user.email}</strong>
+            {" · "}
+            <button type="button" className="welcome-signout" onClick={logout}>
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

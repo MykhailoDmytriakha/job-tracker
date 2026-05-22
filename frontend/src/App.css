@@ -309,6 +309,10 @@ main {
 .welcome-btn:disabled { opacity: 0.4; cursor: default; }
 .welcome-future { margin: 24px 0 0; font-size: 11px; color: var(--text-faint); font-style: italic; text-align: center;
 }
+.welcome-account { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-faint); text-align: center; }
+.welcome-account strong { color: var(--text); font-weight: 500; }
+.welcome-signout { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); cursor: pointer; text-decoration: underline; }
+.welcome-signout:hover { opacity: 0.8; }
 
 /* ============================================================
    DASHBOARD — 3 columns: Today / Upcoming / Recurring

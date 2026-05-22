@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
 import { Pipeline } from "./pages/Pipeline";
@@ -103,6 +104,22 @@ function AppInner() {
   );
 }
 
+function Logout() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    logout();
+    navigate("/login", { replace: true });
+  }, [logout, navigate]);
+  return (
+    <div className="login">
+      <div className="login-spinner">
+        <div className="login-spinner-ring" />
+      </div>
+    </div>
+  );
+}
+
 function AuthGate() {
   const { user, loading, authRequired } = useAuth();
 
@@ -124,6 +141,7 @@ function AuthGate() {
           user ? <Navigate to="/" replace /> : <Login />
         }
       />
+      <Route path="/logout" element={<Logout />} />
       <Route
         path="/*"
         element={
