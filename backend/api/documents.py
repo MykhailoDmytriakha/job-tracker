@@ -5,6 +5,8 @@ from typing import Optional
 
 from ..database import get_db
 from .. import models, schemas
+from ..authz import require_document, require_project
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -15,7 +17,9 @@ def list_documents(
     q: Optional[str] = None,
     doc_type: Optional[str] = None,
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
+    require_project(db, project_id, user)
     query = db.query(models.Document).filter(models.Document.project_id == project_id)
     if q:
         query = query.filter(
@@ -33,10 +37,9 @@ def create_document(
     doc: schemas.DocumentCreate,
     project_id: int = Query(...),
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    require_project(db, project_id, user)
     db_doc = models.Document(
         project_id=project_id,
         title=doc.title,
@@ -50,18 +53,23 @@ def create_document(
 
 
 @router.get("/{doc_id}", response_model=schemas.DocumentOut)
-def get_document(doc_id: int, db: Session = Depends(get_db)):
-    doc = db.query(models.Document).options(subqueryload(models.Document.tasks)).filter(models.Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+def get_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    doc = require_document(db, doc_id, user, options=[subqueryload(models.Document.tasks)])
     return _doc_out(doc)
 
 
 @router.put("/{doc_id}", response_model=schemas.DocumentOut)
-def update_document(doc_id: int, update: schemas.DocumentUpdate, db: Session = Depends(get_db)):
-    doc = db.query(models.Document).options(subqueryload(models.Document.tasks)).filter(models.Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+def update_document(
+    doc_id: int,
+    update: schemas.DocumentUpdate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    doc = require_document(db, doc_id, user, options=[subqueryload(models.Document.tasks)])
     changes = update.model_dump(exclude_unset=True)
     for key, value in changes.items():
         setattr(doc, key, value)
@@ -72,10 +80,12 @@ def update_document(doc_id: int, update: schemas.DocumentUpdate, db: Session = D
 
 
 @router.delete("/{doc_id}")
-def delete_document(doc_id: int, db: Session = Depends(get_db)):
-    doc = db.query(models.Document).options(subqueryload(models.Document.tasks)).filter(models.Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+def delete_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    doc = require_document(db, doc_id, user, options=[subqueryload(models.Document.tasks)])
     doc.tasks.clear()
     db.delete(doc)
     db.commit()
@@ -83,6 +93,7 @@ def delete_document(doc_id: int, db: Session = Depends(get_db)):
 
 
 def _doc_out(doc: models.Document) -> schemas.DocumentOut:
+    tasks = [t for t in doc.tasks if t.project_id == doc.project_id]
     return schemas.DocumentOut(
         id=doc.id,
         project_id=doc.project_id,
@@ -98,6 +109,6 @@ def _doc_out(doc: models.Document) -> schemas.DocumentOut:
                 title=t.title, status=t.status, priority=t.priority,
                 category=t.category, stage_id=t.stage_id, parent_id=t.parent_id,
             )
-            for t in doc.tasks
+            for t in tasks
         ],
     )

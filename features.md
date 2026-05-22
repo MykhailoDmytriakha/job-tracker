@@ -4,6 +4,21 @@ How each feature works. Spec for current state + planned behavior.
 
 ---
 
+## Authentication And Data Isolation
+
+- Google login identifies the current user when OAuth is configured
+- Local development without Google OAuth uses the shared local-dev data path only when backend `ALLOW_UNAUTHENTICATED=1` is explicitly set
+- If backend `GOOGLE_CLIENT_ID` is empty and `ALLOW_UNAUTHENTICATED` is not enabled, protected API requests fail closed with `503 Authentication is not configured`
+- Projects are user-owned in authenticated environments
+- `/api/projects` returns only the current user's projects
+- Newly created projects are assigned to the current user
+- All project-scoped entities (tasks, docs, contacts, companies, categories, activities, meetings, dashboard, board, search) must verify the requested project belongs to the current user before returning data
+- Direct-ID endpoints must not expose whether another user's task/doc/contact/company exists; they return `404`
+- Legacy projects without `user_id` are hidden from authenticated users unless `LEGACY_PROJECT_OWNER_EMAIL` or `LEGACY_PROJECT_OWNER_ID` explicitly names the owner for a controlled claim
+- Legacy cross-owner dependency edges and cross-project entity links are ignored by read serializers and cleaned by migrations where possible
+
+---
+
 ## Task CRUD
 
 ### Create
@@ -256,12 +271,22 @@ Three options: Light, Dark, System (auto)
 - Production auth is enabled when both frontend and backend Google client IDs are configured:
   - Frontend uses `VITE_GOOGLE_CLIENT_ID`
   - Backend uses `GOOGLE_CLIENT_ID`
-- Local dev skips auth when no frontend Google client ID is configured and creates a synthetic local user.
+- Local dev skips auth when no frontend Google client ID is configured and creates a synthetic local user; the backend no-auth passthrough must also be explicitly enabled with `ALLOW_UNAUTHENTICATED=1` when `GOOGLE_CLIENT_ID` is empty.
+- If `GOOGLE_CLIENT_ID` is empty without `ALLOW_UNAUTHENTICATED=1`, protected backend routes return `503 Authentication is not configured` instead of exposing unscoped global data.
 - Login route renders the official Google Identity Services button through `@react-oauth/google`.
 - Successful Google sign-in returns a Google ID token to the browser, posts it to `/api/auth/google`, verifies it on the backend, and stores the app JWT in `localStorage`.
 - Google button sign-in enables FedCM button flow for supported Chrome versions, reducing dependence on popup windows when the browser can mediate the identity flow.
 - If Google Identity Services cannot load or the popup/button flow is blocked by browser settings, extensions, or content blockers, the login screen shows a direct recovery message instead of a generic failure.
 - Profile route can create personal API tokens for agent/CLI access; tokens are shown once and stored hashed.
+
+### Admin Stages
+
+- Stages are intentionally global: they define the shared kanban column template used by board and task views.
+- Reading stages stays open through `GET /api/stages/`.
+- Mutating stages is global state mutation. `POST /api/stages/`, `PUT /api/stages/{id}`, `DELETE /api/stages/{id}`, and `POST /api/stages/reorder` require the current user ID to match `JOB_TRACKER_ADMIN_USER_ID`.
+- In authenticated deployments, `JOB_TRACKER_ADMIN_USER_ID` must be set before anyone can mutate stages; if it is unset, authenticated users receive `403 Admin access required`.
+- If `JOB_TRACKER_ADMIN_USER_ID` is configured and no current user is present, stage mutation returns `401 Not authenticated`; if a different user is present, it returns `403 Admin access required`.
+- Local development stage mutation stays open only when `ALLOW_UNAUTHENTICATED=1` is enabled and both `JOB_TRACKER_ADMIN_USER_ID` and backend `GOOGLE_CLIENT_ID` are unset.
 
 ---
 

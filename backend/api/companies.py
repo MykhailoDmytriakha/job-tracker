@@ -5,6 +5,8 @@ from typing import Optional
 
 from ..database import get_db
 from .. import models, schemas
+from ..authz import require_company, require_project
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
 
@@ -15,7 +17,9 @@ def list_companies(
     q: Optional[str] = None,
     domain: Optional[str] = None,
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
+    require_project(db, project_id, user)
     query = db.query(models.Company).filter(models.Company.project_id == project_id)
     if q:
         query = query.filter(
@@ -33,10 +37,9 @@ def create_company(
     company: schemas.CompanyCreate,
     project_id: int = Query(...),
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    require_project(db, project_id, user)
     db_company = models.Company(project_id=project_id, **company.model_dump())
     db.add(db_company)
     db.commit()
@@ -57,18 +60,33 @@ def create_company(
 
 
 @router.get("/{company_id}", response_model=schemas.CompanyOut)
-def get_company(company_id: int, db: Session = Depends(get_db)):
-    company = db.query(models.Company).options(subqueryload(models.Company.tasks), subqueryload(models.Company.contacts)).filter(models.Company.id == company_id).first()
-    if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
+def get_company(
+    company_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    company = require_company(
+        db,
+        company_id,
+        user,
+        options=[subqueryload(models.Company.tasks), subqueryload(models.Company.contacts)],
+    )
     return _company_out(company)
 
 
 @router.put("/{company_id}", response_model=schemas.CompanyOut)
-def update_company(company_id: int, update: schemas.CompanyUpdate, db: Session = Depends(get_db)):
-    company = db.query(models.Company).options(subqueryload(models.Company.tasks), subqueryload(models.Company.contacts)).filter(models.Company.id == company_id).first()
-    if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
+def update_company(
+    company_id: int,
+    update: schemas.CompanyUpdate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    company = require_company(
+        db,
+        company_id,
+        user,
+        options=[subqueryload(models.Company.tasks), subqueryload(models.Company.contacts)],
+    )
     for key, value in update.model_dump(exclude_unset=True).items():
         setattr(company, key, value)
     company.updated_at = datetime.now(timezone.utc)
@@ -78,10 +96,17 @@ def update_company(company_id: int, update: schemas.CompanyUpdate, db: Session =
 
 
 @router.delete("/{company_id}")
-def delete_company(company_id: int, db: Session = Depends(get_db)):
-    company = db.query(models.Company).options(subqueryload(models.Company.tasks), subqueryload(models.Company.contacts)).filter(models.Company.id == company_id).first()
-    if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
+def delete_company(
+    company_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    company = require_company(
+        db,
+        company_id,
+        user,
+        options=[subqueryload(models.Company.tasks), subqueryload(models.Company.contacts)],
+    )
     # Clear contact links
     for c in company.contacts:
         c.company_id = None
@@ -92,6 +117,8 @@ def delete_company(company_id: int, db: Session = Depends(get_db)):
 
 
 def _company_out(company: models.Company) -> schemas.CompanyOut:
+    contacts = [c for c in company.contacts if c.project_id == company.project_id]
+    tasks = [t for t in company.tasks if t.project_id == company.project_id]
     return schemas.CompanyOut(
         id=company.id,
         project_id=company.project_id,
@@ -112,7 +139,7 @@ def _company_out(company: models.Company) -> schemas.CompanyOut:
                 contact_type=c.contact_type, email=c.email,
                 updated_at=c.updated_at,
             )
-            for c in company.contacts
+            for c in contacts
         ],
         tasks=[
             schemas.TaskBrief(
@@ -120,6 +147,6 @@ def _company_out(company: models.Company) -> schemas.CompanyOut:
                 title=t.title, status=t.status, priority=t.priority,
                 category=t.category, stage_id=t.stage_id, parent_id=t.parent_id,
             )
-            for t in company.tasks
+            for t in tasks
         ],
     )

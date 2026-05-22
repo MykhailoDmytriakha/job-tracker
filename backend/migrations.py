@@ -6,6 +6,7 @@ PostgreSQL gets correct schema from create_all() on first run.
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -31,6 +32,9 @@ def run_migrations(engine):
             if "timezone" not in user_cols:
                 with engine.begin() as conn:
                     conn.execute(text("ALTER TABLE users ADD COLUMN timezone VARCHAR"))
+        _backfill_legacy_project_owner(engine)
+        _remove_cross_owner_dependencies(engine)
+        _remove_cross_project_links(engine)
         _migrate_meetings_to_utc(engine, inspector, tables)
         return
 
@@ -79,6 +83,10 @@ def run_migrations(engine):
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE projects ADD COLUMN user_id INTEGER REFERENCES users(id)"))
 
+    _backfill_legacy_project_owner(engine)
+    _remove_cross_owner_dependencies(engine)
+    _remove_cross_project_links(engine)
+
     # Date normalization: SQLite stores dates as strings
     if "tasks" in tables:
         date_columns = ["follow_up_date", "due_date", "next_checkpoint", "applied_at"]
@@ -96,6 +104,215 @@ def run_migrations(engine):
 # Mykhailo (sole user at the time of fix) was in America/Los_Angeles when the
 # affected rows were created. ZoneInfo handles DST automatically per-row.
 _LEGACY_MEETING_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def _backfill_legacy_project_owner(engine):
+    """Assign pre-auth projects only when an explicit legacy owner is configured.
+
+    Before multi-user scoping, projects were global and had no owner. There is
+    no per-row signal that can reconstruct ownership. Guessing the owner can
+    leak data, so unauthenticated legacy rows stay inaccessible unless the
+    deployment names the intended owner explicitly.
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if "projects" not in tables or "users" not in tables:
+        return
+
+    project_cols = {col["name"] for col in inspector.get_columns("projects")}
+    if "user_id" not in project_cols:
+        return
+
+    try:
+        with engine.begin() as conn:
+            owner_id = os.environ.get("LEGACY_PROJECT_OWNER_ID", "").strip()
+            owner_email = os.environ.get("LEGACY_PROJECT_OWNER_EMAIL", "").strip().lower()
+            if owner_id:
+                try:
+                    owner_id_int = int(owner_id)
+                except ValueError:
+                    logger.error("LEGACY_PROJECT_OWNER_ID must be an integer")
+                    return
+                owner = conn.execute(
+                    text("SELECT id FROM users WHERE id = :id"),
+                    {"id": owner_id_int},
+                ).fetchone()
+            elif owner_email:
+                owner = conn.execute(
+                    text("SELECT id FROM users WHERE lower(email) = :email"),
+                    {"email": owner_email},
+                ).fetchone()
+            else:
+                unowned_count = conn.execute(
+                    text("SELECT count(*) FROM projects WHERE user_id IS NULL")
+                ).scalar() or 0
+                if unowned_count:
+                    logger.warning(
+                        "%d legacy unowned project(s) remain inaccessible; set LEGACY_PROJECT_OWNER_EMAIL or LEGACY_PROJECT_OWNER_ID to claim them",
+                        unowned_count,
+                    )
+                return
+            if owner is None:
+                return
+            result = conn.execute(
+                text("UPDATE projects SET user_id = :user_id WHERE user_id IS NULL"),
+                {"user_id": owner[0]},
+            )
+            rowcount = result.rowcount if result.rowcount and result.rowcount > 0 else 0
+            if rowcount:
+                logger.warning(
+                    "Assigned %d legacy unowned project(s) to user id %s",
+                    rowcount,
+                    owner[0],
+                )
+    except Exception as exc:
+        logger.error("legacy project owner backfill failed: %s", exc)
+
+
+def _remove_cross_owner_dependencies(engine):
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if not {"task_dependencies", "tasks", "projects"}.issubset(tables):
+        return
+
+    project_cols = {col["name"] for col in inspector.get_columns("projects")}
+    if "user_id" not in project_cols:
+        return
+
+    owner_mismatch = "blocked_project.user_id IS NOT blocker_project.user_id"
+    if not is_sqlite:
+        owner_mismatch = "blocked_project.user_id IS DISTINCT FROM blocker_project.user_id"
+
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(text(f"""
+                DELETE FROM task_dependencies
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM tasks blocked
+                    JOIN projects blocked_project ON blocked_project.id = blocked.project_id
+                    JOIN tasks blocker ON blocker.id = task_dependencies.depends_on_id
+                    JOIN projects blocker_project ON blocker_project.id = blocker.project_id
+                    WHERE blocked.id = task_dependencies.task_id
+                      AND {owner_mismatch}
+                )
+            """))
+            rowcount = result.rowcount if result.rowcount and result.rowcount > 0 else 0
+            if rowcount:
+                logger.warning("Removed %d cross-owner dependency edge(s)", rowcount)
+    except Exception as exc:
+        logger.error("cross-owner dependency cleanup failed: %s", exc)
+
+
+def _remove_cross_project_links(engine):
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+
+    cleanup_statements: list[tuple[str, str]] = []
+    if {"task_documents", "tasks", "documents"}.issubset(tables):
+        cleanup_statements.append((
+            "task-document",
+            """
+            DELETE FROM task_documents
+            WHERE EXISTS (
+                SELECT 1
+                FROM tasks t
+                JOIN documents d ON d.id = task_documents.document_id
+                WHERE t.id = task_documents.task_id
+                  AND t.project_id != d.project_id
+            )
+            """,
+        ))
+    if {"task_contacts", "tasks", "contacts"}.issubset(tables):
+        cleanup_statements.append((
+            "task-contact",
+            """
+            DELETE FROM task_contacts
+            WHERE EXISTS (
+                SELECT 1
+                FROM tasks t
+                JOIN contacts c ON c.id = task_contacts.contact_id
+                WHERE t.id = task_contacts.task_id
+                  AND t.project_id != c.project_id
+            )
+            """,
+        ))
+    if {"task_companies", "tasks", "companies"}.issubset(tables):
+        cleanup_statements.append((
+            "task-company",
+            """
+            DELETE FROM task_companies
+            WHERE EXISTS (
+                SELECT 1
+                FROM tasks t
+                JOIN companies c ON c.id = task_companies.company_id
+                WHERE t.id = task_companies.task_id
+                  AND t.project_id != c.project_id
+            )
+            """,
+        ))
+    if {"contacts", "companies"}.issubset(tables):
+        cleanup_statements.append((
+            "contact-company",
+            """
+            UPDATE contacts
+            SET company_id = NULL
+            WHERE company_id IS NOT NULL
+              AND EXISTS (
+                SELECT 1
+                FROM companies c
+                WHERE c.id = contacts.company_id
+                  AND c.project_id != contacts.project_id
+              )
+            """,
+        ))
+    if {"meetings", "tasks", "documents"}.issubset(tables):
+        meeting_cols = {col["name"] for col in inspector.get_columns("meetings")}
+        if "brief_doc_id" in meeting_cols:
+            cleanup_statements.append((
+                "meeting-brief-doc",
+                """
+                UPDATE meetings
+                SET brief_doc_id = NULL
+                WHERE brief_doc_id IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1
+                    FROM tasks t
+                    JOIN documents d ON d.id = meetings.brief_doc_id
+                    WHERE t.id = meetings.task_id
+                      AND t.project_id != d.project_id
+                  )
+                """,
+            ))
+        if "notes_doc_id" in meeting_cols:
+            cleanup_statements.append((
+                "meeting-notes-doc",
+                """
+                UPDATE meetings
+                SET notes_doc_id = NULL
+                WHERE notes_doc_id IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1
+                    FROM tasks t
+                    JOIN documents d ON d.id = meetings.notes_doc_id
+                    WHERE t.id = meetings.task_id
+                      AND t.project_id != d.project_id
+                  )
+                """,
+            ))
+
+    if not cleanup_statements:
+        return
+
+    try:
+        with engine.begin() as conn:
+            for label, statement in cleanup_statements:
+                result = conn.execute(text(statement))
+                rowcount = result.rowcount if result.rowcount and result.rowcount > 0 else 0
+                if rowcount:
+                    logger.warning("Cleaned %d invalid %s link(s)", rowcount, label)
+    except Exception as exc:
+        logger.error("cross-project link cleanup failed: %s", exc)
 
 
 def _migrate_meetings_to_utc(engine, inspector, tables):

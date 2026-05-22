@@ -1,13 +1,18 @@
 from fastapi import APIRouter, Depends, Header
-from sqlalchemy.orm import Session, joinedload, subqueryload
+from sqlalchemy.orm import Session, contains_eager, joinedload, subqueryload
 from sqlalchemy import func
 from datetime import datetime, timezone, timedelta, date as date_type
 
 from ..database import get_db
 from .. import models, schemas
 from ..dependencies import get_unresolved_blocked_ids
+from ..authz import require_project, scope_tasks
 from ..usertime import user_today
-from .meetings import _to_context as _meeting_to_context
+from .meetings import (
+    _to_context as _meeting_to_context,
+    _valid_doc_ids_for_meetings,
+)
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -32,13 +37,24 @@ def _last_activity(t: models.Task):
 
 
 @router.get("/", response_model=schemas.DashboardView)
-def get_dashboard(project_id: int = None, db: Session = Depends(get_db), x_timezone: str | None = Header(None)):
+def get_dashboard(
+    project_id: int = None,
+    db: Session = Depends(get_db),
+    x_timezone: str | None = Header(None),
+    user: models.User | None = Depends(get_current_user),
+):
+    if project_id is not None:
+        require_project(db, project_id, user)
     now = datetime.now(timezone.utc)
     today = user_today(x_timezone)
     week_end_date = today + timedelta(days=7)
 
     # Blocked task IDs
-    blocked_ids = get_unresolved_blocked_ids(db)
+    blocked_ids = get_unresolved_blocked_ids(
+        db,
+        project_id=project_id,
+        user_id=user.id if user is not None else None,
+    )
 
     # All active root tasks - EAGER LOAD relationships to avoid N+1
     q = (
@@ -47,10 +63,15 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db), x_timez
             subqueryload(models.Task.activities),
             subqueryload(models.Task.subtask_items),
             subqueryload(models.Task.checklist_items),
-            joinedload(models.Task.project),
         )
         .filter(models.Task.status.notin_(["done", "closed"]))
         .filter(models.Task.parent_id.is_(None))
+    )
+    q = scope_tasks(q, user)
+    q = q.options(
+        contains_eager(models.Task.project)
+        if user is not None
+        else joinedload(models.Task.project)
     )
     if project_id is not None:
         q = q.filter(models.Task.project_id == project_id)
@@ -153,17 +174,34 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db), x_timez
     meetings_q = (
         db.query(models.Meeting)
         .options(
-            joinedload(models.Meeting.task),
             joinedload(models.Meeting.cockpit_sections),
         )
         .filter(models.Meeting.status == "scheduled")
         .filter(models.Meeting.scheduled_at.isnot(None))
         .filter(models.Meeting.scheduled_at >= now_naive)
     )
-    if project_id is not None:
+    meetings_joined_task = False
+    if user is not None:
         meetings_q = meetings_q.join(
-            models.Task, models.Meeting.task_id == models.Task.id
-        ).filter(models.Task.project_id == project_id)
+            models.Task,
+            models.Meeting.task_id == models.Task.id,
+        ).join(
+            models.Project,
+            models.Task.project_id == models.Project.id,
+        ).filter(models.Project.user_id == user.id)
+        meetings_joined_task = True
+    if project_id is not None:
+        if user is None:
+            meetings_q = meetings_q.join(
+                models.Task, models.Meeting.task_id == models.Task.id
+            )
+            meetings_joined_task = True
+        meetings_q = meetings_q.filter(models.Task.project_id == project_id)
+    meetings_q = meetings_q.options(
+        contains_eager(models.Meeting.task)
+        if meetings_joined_task
+        else joinedload(models.Meeting.task)
+    )
 
     all_upcoming_meetings = meetings_q.all()
     all_upcoming_meetings.sort(
@@ -174,6 +212,7 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db), x_timez
         1 for m in all_upcoming_meetings if m.scheduled_at and m.scheduled_at <= week_end_naive
     )
     meetings_next_list = all_upcoming_meetings[:5]
+    meeting_doc_ids = _valid_doc_ids_for_meetings(db, meetings_next_list)
 
 
     def brief(t):
@@ -220,5 +259,8 @@ def get_dashboard(project_id: int = None, db: Session = Depends(get_db), x_timez
         today=[brief(t) for t in today_tasks],
         upcoming=[brief(t) for t in upcoming_tasks],
         recurring=[brief(t) for t in recurring_tasks],
-        meetings_next=[_meeting_to_context(m) for m in meetings_next_list],
+        meetings_next=[
+            _meeting_to_context(m, db, meeting_doc_ids)
+            for m in meetings_next_list
+        ],
     )

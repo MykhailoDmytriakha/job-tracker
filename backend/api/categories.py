@@ -4,6 +4,8 @@ from sqlalchemy import func
 
 from ..database import get_db
 from .. import models, schemas
+from ..authz import require_category, require_project
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
@@ -24,7 +26,12 @@ def _with_count(db: Session, cat: models.Category) -> dict:
 
 
 @router.get("/")
-def list_categories(project_id: int = Query(...), db: Session = Depends(get_db)):
+def list_categories(
+    project_id: int = Query(...),
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_project(db, project_id, user)
     cats = (
         db.query(models.Category)
         .filter(models.Category.project_id == project_id)
@@ -39,7 +46,9 @@ def create_category(
     cat: schemas.CategoryCreate,
     project_id: int = Query(...),
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
+    require_project(db, project_id, user)
     existing = (
         db.query(models.Category)
         .filter(models.Category.project_id == project_id, models.Category.name == cat.name)
@@ -70,10 +79,9 @@ def rename_category(
     cat_id: int,
     update: schemas.CategoryCreate,
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    cat = db.query(models.Category).filter(models.Category.id == cat_id).first()
-    if not cat:
-        raise HTTPException(status_code=404, detail="Category not found")
+    cat = require_category(db, cat_id, user)
 
     old_name = cat.name
     new_name = update.name.strip()
@@ -95,10 +103,13 @@ def rename_category(
 
 
 @router.delete("/{cat_id}")
-def delete_category(cat_id: int, force: bool = Query(False), db: Session = Depends(get_db)):
-    cat = db.query(models.Category).filter(models.Category.id == cat_id).first()
-    if not cat:
-        raise HTTPException(status_code=404, detail="Category not found")
+def delete_category(
+    cat_id: int,
+    force: bool = Query(False),
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    cat = require_category(db, cat_id, user)
 
     task_count = db.query(func.count(models.Task.id)).filter(
         models.Task.category == cat.name,

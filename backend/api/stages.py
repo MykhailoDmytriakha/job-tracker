@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from .. import models, schemas
+from ..authz import require_admin
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/stages", tags=["stages"])
 
@@ -18,7 +20,12 @@ def list_stages(db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=schemas.StageOut, status_code=201)
-def create_stage(stage: schemas.StageCreate, db: Session = Depends(get_db)):
+def create_stage(
+    stage: schemas.StageCreate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_admin(user)
     db_stage = models.Stage(**stage.model_dump())
     db.add(db_stage)
     db.commit()
@@ -27,7 +34,13 @@ def create_stage(stage: schemas.StageCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{stage_id}", response_model=schemas.StageOut)
-def update_stage(stage_id: int, stage: schemas.StageUpdate, db: Session = Depends(get_db)):
+def update_stage(
+    stage_id: int,
+    stage: schemas.StageUpdate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_admin(user)
     db_stage = db.query(models.Stage).filter(models.Stage.id == stage_id).first()
     if not db_stage:
         raise HTTPException(status_code=404, detail="Stage not found")
@@ -39,7 +52,12 @@ def update_stage(stage_id: int, stage: schemas.StageUpdate, db: Session = Depend
 
 
 @router.delete("/{stage_id}")
-def delete_stage(stage_id: int, db: Session = Depends(get_db)):
+def delete_stage(
+    stage_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_admin(user)
     db_stage = db.query(models.Stage).filter(models.Stage.id == stage_id).first()
     if not db_stage:
         raise HTTPException(status_code=404, detail="Stage not found")
@@ -54,7 +72,12 @@ def delete_stage(stage_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/reorder")
-def reorder_stages(order: list[dict], db: Session = Depends(get_db)):
+def reorder_stages(
+    order: list[dict],
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_admin(user)
     for item in order:
         stage = db.query(models.Stage).filter(models.Stage.id == item["id"]).first()
         if stage:

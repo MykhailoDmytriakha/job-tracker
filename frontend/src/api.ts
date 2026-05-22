@@ -20,6 +20,7 @@ export function setAuthToken(token: string) {
 
 export function clearAuthToken() {
   localStorage.removeItem("token");
+  localStorage.removeItem("activeProjectId");
 }
 
 const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -579,8 +580,8 @@ export const meetingsApi = {
   getCockpit: (taskId: number, meetingId: number) =>
     request<CockpitSection[]>(`/tasks/${taskId}/meetings/${meetingId}/cockpit`),
   saveCockpit: (taskId: number, meetingId: number, sections: { section_key: string; content: string; position: number }[]) =>
-    request<CockpitSection[]>(`/tasks/${taskId}/meetings/${meetingId}/cockpit`, {
-      method: "PUT",
+    request<CockpitSection[]>(`/tasks/${taskId}/meetings/${meetingId}/cockpit/seed`, {
+      method: "POST",
       body: JSON.stringify(sections),
     }),
   saveCockpitSection: (taskId: number, meetingId: number, sectionKey: string, content: string) =>

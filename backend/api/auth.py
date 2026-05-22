@@ -17,9 +17,22 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-in-production")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_ID_ENV_VAR = "GOOGLE_CLIENT_ID"
+ALLOW_UNAUTHENTICATED_ENV_VAR = "ALLOW_UNAUTHENTICATED"
+LEGACY_PROJECT_OWNER_EMAIL = os.environ.get("LEGACY_PROJECT_OWNER_EMAIL", "").strip().lower()
+LEGACY_PROJECT_OWNER_ID = os.environ.get("LEGACY_PROJECT_OWNER_ID", "").strip()
 
 TOKEN_PREFIX = "jt_"
+TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
+
+
+def _google_client_id() -> str:
+    return os.environ.get(GOOGLE_CLIENT_ID_ENV_VAR, "").strip()
+
+
+def _allow_unauthenticated() -> bool:
+    value = os.environ.get(ALLOW_UNAUTHENTICATED_ENV_VAR, "")
+    return value.strip().lower() in TRUTHY_ENV_VALUES
 
 
 def create_access_token(user_id: int, email: str) -> str:
@@ -36,13 +49,37 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _claim_legacy_unowned_projects(db: Session, user: models.User) -> None:
+    """Claim pre-auth projects only when an explicit legacy owner matches."""
+    if LEGACY_PROJECT_OWNER_ID:
+        try:
+            if user.id != int(LEGACY_PROJECT_OWNER_ID):
+                return
+        except ValueError:
+            return
+    elif LEGACY_PROJECT_OWNER_EMAIL:
+        if user.email.lower() != LEGACY_PROJECT_OWNER_EMAIL:
+            return
+    else:
+        return
+
+    unowned = db.query(models.Project).filter(models.Project.user_id.is_(None)).all()
+    if not unowned:
+        return
+    for project in unowned:
+        project.user_id = user.id
+    db.commit()
+
+
 def get_current_user(
     db: Session = Depends(get_db),
     authorization: str | None = Header(None),
 ) -> models.User | None:
-    """Extract user from JWT or PAT token. Returns None if auth not configured (local dev)."""
-    if not GOOGLE_CLIENT_ID:
-        return None
+    """Extract user from JWT or PAT token. Returns None only in explicit no-auth dev mode."""
+    if not _google_client_id():
+        if _allow_unauthenticated():
+            return None
+        raise HTTPException(status_code=503, detail="Authentication is not configured")
 
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -81,14 +118,15 @@ def get_current_user(
 
 @router.post("/google", response_model=schemas.TokenResponse)
 def google_login(body: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
-    if not GOOGLE_CLIENT_ID:
+    google_client_id = _google_client_id()
+    if not google_client_id:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
 
     try:
         idinfo = id_token.verify_oauth2_token(
             body.credential,
             google_requests.Request(),
-            GOOGLE_CLIENT_ID,
+            google_client_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=401, detail=f"Invalid Google token: {e}")
@@ -121,6 +159,7 @@ def google_login(body: schemas.GoogleAuthRequest, db: Session = Depends(get_db))
 
     db.commit()
     db.refresh(user)
+    _claim_legacy_unowned_projects(db, user)
 
     token = create_access_token(user.id, user.email)
     return schemas.TokenResponse(access_token=token)

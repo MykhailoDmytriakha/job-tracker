@@ -5,6 +5,8 @@ from typing import Optional
 
 from ..database import get_db
 from .. import models, schemas
+from ..authz import require_contact, require_project
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/contacts", tags=["contacts"])
 
@@ -15,7 +17,9 @@ def list_contacts(
     q: Optional[str] = None,
     contact_type: Optional[str] = None,
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
+    require_project(db, project_id, user)
     query = db.query(models.Contact).filter(models.Contact.project_id == project_id)
     if q:
         query = query.filter(
@@ -34,10 +38,9 @@ def create_contact(
     contact: schemas.ContactCreate,
     project_id: int = Query(...),
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    require_project(db, project_id, user)
     db_contact = models.Contact(project_id=project_id, **contact.model_dump())
     db.add(db_contact)
     db.commit()
@@ -46,18 +49,33 @@ def create_contact(
 
 
 @router.get("/{contact_id}", response_model=schemas.ContactOut)
-def get_contact(contact_id: int, db: Session = Depends(get_db)):
-    contact = db.query(models.Contact).options(subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)).filter(models.Contact.id == contact_id).first()
-    if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+def get_contact(
+    contact_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    contact = require_contact(
+        db,
+        contact_id,
+        user,
+        options=[subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)],
+    )
     return _contact_out(contact)
 
 
 @router.put("/{contact_id}", response_model=schemas.ContactOut)
-def update_contact(contact_id: int, update: schemas.ContactUpdate, db: Session = Depends(get_db)):
-    contact = db.query(models.Contact).options(subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)).filter(models.Contact.id == contact_id).first()
-    if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+def update_contact(
+    contact_id: int,
+    update: schemas.ContactUpdate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    contact = require_contact(
+        db,
+        contact_id,
+        user,
+        options=[subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)],
+    )
     for key, value in update.model_dump(exclude_unset=True).items():
         setattr(contact, key, value)
     contact.updated_at = datetime.now(timezone.utc)
@@ -67,10 +85,17 @@ def update_contact(contact_id: int, update: schemas.ContactUpdate, db: Session =
 
 
 @router.delete("/{contact_id}")
-def delete_contact(contact_id: int, db: Session = Depends(get_db)):
-    contact = db.query(models.Contact).options(subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)).filter(models.Contact.id == contact_id).first()
-    if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+def delete_contact(
+    contact_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    contact = require_contact(
+        db,
+        contact_id,
+        user,
+        options=[subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)],
+    )
     contact.tasks.clear()
     db.delete(contact)
     db.commit()
@@ -85,10 +110,14 @@ def add_interaction(
     contact_id: int,
     interaction: schemas.InteractionCreate,
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    contact = db.query(models.Contact).options(subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)).filter(models.Contact.id == contact_id).first()
-    if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+    contact = require_contact(
+        db,
+        contact_id,
+        user,
+        options=[subqueryload(models.Contact.tasks), subqueryload(models.Contact.interactions)],
+    )
     db_item = models.Interaction(
         contact_id=contact_id,
         date=interaction.date or datetime.now(timezone.utc),
@@ -104,7 +133,13 @@ def add_interaction(
 
 
 @router.delete("/{contact_id}/interactions/{interaction_id}")
-def delete_interaction(contact_id: int, interaction_id: int, db: Session = Depends(get_db)):
+def delete_interaction(
+    contact_id: int,
+    interaction_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_contact(db, contact_id, user)
     item = (
         db.query(models.Interaction)
         .filter(models.Interaction.id == interaction_id, models.Interaction.contact_id == contact_id)
@@ -118,6 +153,7 @@ def delete_interaction(contact_id: int, interaction_id: int, db: Session = Depen
 
 
 def _contact_out(contact: models.Contact) -> schemas.ContactOut:
+    tasks = [t for t in contact.tasks if t.project_id == contact.project_id]
     return schemas.ContactOut(
         id=contact.id,
         project_id=contact.project_id,
@@ -139,7 +175,7 @@ def _contact_out(contact: models.Contact) -> schemas.ContactOut:
                 title=t.title, status=t.status, priority=t.priority,
                 category=t.category, stage_id=t.stage_id, parent_id=t.parent_id,
             )
-            for t in contact.tasks
+            for t in tasks
         ],
         interactions=[
             schemas.InteractionOut(

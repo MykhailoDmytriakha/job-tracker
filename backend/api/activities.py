@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..database import get_db
 from .. import models, schemas
+from ..authz import require_project
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/activities", tags=["activities"])
 
@@ -20,7 +22,9 @@ def list_activities(
     limit: int = Query(200, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
+    require_project(db, project_id, user)
     query = (
         db.query(models.Activity)
         .options(joinedload(models.Activity.task).joinedload(models.Task.project))

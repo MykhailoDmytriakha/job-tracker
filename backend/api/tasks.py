@@ -1,15 +1,17 @@
 import difflib
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Header
-from sqlalchemy.orm import Session, joinedload, subqueryload
+from sqlalchemy.orm import Session, contains_eager, joinedload, subqueryload
 from sqlalchemy import text
 from datetime import datetime, timezone, date
-from typing import Optional
+from typing import Iterable, Optional
 
 from ..database import get_db
 from .. import models, schemas
 from ..dependencies import get_unresolved_blocked_ids, is_task_blocked
+from ..authz import require_company, require_contact, require_document, require_project, require_task, scope_tasks
 from ..usertime import user_today
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -54,12 +56,147 @@ def _description_diff(old: str, new: str) -> str:
     return "\n".join(result_lines)
 
 
-def _get_blocked_ids(db: Session) -> set[int]:
-    return get_unresolved_blocked_ids(db)
+def _get_blocked_ids(
+    db: Session,
+    project_id: int | None = None,
+    user: models.User | None = None,
+) -> set[int]:
+    return get_unresolved_blocked_ids(
+        db,
+        project_id=project_id,
+        user_id=user.id if user is not None else None,
+    )
 
 
-def _is_task_blocked(db: Session, task_id: int) -> bool:
-    return is_task_blocked(db, task_id)
+def _is_task_blocked(
+    db: Session,
+    task_id: int,
+    user: models.User | None = None,
+) -> bool:
+    return is_task_blocked(db, task_id, user_id=user.id if user is not None else None)
+
+
+def _is_task_visible_to_user(t: models.Task, user: models.User | None) -> bool:
+    return user is None or (t.project is not None and t.project.user_id == user.id)
+
+
+def _visible_tasks(tasks: list[models.Task], user: models.User | None) -> list[models.Task]:
+    return [t for t in tasks if _is_task_visible_to_user(t, user)]
+
+
+def _same_project(items, project_id: int):
+    return [item for item in items if getattr(item, "project_id", None) == project_id]
+
+
+def _document_id_if_same_project(
+    db: Session,
+    doc_id: int | None,
+    project_id: int,
+    valid_doc_ids: set[tuple[int, int]] | None = None,
+) -> int | None:
+    if doc_id is None:
+        return None
+    if valid_doc_ids is not None:
+        return doc_id if (doc_id, project_id) in valid_doc_ids else None
+    exists = db.query(models.Document.id).filter(
+        models.Document.id == doc_id,
+        models.Document.project_id == project_id,
+    ).first()
+    return doc_id if exists else None
+
+
+def _valid_doc_ids_for_meetings(
+    db: Session,
+    meetings: Iterable[models.Meeting],
+    project_id: int,
+) -> set[tuple[int, int]]:
+    doc_ids = {
+        doc_id
+        for m in meetings
+        for doc_id in (m.brief_doc_id, m.notes_doc_id)
+        if doc_id is not None
+    }
+    if not doc_ids:
+        return set()
+    rows = (
+        db.query(models.Document.id, models.Document.project_id)
+        .filter(
+            models.Document.id.in_(doc_ids),
+            models.Document.project_id == project_id,
+        )
+        .all()
+    )
+    return {(doc_id, doc_project_id) for doc_id, doc_project_id in rows}
+
+
+def _meeting_out(
+    db: Session,
+    m: models.Meeting,
+    project_id: int,
+    valid_doc_ids: set[tuple[int, int]] | None = None,
+) -> schemas.MeetingOut:
+    return schemas.MeetingOut(
+        id=m.id,
+        task_id=m.task_id,
+        meeting_type=m.meeting_type,
+        scheduled_at=m.scheduled_at,
+        interviewer=m.interviewer,
+        platform=m.platform,
+        join_url=m.join_url,
+        status=m.status,
+        result=m.result,
+        brief_doc_id=_document_id_if_same_project(
+            db, m.brief_doc_id, project_id, valid_doc_ids
+        ),
+        notes_doc_id=_document_id_if_same_project(
+            db, m.notes_doc_id, project_id, valid_doc_ids
+        ),
+        notes=m.notes,
+        position=m.position,
+        cockpit_sections=[
+            schemas.CockpitSectionOut(
+                id=s.id,
+                meeting_id=s.meeting_id,
+                section_key=s.section_key,
+                content=s.content,
+                position=s.position,
+                created_at=s.created_at,
+                updated_at=s.updated_at,
+            )
+            for s in m.cockpit_sections
+        ],
+        created_at=m.created_at,
+        updated_at=m.updated_at,
+    )
+
+
+def _validate_parent_id(
+    db: Session,
+    parent_id: int | None,
+    project_id: int,
+    user: models.User | None,
+    task_id: int | None = None,
+) -> None:
+    if parent_id is None:
+        return
+    if task_id is not None and parent_id == task_id:
+        raise HTTPException(status_code=400, detail="Task cannot be its own parent")
+    parent = require_task(db, parent_id, user)
+    if parent.project_id != project_id:
+        raise HTTPException(status_code=400, detail="Parent task belongs to another project")
+
+
+def _validate_meeting_document_refs(
+    db: Session,
+    project_id: int,
+    doc_ids: Iterable[int | None],
+) -> None:
+    for doc_id in {d for d in doc_ids if d is not None}:
+        doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        if doc.project_id != project_id:
+            raise HTTPException(status_code=400, detail="Meeting document belongs to another project")
 
 
 def _check_circular(db: Session, task_id: int, depends_on_id: int) -> bool:
@@ -100,13 +237,22 @@ def list_tasks(
     search: Optional[str] = None,
     db: Session = Depends(get_db),
     x_timezone: str | None = Header(None),
+    user: models.User | None = Depends(get_current_user),
 ):
+    if project_id is not None:
+        require_project(db, project_id, user)
+
     query = db.query(models.Task).options(
         subqueryload(models.Task.activities),
         subqueryload(models.Task.subtask_items),
         subqueryload(models.Task.checklist_items),
         subqueryload(models.Task.meetings),
-        joinedload(models.Task.project),
+    )
+    query = scope_tasks(query, user)
+    query = query.options(
+        contains_eager(models.Task.project)
+        if user is not None
+        else joinedload(models.Task.project)
     )
     if project_id is not None:
         query = query.filter(models.Task.project_id == project_id)
@@ -173,7 +319,7 @@ def list_tasks(
         tasks_raw = query.filter(
             models.Task.status.notin_(["done", "closed"])
         ).order_by(models.Task.created_at.desc()).all()
-        blocked_ids = _get_blocked_ids(db)
+        blocked_ids = _get_blocked_ids(db, project_id=project_id, user=user)
 
         cadence_days_map = {"daily": 1, "weekly": 7, "biweekly": 14, "monthly": 30}
 
@@ -227,15 +373,21 @@ def list_tasks(
         return [_brief(t, t.id in blocked_ids) for t in tasks_raw if _is_attention(t)]
 
     tasks = query.order_by(models.Task.created_at.desc()).all()
-    blocked_ids = _get_blocked_ids(db)
+    blocked_ids = _get_blocked_ids(db, project_id=project_id, user=user)
     return [_brief(t, t.id in blocked_ids) for t in tasks]
 
 
 @router.get("/{task_id}", response_model=schemas.TaskOut)
-def get_task(task_id: int, db: Session = Depends(get_db)):
-    task = (
-        db.query(models.Task)
-        .options(
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(
+        db,
+        task_id,
+        user,
+        options=[
             subqueryload(models.Task.activities),
             subqueryload(models.Task.subtask_items),
             subqueryload(models.Task.checklist_items),
@@ -245,15 +397,13 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
             subqueryload(models.Task.companies),
             subqueryload(models.Task.blocked_by),
             subqueryload(models.Task.blocks),
-            joinedload(models.Task.project),
-        )
-        .filter(models.Task.id == task_id)
-        .first()
+            contains_eager(models.Task.project)
+            if user is not None
+            else joinedload(models.Task.project),
+        ],
     )
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    is_blocked = _is_task_blocked(db, task_id)
-    return _full(task, is_blocked)
+    is_blocked = _is_task_blocked(db, task_id, user)
+    return _full(db, task, is_blocked, user)
 
 
 # --- Create / Update / Delete ---
@@ -265,17 +415,16 @@ def create_task(
     project_id: int = Query(..., description="Project to create the task in"),
     force: bool = Query(False, description="Skip duplicate title check"),
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    # Validate project exists
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    require_project(db, project_id, user)
 
     data = task.model_dump()
     if data.get("status") == "waiting" and not data.get("follow_up_date"):
         raise HTTPException(
             status_code=422, detail="Waiting tasks must have a follow_up_date"
         )
+    _validate_parent_id(db, data.get("parent_id"), project_id, user)
 
     # Duplicate title check (case-insensitive, same project)
     if not force:
@@ -303,18 +452,21 @@ def create_task(
     log_activity(db, db_task.id, "created", f"Task created: {db_task.title}")
     db.commit()
     db.refresh(db_task)
-    return _full(db_task, False)
+    return _full(db, db_task, False, user)
 
 
 @router.put("/{task_id}", response_model=schemas.TaskOut)
 def update_task(
-    task_id: int, task: schemas.TaskUpdate, db: Session = Depends(get_db)
+    task_id: int,
+    task: schemas.TaskUpdate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    db_task = require_task(db, task_id, user)
 
     changes = task.model_dump(exclude_unset=True)
+    if "parent_id" in changes:
+        _validate_parent_id(db, changes["parent_id"], db_task.project_id, user, task_id=task_id)
 
     # Waiting enforcement
     new_status = changes.get("status")
@@ -342,6 +494,7 @@ def update_task(
         # Open child tasks (via parent_id)
         open_children = db.query(models.Task).filter(
             models.Task.parent_id == db_task.id,
+            models.Task.project_id == db_task.project_id,
             models.Task.status.notin_(["done", "closed"]),
         ).all()
         if open_children:
@@ -445,8 +598,8 @@ def update_task(
 
     db.commit()
     db.refresh(db_task)
-    is_blocked = _is_task_blocked(db, task_id)
-    return _full(db_task, is_blocked)
+    is_blocked = _is_task_blocked(db, task_id, user)
+    return _full(db, db_task, is_blocked, user)
 
 
 @router.delete("/{task_id}")
@@ -454,18 +607,19 @@ def delete_task(
     task_id: int,
     force: bool = Query(False),
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    db_task = require_task(db, task_id, user)
 
-    has_blockers = len(db_task.blocked_by) > 0
-    has_dependents = len(db_task.blocks) > 0
+    blocked_by = _visible_tasks(list(db_task.blocked_by), user)
+    blocks = _visible_tasks(list(db_task.blocks), user)
+    has_blockers = len(blocked_by) > 0
+    has_dependents = len(blocks) > 0
 
     # Middle of chain: both blockers and dependents - would break the chain
     if has_blockers and has_dependents:
-        blocker_names = ", ".join(f"#{d.id} {d.title}" for d in db_task.blocked_by[:3])
-        dependent_names = ", ".join(f"#{d.id} {d.title}" for d in db_task.blocks[:3])
+        blocker_names = ", ".join(f"#{d.id} {d.title}" for d in blocked_by[:3])
+        dependent_names = ", ".join(f"#{d.id} {d.title}" for d in blocks[:3])
         raise HTTPException(
             status_code=409,
             detail=(
@@ -478,22 +632,22 @@ def delete_task(
 
     # Leaf with dependents only (others depend on this) - warn, require force
     if has_dependents and not force:
-        dependent_names = ", ".join(f"#{d.id} {d.title}" for d in db_task.blocks)
+        dependent_names = ", ".join(f"#{d.id} {d.title}" for d in blocks)
         raise HTTPException(
             status_code=409,
             detail=(
-                f"This task blocks {len(db_task.blocks)} other task(s): {dependent_names}. "
+                f"This task blocks {len(blocks)} other task(s): {dependent_names}. "
                 f"Deleting will unblock them. Confirm to proceed."
             ),
         )
 
     # Leaf with blockers only (this depends on others) - warn, require force
     if has_blockers and not force:
-        blocker_names = ", ".join(f"#{d.id} {d.title}" for d in db_task.blocked_by)
+        blocker_names = ", ".join(f"#{d.id} {d.title}" for d in blocked_by)
         raise HTTPException(
             status_code=409,
             detail=(
-                f"This task is blocked by {len(db_task.blocked_by)} task(s): {blocker_names}. "
+                f"This task is blocked by {len(blocked_by)} task(s): {blocker_names}. "
                 f"Confirm to proceed."
             ),
         )
@@ -502,7 +656,10 @@ def delete_task(
     db_task.blocked_by.clear()
     db_task.blocks.clear()
     # Detach child tasks (via parent_id)
-    db.query(models.Task).filter(models.Task.parent_id == db_task.id).update(
+    db.query(models.Task).filter(
+        models.Task.parent_id == db_task.id,
+        models.Task.project_id == db_task.project_id,
+    ).update(
         {"parent_id": None}, synchronize_session="fetch"
     )
     for sub in list(db_task.subtask_items):
@@ -516,10 +673,13 @@ def delete_task(
 
 
 @router.post("/{task_id}/log")
-def add_log(task_id: int, body: dict, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+def add_log(
+    task_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
     log_activity(db, task_id, "note_added", body.get("text", ""))
     task.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -530,33 +690,39 @@ def add_log(task_id: int, body: dict, db: Session = Depends(get_db)):
 
 
 @router.get("/{task_id}/dependencies")
-def get_dependencies(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+def get_dependencies(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    blocked_by = _visible_tasks(list(task.blocked_by), user)
+    blocks = _visible_tasks(list(task.blocks), user)
     return {
         "blocked_by": [
             schemas.TaskDependencyBrief(id=d.id, title=d.title, status=d.status, display_id=d.display_id)
-            for d in task.blocked_by
+            for d in blocked_by
         ],
         "blocks": [
             schemas.TaskDependencyBrief(id=d.id, title=d.title, status=d.status, display_id=d.display_id)
-            for d in task.blocks
+            for d in blocks
         ],
     }
 
 
 @router.get("/{task_id}/chain")
-def get_dependency_chain(task_id: int, db: Session = Depends(get_db)):
+def get_dependency_chain(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
     """Walk the full dependency chain through this task.
 
     Returns an ordered list of chain nodes from roots (no blockers)
     to leaves (blocks nothing). Each node has id, title, status,
     and a flag `is_current` for the requested task.
     """
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_task(db, task_id, user)
 
     # Collect all tasks connected to this one via dependencies
     visited: dict[int, models.Task] = {}
@@ -566,10 +732,10 @@ def get_dependency_chain(task_id: int, db: Session = Depends(get_db)):
         if t.id in visited:
             continue
         visited[t.id] = t
-        for dep in t.blocked_by:
+        for dep in _visible_tasks(list(t.blocked_by), user):
             if dep.id not in visited:
                 queue.append(dep)
-        for dep in t.blocks:
+        for dep in _visible_tasks(list(t.blocks), user):
             if dep.id not in visited:
                 queue.append(dep)
 
@@ -642,15 +808,19 @@ def get_dependency_chain(task_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{task_id}/dependencies")
 def add_dependency(
-    task_id: int, body: schemas.DependencyCreate, db: Session = Depends(get_db)
+    task_id: int,
+    body: schemas.DependencyCreate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
     if task_id == body.depends_on_id:
         raise HTTPException(status_code=400, detail="Task cannot depend on itself")
 
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    dep = db.query(models.Task).filter(models.Task.id == body.depends_on_id).first()
-    if not task or not dep:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_task(db, task_id, user)
+    dep = require_task(db, body.depends_on_id, user)
+
+    if task.project_id != dep.project_id:
+        raise HTTPException(status_code=400, detail="Dependency target belongs to another project")
 
     if dep in task.blocked_by:
         raise HTTPException(status_code=400, detail="Dependency already exists")
@@ -668,11 +838,14 @@ def add_dependency(
 
 
 @router.delete("/{task_id}/dependencies/{dep_id}")
-def remove_dependency(task_id: int, dep_id: int, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    dep = db.query(models.Task).filter(models.Task.id == dep_id).first()
-    if not task or not dep:
-        raise HTTPException(status_code=404, detail="Task not found")
+def remove_dependency(
+    task_id: int,
+    dep_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    dep = require_task(db, dep_id, user)
 
     if dep not in task.blocked_by:
         raise HTTPException(status_code=404, detail="Dependency not found")
@@ -689,11 +862,12 @@ def remove_dependency(task_id: int, dep_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{task_id}/checklist", response_model=schemas.ChecklistItemOut, status_code=201)
 def add_checklist_item(
-    task_id: int, item: schemas.ChecklistItemCreate, db: Session = Depends(get_db)
+    task_id: int,
+    item: schemas.ChecklistItemCreate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_task(db, task_id, user)
 
     db_item = models.ChecklistItem(task_id=task_id, text=item.text, position=item.position)
     db.add(db_item)
@@ -710,7 +884,9 @@ def update_checklist_item(
     item_id: int,
     update: schemas.ChecklistItemUpdate,
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
+    task = require_task(db, task_id, user)
     db_item = (
         db.query(models.ChecklistItem)
         .filter(models.ChecklistItem.id == item_id, models.ChecklistItem.task_id == task_id)
@@ -727,16 +903,20 @@ def update_checklist_item(
     for key, value in changes.items():
         setattr(db_item, key, value)
 
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if task:
-        task.updated_at = datetime.now(timezone.utc)
+    task.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(db_item)
     return db_item
 
 
 @router.delete("/{task_id}/checklist/{item_id}")
-def delete_checklist_item(task_id: int, item_id: int, db: Session = Depends(get_db)):
+def delete_checklist_item(
+    task_id: int,
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
     db_item = (
         db.query(models.ChecklistItem)
         .filter(models.ChecklistItem.id == item_id, models.ChecklistItem.task_id == task_id)
@@ -747,15 +927,19 @@ def delete_checklist_item(task_id: int, item_id: int, db: Session = Depends(get_
 
     log_activity(db, task_id, "checklist_removed", f"Removed: {db_item.text}")
     db.delete(db_item)
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if task:
-        task.updated_at = datetime.now(timezone.utc)
+    task.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"ok": True}
 
 
 @router.post("/{task_id}/checklist/reorder")
-def reorder_checklist(task_id: int, order: list[dict], db: Session = Depends(get_db)):
+def reorder_checklist(
+    task_id: int,
+    order: list[dict],
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_task(db, task_id, user)
     for item in order:
         db.query(models.ChecklistItem).filter(
             models.ChecklistItem.id == item["id"],
@@ -769,21 +953,26 @@ def reorder_checklist(task_id: int, order: list[dict], db: Session = Depends(get
 
 
 @router.get("/{task_id}/documents", response_model=list[schemas.DocumentBrief])
-def get_task_documents(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return task.documents
+def get_task_documents(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    return _same_project(list(task.documents), task.project_id)
 
 
 @router.post("/{task_id}/documents")
-def link_document(task_id: int, body: schemas.DocumentLinkRequest, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    doc = db.query(models.Document).filter(models.Document.id == body.document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+def link_document(
+    task_id: int,
+    body: schemas.DocumentLinkRequest,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    doc = require_document(db, body.document_id, user)
+    if doc.project_id != task.project_id:
+        raise HTTPException(status_code=400, detail="Document belongs to another project")
     if doc in task.documents:
         raise HTTPException(status_code=400, detail="Already linked")
     task.documents.append(doc)
@@ -793,14 +982,18 @@ def link_document(task_id: int, body: schemas.DocumentLinkRequest, db: Session =
 
 
 @router.delete("/{task_id}/documents/{doc_id}")
-def unlink_document(task_id: int, doc_id: int, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    if doc in task.documents:
+def unlink_document(
+    task_id: int,
+    doc_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    doc = db.query(models.Document).filter(
+        models.Document.id == doc_id,
+        models.Document.project_id == task.project_id,
+    ).first()
+    if doc and doc in task.documents:
         task.documents.remove(doc)
         log_activity(db, task_id, "document_unlinked", doc.title)
     db.commit()
@@ -811,21 +1004,26 @@ def unlink_document(task_id: int, doc_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{task_id}/contacts", response_model=list[schemas.ContactBrief])
-def get_task_contacts(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return task.contacts
+def get_task_contacts(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    return _same_project(list(task.contacts), task.project_id)
 
 
 @router.post("/{task_id}/contacts")
-def link_contact(task_id: int, body: schemas.ContactLinkRequest, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    contact = db.query(models.Contact).filter(models.Contact.id == body.contact_id).first()
-    if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
+def link_contact(
+    task_id: int,
+    body: schemas.ContactLinkRequest,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    contact = require_contact(db, body.contact_id, user)
+    if contact.project_id != task.project_id:
+        raise HTTPException(status_code=400, detail="Contact belongs to another project")
     if contact in task.contacts:
         raise HTTPException(status_code=400, detail="Already linked")
     task.contacts.append(contact)
@@ -835,11 +1033,17 @@ def link_contact(task_id: int, body: schemas.ContactLinkRequest, db: Session = D
 
 
 @router.delete("/{task_id}/contacts/{contact_id}")
-def unlink_contact(task_id: int, contact_id: int, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+def unlink_contact(
+    task_id: int,
+    contact_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    contact = db.query(models.Contact).filter(
+        models.Contact.id == contact_id,
+        models.Contact.project_id == task.project_id,
+    ).first()
     if contact and contact in task.contacts:
         task.contacts.remove(contact)
         log_activity(db, task_id, "contact_unlinked", contact.name)
@@ -851,13 +1055,16 @@ def unlink_contact(task_id: int, contact_id: int, db: Session = Depends(get_db))
 
 
 @router.post("/{task_id}/companies")
-def link_company(task_id: int, body: schemas.CompanyLinkRequest, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    company = db.query(models.Company).filter(models.Company.id == body.company_id).first()
-    if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
+def link_company(
+    task_id: int,
+    body: schemas.CompanyLinkRequest,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    company = require_company(db, body.company_id, user)
+    if company.project_id != task.project_id:
+        raise HTTPException(status_code=400, detail="Company belongs to another project")
     if company in task.companies:
         raise HTTPException(status_code=400, detail="Already linked")
     task.companies.append(company)
@@ -867,11 +1074,17 @@ def link_company(task_id: int, body: schemas.CompanyLinkRequest, db: Session = D
 
 
 @router.delete("/{task_id}/companies/{company_id}")
-def unlink_company(task_id: int, company_id: int, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+def unlink_company(
+    task_id: int,
+    company_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    company = db.query(models.Company).filter(
+        models.Company.id == company_id,
+        models.Company.project_id == task.project_id,
+    ).first()
     if company and company in task.companies:
         task.companies.remove(company)
         log_activity(db, task_id, "company_unlinked", company.name)
@@ -923,7 +1136,17 @@ def _brief(t: models.Task, is_blocked: bool = False) -> schemas.TaskBrief:
     )
 
 
-def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
+def _full(
+    db: Session,
+    t: models.Task,
+    is_blocked: bool = False,
+    user: models.User | None = None,
+) -> schemas.TaskOut:
+    blocked_by = _visible_tasks(list(t.blocked_by), user)
+    blocks = _visible_tasks(list(t.blocks), user)
+    documents = _same_project(list(t.documents), t.project_id)
+    contacts = _same_project(list(t.contacts), t.project_id)
+    companies = _same_project(list(t.companies), t.project_id)
     return schemas.TaskOut(
         id=t.id,
         display_id=t.display_id,
@@ -957,28 +1180,7 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
         meetings_upcoming=sum(1 for m in t.meetings if m.status == "scheduled"),
         last_activity_at=_last_activity(t),
         meetings=[
-            schemas.MeetingOut(
-                id=m.id, task_id=m.task_id, meeting_type=m.meeting_type,
-                scheduled_at=m.scheduled_at, interviewer=m.interviewer,
-                platform=m.platform, join_url=m.join_url, status=m.status,
-                result=m.result, brief_doc_id=m.brief_doc_id,
-                notes_doc_id=m.notes_doc_id, notes=m.notes,
-                position=m.position,
-                cockpit_sections=[
-                    schemas.CockpitSectionOut(
-                        id=s.id,
-                        meeting_id=s.meeting_id,
-                        section_key=s.section_key,
-                        content=s.content,
-                        position=s.position,
-                        created_at=s.created_at,
-                        updated_at=s.updated_at,
-                    )
-                    for s in m.cockpit_sections
-                ],
-                created_at=m.created_at,
-                updated_at=m.updated_at,
-            )
+            _meeting_out(db, m, t.project_id)
             for m in t.meetings
         ],
         subtask_items=[
@@ -1004,18 +1206,18 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
         ],
         blocked_by=[
             schemas.TaskDependencyBrief(id=d.id, title=d.title, status=d.status, display_id=d.display_id)
-            for d in t.blocked_by
+            for d in blocked_by
         ],
         blocks=[
             schemas.TaskDependencyBrief(id=d.id, title=d.title, status=d.status, display_id=d.display_id)
-            for d in t.blocks
+            for d in blocks
         ],
         documents=[
             schemas.DocumentBrief(
                 id=d.id, project_id=d.project_id, title=d.title,
                 doc_type=d.doc_type, updated_at=d.updated_at,
             )
-            for d in t.documents
+            for d in documents
         ],
         contacts=[
             schemas.ContactBrief(
@@ -1024,7 +1226,7 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
                 contact_type=c.contact_type, email=c.email,
                 updated_at=c.updated_at,
             )
-            for c in t.contacts
+            for c in contacts
         ],
         companies=[
             schemas.CompanyBrief(
@@ -1033,7 +1235,7 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
                 domain=co.domain, strategic_lane=co.strategic_lane,
                 updated_at=co.updated_at,
             )
-            for co in t.companies
+            for co in companies
         ],
     )
 
@@ -1042,10 +1244,13 @@ def _full(t: models.Task, is_blocked: bool = False) -> schemas.TaskOut:
 
 
 @router.post("/{task_id}/subtask-items", response_model=schemas.SubtaskItemOut, status_code=201)
-def add_subtask_item(task_id: int, item: schemas.SubtaskItemCreate, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+def add_subtask_item(
+    task_id: int,
+    item: schemas.SubtaskItemCreate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
     max_pos = max((s.position for s in task.subtask_items), default=-1)
     db_item = models.SubtaskItem(
         task_id=task_id,
@@ -1060,7 +1265,14 @@ def add_subtask_item(task_id: int, item: schemas.SubtaskItemCreate, db: Session 
 
 
 @router.put("/{task_id}/subtask-items/{item_id}", response_model=schemas.SubtaskItemOut)
-def update_subtask_item(task_id: int, item_id: int, item: schemas.SubtaskItemUpdate, db: Session = Depends(get_db)):
+def update_subtask_item(
+    task_id: int,
+    item_id: int,
+    item: schemas.SubtaskItemUpdate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_task(db, task_id, user)
     db_item = db.query(models.SubtaskItem).filter(
         models.SubtaskItem.id == item_id, models.SubtaskItem.task_id == task_id
     ).first()
@@ -1074,7 +1286,13 @@ def update_subtask_item(task_id: int, item_id: int, item: schemas.SubtaskItemUpd
 
 
 @router.delete("/{task_id}/subtask-items/{item_id}")
-def delete_subtask_item(task_id: int, item_id: int, db: Session = Depends(get_db)):
+def delete_subtask_item(
+    task_id: int,
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_task(db, task_id, user)
     db_item = db.query(models.SubtaskItem).filter(
         models.SubtaskItem.id == item_id, models.SubtaskItem.task_id == task_id
     ).first()
@@ -1089,10 +1307,18 @@ def delete_subtask_item(task_id: int, item_id: int, db: Session = Depends(get_db
 
 
 @router.post("/{task_id}/meetings", response_model=schemas.MeetingOut, status_code=201)
-def add_meeting(task_id: int, meeting: schemas.MeetingCreate, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+def add_meeting(
+    task_id: int,
+    meeting: schemas.MeetingCreate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    _validate_meeting_document_refs(
+        db,
+        task.project_id,
+        [meeting.brief_doc_id, meeting.notes_doc_id],
+    )
     max_pos = max((m.position for m in task.meetings), default=-1)
     db_meeting = models.Meeting(
         task_id=task_id,
@@ -1112,34 +1338,63 @@ def add_meeting(task_id: int, meeting: schemas.MeetingCreate, db: Session = Depe
     db.commit()
     db.refresh(db_meeting)
     log_activity(db, task_id, "meeting_added", f"type={meeting.meeting_type} status={meeting.status}")
-    return db_meeting
+    return _meeting_out(db, db_meeting, task.project_id)
 
 
 @router.get("/{task_id}/meetings", response_model=list[schemas.MeetingOut])
-def list_meetings(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return task.meetings
+def list_meetings(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
+    meetings = list(task.meetings)
+    valid_doc_ids = _valid_doc_ids_for_meetings(db, meetings, task.project_id)
+    return [_meeting_out(db, m, task.project_id, valid_doc_ids) for m in meetings]
 
 
 @router.put("/{task_id}/meetings/{meeting_id}", response_model=schemas.MeetingOut)
-def update_meeting(task_id: int, meeting_id: int, meeting: schemas.MeetingUpdate, db: Session = Depends(get_db)):
+def update_meeting(
+    task_id: int,
+    meeting_id: int,
+    meeting: schemas.MeetingUpdate,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    task = require_task(db, task_id, user)
     db_meeting = db.query(models.Meeting).filter(
         models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
     ).first()
     if not db_meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
-    for field, value in meeting.model_dump(exclude_unset=True).items():
+    changes = meeting.model_dump(exclude_unset=True)
+    if "brief_doc_id" in changes or "notes_doc_id" in changes:
+        doc_ids = [
+            changes[field]
+            for field in ("brief_doc_id", "notes_doc_id")
+            if field in changes
+        ]
+        _validate_meeting_document_refs(
+            db,
+            task.project_id,
+            doc_ids,
+        )
+    for field, value in changes.items():
         setattr(db_meeting, field, value)
     db.commit()
     db.refresh(db_meeting)
     log_activity(db, task_id, "meeting_updated", f"meeting_id={meeting_id}")
-    return db_meeting
+    return _meeting_out(db, db_meeting, task.project_id)
 
 
 @router.delete("/{task_id}/meetings/{meeting_id}")
-def delete_meeting(task_id: int, meeting_id: int, db: Session = Depends(get_db)):
+def delete_meeting(
+    task_id: int,
+    meeting_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_task(db, task_id, user)
     db_meeting = db.query(models.Meeting).filter(
         models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
     ).first()
@@ -1156,7 +1411,13 @@ def delete_meeting(task_id: int, meeting_id: int, db: Session = Depends(get_db))
 
 
 @router.get("/{task_id}/meetings/{meeting_id}/cockpit", response_model=list[schemas.CockpitSectionOut])
-def list_cockpit_sections(task_id: int, meeting_id: int, db: Session = Depends(get_db)):
+def list_cockpit_sections(
+    task_id: int,
+    meeting_id: int,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    require_task(db, task_id, user)
     meeting = db.query(models.Meeting).filter(
         models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
     ).first()
@@ -1165,18 +1426,23 @@ def list_cockpit_sections(task_id: int, meeting_id: int, db: Session = Depends(g
     return meeting.cockpit_sections
 
 
-@router.put("/{task_id}/meetings/{meeting_id}/cockpit", response_model=list[schemas.CockpitSectionOut])
-def upsert_cockpit_sections(
+@router.post("/{task_id}/meetings/{meeting_id}/cockpit/seed", response_model=list[schemas.CockpitSectionOut])
+def seed_cockpit_sections(
     task_id: int,
     meeting_id: int,
     sections: list[schemas.CockpitSectionCreate],
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
+    require_task(db, task_id, user)
     meeting = db.query(models.Meeting).filter(
         models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
     ).first()
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
+    # One-time seed endpoint: existing cockpit content is preserved.
+    if meeting.cockpit_sections:
+        return meeting.cockpit_sections
     db.query(models.CockpitSection).filter(
         models.CockpitSection.meeting_id == meeting_id
     ).delete()
@@ -1202,7 +1468,9 @@ def upsert_cockpit_section(
     section_key: str,
     section: schemas.CockpitSectionUpdate,
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
+    require_task(db, task_id, user)
     meeting = db.query(models.Meeting).filter(
         models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
     ).first()

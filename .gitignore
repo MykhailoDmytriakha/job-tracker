@@ -16,3 +16,4 @@ migrate_data.py
 .dev-ports.env
 .dev-logs/
 .playwright-mcp/
+.claude/

@@ -21,7 +21,9 @@ describe("API client", () => {
       const result = await tasksApi.list();
       expect(mockFetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/tasks/",
-        expect.objectContaining({ headers: { "Content-Type": "application/json" } })
+        expect.objectContaining({
+          headers: expect.objectContaining({ "Content-Type": "application/json" }),
+        })
       );
       expect(result).toEqual([{ id: 1, title: "Test" }]);
     });

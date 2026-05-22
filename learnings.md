@@ -218,6 +218,12 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Render the modal through a portal to `document.body`, cap modal height to the viewport, keep the header fixed, and let only the modal body scroll. Also softened the featured footer chip styling so emphasis stays subtle.
 **Rule:** Any modal that can open unbounded content must be viewport-constrained and portal-based. The frame stays fixed; only the content area scrolls.
 
+### L032: Auth scoping must preserve domain invariants and idempotency
+**Context:** A multi-user auth diff correctly hid foreign records, but it also changed behavior around dependency links, meeting document validation, cockpit seeding, and unlink endpoints.
+**Root cause:** Existing domain invariants were partly encoded in endpoint-specific helper checks. Replacing direct queries with user-scoped `require_*` calls removed same-project error paths, revalidated stale stored refs, and made unlink operations fail on already-deleted linked entities.
+**Fix:** Keep ownership checks at the boundary, then validate same-project invariants explicitly. For idempotent unlink endpoints, treat missing linked entities as already unlinked. For list serializers, prefetch scoped document refs in bulk instead of adding per-row existence queries.
+**Rule:** Auth scoping is not a substitute for domain validation. After adding user isolation, re-check same-project guards, idempotency semantics, error messages, and query shape before shipping.
+
 ## 2026-04-04
 
 ### L044: Read paths must degrade gracefully during schema drift
@@ -345,6 +351,20 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Root cause:** The login flow used the default Google Identity Services popup mode. When browser popup settings, content blockers, extensions, or embedded browser policy prevent the popup, the credential callback never reaches the app and the user sees a generic failure.
 **Fix:** Enable FedCM button flow for supported Chrome browsers and show explicit login recovery messages when the GSI script cannot load or the sign-in flow is blocked/cancelled.
 **Rule:** Third-party identity UI is partly controlled by the browser. Auth surfaces need a browser-mediated path where available and must tell the user exactly what local blocker to check when identity scripts or popups fail.
+
+## 2026-05-21
+
+### L049: Auth must be paired with data ownership checks
+**Context:** User reported that after another person signed in, that person could still see the original user's Job Tracker data.
+**Root cause:** Google login identified the browser session, but project/data endpoints did not depend on the current user and trusted client-supplied `project_id` values. `projects.user_id` existed but was nullable and not enforced by API queries, so `/api/projects` and downstream task/document/contact/company/meeting reads exposed shared global data.
+**Fix:** Add backend authorization helpers that scope projects and project-owned entities to the authenticated user, assign newly created projects to the current user, keep legacy unowned projects hidden unless an explicit owner is configured, clean/filter legacy cross-owner links, and verify direct-ID endpoints return 404 outside the user's ownership boundary.
+**Rule:** Authentication alone is not privacy. Every read/write path that touches user-owned data must enforce ownership at the backend, including direct ID lookups and aggregate endpoints. The frontend may select a project, but the backend must decide whether that project belongs to the caller.
+
+### L050: No-auth local mode must be explicit or production fails open
+**Context:** Multi-user authorization used `user=None` as a local no-auth passthrough, while auth scoping helpers intentionally treat `None` as unscoped/global access. If `GOOGLE_CLIENT_ID` is missing or typoed in production, any caller can read global data.
+**Root cause:** `get_current_user` inferred local development mode solely from an empty `GOOGLE_CLIENT_ID`, so a production configuration mistake had the same behavior as intentional local CLI/testing mode.
+**Fix:** Add explicit `ALLOW_UNAUTHENTICATED=1` opt-in for local no-auth mode. When `GOOGLE_CLIENT_ID` is empty without that flag, `get_current_user` returns HTTP 503 `"Authentication is not configured"` so healthchecks can keep running while protected requests fail closed.
+**Rule:** Fail-open convenience modes must require an explicit development flag. Missing production auth configuration is an outage, not authorization to expose unscoped data.
 
 ---
 

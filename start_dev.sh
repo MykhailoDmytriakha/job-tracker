@@ -120,6 +120,10 @@ if [ -f "$DIR/.env" ]; then
   set +a
 fi
 
+# Local dev convenience: keep the auth-disabled passthrough working out of the box.
+# Production deploys never run this script, so the fail-closed default still protects them.
+export ALLOW_UNAUTHENTICATED="${ALLOW_UNAUTHENTICATED:-1}"
+
 if [ -f "$STATE_FILE" ]; then
   # shellcheck disable=SC1090
   source "$STATE_FILE"

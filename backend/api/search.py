@@ -4,6 +4,8 @@ from sqlalchemy import or_
 
 from ..database import get_db
 from .. import models, schemas
+from ..authz import require_project
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
@@ -21,9 +23,9 @@ def global_search(
     q: str = Query(..., min_length=1),
     project_id: int = Query(...),
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
-    if not db.query(models.Project).filter(models.Project.id == project_id).first():
-        raise HTTPException(status_code=404, detail="Project not found")
+    require_project(db, project_id, user)
 
     groups: list[schemas.SearchResultGroup] = []
 

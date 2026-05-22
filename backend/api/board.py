@@ -1,17 +1,29 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session, joinedload, subqueryload
+from sqlalchemy.orm import Session, contains_eager, joinedload, subqueryload
 from typing import Optional
 
 from ..database import get_db
 from .. import models, schemas
 from ..dependencies import get_unresolved_blocked_ids
+from ..authz import require_project, scope_tasks
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/board", tags=["board"])
 
 
 @router.get("/", response_model=schemas.BoardView)
-def get_board(project_id: Optional[int] = None, db: Session = Depends(get_db)):
-    blocked_ids = get_unresolved_blocked_ids(db)
+def get_board(
+    project_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    if project_id is not None:
+        require_project(db, project_id, user)
+    blocked_ids = get_unresolved_blocked_ids(
+        db,
+        project_id=project_id,
+        user_id=user.id if user is not None else None,
+    )
 
     main_stages = (
         db.query(models.Stage)
@@ -29,10 +41,15 @@ def get_board(project_id: Optional[int] = None, db: Session = Depends(get_db)):
             .options(
                 subqueryload(models.Task.subtask_items),
                 subqueryload(models.Task.checklist_items),
-                joinedload(models.Task.project),
             )
             .filter(models.Task.stage_id.in_(stage_ids))
             .filter(models.Task.parent_id.is_(None))
+        )
+        q = scope_tasks(q, user)
+        q = q.options(
+            contains_eager(models.Task.project)
+            if user is not None
+            else joinedload(models.Task.project)
         )
         if project_id is not None:
             q = q.filter(models.Task.project_id == project_id)

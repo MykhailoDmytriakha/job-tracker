@@ -11,21 +11,72 @@ Meeting records stay child-of-task in the DB (task_id NOT NULL). This module
 only adds a read-side aggregation view over the existing table.
 """
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Iterable, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, contains_eager, joinedload
 
 from .. import models, schemas
 from ..database import get_db
+from ..authz import require_project
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/meetings", tags=["meetings"])
 
 
-def _to_context(m: models.Meeting) -> schemas.MeetingWithContext:
+def _document_id_if_same_project(
+    db: Session,
+    doc_id: int | None,
+    project_id: int | None,
+    valid_doc_ids: set[tuple[int, int]] | None = None,
+) -> int | None:
+    if doc_id is None or project_id is None:
+        return None
+    if valid_doc_ids is not None:
+        return doc_id if (doc_id, project_id) in valid_doc_ids else None
+    exists = db.query(models.Document.id).filter(
+        models.Document.id == doc_id,
+        models.Document.project_id == project_id,
+    ).first()
+    return doc_id if exists else None
+
+
+def _valid_doc_ids_for_meetings(
+    db: Session,
+    meetings: Iterable[models.Meeting],
+) -> set[tuple[int, int]]:
+    requested_pairs = {
+        (doc_id, m.task.project_id)
+        for m in meetings
+        if m.task is not None and m.task.project_id is not None
+        for doc_id in (m.brief_doc_id, m.notes_doc_id)
+        if doc_id is not None
+    }
+    if not requested_pairs:
+        return set()
+    doc_ids = {doc_id for doc_id, _ in requested_pairs}
+    project_ids = {project_id for _, project_id in requested_pairs}
+    rows = (
+        db.query(models.Document.id, models.Document.project_id)
+        .filter(
+            models.Document.id.in_(doc_ids),
+            models.Document.project_id.in_(project_ids),
+        )
+        .all()
+    )
+    existing_pairs = {(doc_id, project_id) for doc_id, project_id in rows}
+    return existing_pairs & requested_pairs
+
+
+def _to_context(
+    m: models.Meeting,
+    db: Session,
+    valid_doc_ids: set[tuple[int, int]] | None = None,
+) -> schemas.MeetingWithContext:
     """Project a Meeting + its Task into the denormalized context schema."""
     task = m.task
+    project_id = getattr(task, "project_id", None)
     return schemas.MeetingWithContext(
         id=m.id,
         task_id=m.task_id,
@@ -41,8 +92,12 @@ def _to_context(m: models.Meeting) -> schemas.MeetingWithContext:
         join_url=m.join_url,
         status=m.status,
         result=m.result,
-        brief_doc_id=m.brief_doc_id,
-        notes_doc_id=m.notes_doc_id,
+        brief_doc_id=_document_id_if_same_project(
+            db, m.brief_doc_id, project_id, valid_doc_ids
+        ),
+        notes_doc_id=_document_id_if_same_project(
+            db, m.notes_doc_id, project_id, valid_doc_ids
+        ),
         notes=m.notes,
         position=m.position,
         cockpit_section_count=len(m.cockpit_sections or []),
@@ -85,6 +140,7 @@ def list_meetings_aggregated(
     include_cancelled: bool = Query(False, description="If true, include cancelled/no_show meetings (default: excluded from upcoming view)"),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
 ):
     """List meetings across tasks, sorted by scheduled_at ascending (NULLs last).
 
@@ -100,15 +156,35 @@ def list_meetings_aggregated(
     q = (
         db.query(models.Meeting)
         .options(
-            joinedload(models.Meeting.task),
             joinedload(models.Meeting.cockpit_sections),
         )
     )
 
     if project_id is not None:
-        q = q.join(models.Task, models.Meeting.task_id == models.Task.id).filter(
-            models.Task.project_id == project_id
-        )
+        require_project(db, project_id, user)
+
+    joined_task = False
+    if user is not None:
+        q = q.join(
+            models.Task,
+            models.Meeting.task_id == models.Task.id,
+        ).join(
+            models.Project,
+            models.Task.project_id == models.Project.id,
+        ).filter(models.Project.user_id == user.id)
+        joined_task = True
+    elif project_id is not None:
+        q = q.join(models.Task, models.Meeting.task_id == models.Task.id)
+        joined_task = True
+
+    q = q.options(
+        contains_eager(models.Meeting.task)
+        if joined_task
+        else joinedload(models.Meeting.task)
+    )
+
+    if project_id is not None:
+        q = q.filter(models.Task.project_id == project_id)
 
     if status:
         q = q.filter(models.Meeting.status == status)
@@ -159,4 +235,5 @@ def list_meetings_aggregated(
     )
     rows = rows[:limit]
 
-    return [_to_context(m) for m in rows]
+    valid_doc_ids = _valid_doc_ids_for_meetings(db, rows)
+    return [_to_context(m, db, valid_doc_ids) for m in rows]
