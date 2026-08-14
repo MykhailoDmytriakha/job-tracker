@@ -142,11 +142,18 @@ Default page ("/"). One-glance overview.
 - Blocked: tasks with unresolved dependencies
 - Recurring: tasks with is_recurring=true
 
-### Sections
-1. **Needs Attention** - overdue tasks, sorted by most overdue first
-2. **Waiting** - waiting tasks, sorted by follow_up_date ascending (soonest first)
-3. **Recurring** - recurring tasks, sorted by next_checkpoint ascending
-4. **Recently Updated** - last 10 tasks by updated_at
+### Columns (3-column layout)
+1. **Today** - non-recurring tasks whose earliest date (due_date or follow_up_date) is today or already past
+2. **Upcoming** - non-recurring tasks whose earliest date falls within the next 7 days
+3. **Recurring** - recurring tasks, stalest first (by last activity)
+
+### Card dates
+- A card shows **both** dates when both are set, each with its own label: `due in 79d` and `follow-up in 3d`
+- Only the set date is rendered when a task has just one of them - the label still says which one it is
+- Relative wording: `Nd overdue` / `today` / `tomorrow` / `in Nd`; hover shows the absolute date (`Due date: Nov 1, 2026`)
+- Each date is coloured independently: only the date that has actually passed turns red
+- A Today card is marked urgent (red left border) if **either** date has passed; the strip tooltip names which one
+- Rationale: a task can sit in Upcoming because its follow-up is near while its due date is months away, so a single unlabelled countdown described neither
 
 ### Click behavior
 - Clicking any dashboard task opens task detail in a modal on the dashboard route (`/?task=ID`)

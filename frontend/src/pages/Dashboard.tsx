@@ -8,7 +8,7 @@ import { useProject } from "../ProjectContext";
 import { TaskModal } from "../components/TaskModal";
 import { DashboardMeetingsTile } from "../components/DashboardMeetingsTile";
 
-import { calculateDaysDiff, isDateOverdue } from "../utils/date";
+import { calculateDaysDiff, isDateOverdue, formatFullDateUTC } from "../utils/date";
 
 type ModalTaskItem = {
   id: number;
@@ -282,14 +282,51 @@ export function Dashboard() {
 
 /* === Card components per column === */
 
-function TodayCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) {
-  const dateStr = task.due_date || task.follow_up_date;
-  const overdue = isOverdue(dateStr);
+/**
+ * Both dates are shown, each labelled. Showing a single unlabelled date was
+ * ambiguous: a task can sit in Upcoming because its follow-up is near while its
+ * due date is months away — the bare "in 79d" then described neither the reason
+ * the card is there nor a date the user could identify. See learnings L051.
+ */
+function DateChip({ label, dateStr }: { label: "due" | "follow-up"; dateStr: string }) {
+  const diff = calculateDaysDiff(dateStr);
+  const overdue = diff < 0;
+  const tooltipLabel = label === "due" ? "Due date" : "Follow-up date";
+
+  return (
+    <span
+      className={`dash-card-date ${overdue ? "overdue" : ""}`}
+      title={`${tooltipLabel}: ${formatFullDateUTC(dateStr)}`}
+    >
+      <span className="dash-card-date-label">{label}</span> {daysUntil(dateStr)}
+    </span>
+  );
+}
+
+function TaskDates({ task }: { task: TaskBrief }) {
+  return (
+    <>
+      {task.due_date && <DateChip label="due" dateStr={task.due_date} />}
+      {task.follow_up_date && <DateChip label="follow-up" dateStr={task.follow_up_date} />}
+    </>
+  );
+}
+
+export function TodayCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) {
+  const dueOverdue = isOverdue(task.due_date);
+  const followUpOverdue = isOverdue(task.follow_up_date);
+  const overdue = dueOverdue || followUpOverdue;
   const isHigh = task.priority === "high";
 
+  const overdueWhat = dueOverdue && followUpOverdue
+    ? "due date and follow-up date have passed"
+    : dueOverdue
+      ? "due date has passed"
+      : "follow-up date has passed";
+
   let stripTitle = "";
-  if (isHigh && overdue) stripTitle = "High priority + overdue — due date has passed";
-  else if (overdue) stripTitle = "Overdue — due date has passed";
+  if (isHigh && overdue) stripTitle = `High priority + overdue — ${overdueWhat}`;
+  else if (overdue) stripTitle = `Overdue — ${overdueWhat}`;
   else if (isHigh) stripTitle = "High priority task";
 
   return (
@@ -300,11 +337,7 @@ function TodayCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) 
       </div>
       <div className="dash-card-bottom">
         {task.category && <span className="dash-card-meta">{task.category}</span>}
-        {dateStr && (
-          <span className={`dash-card-date ${overdue ? "overdue" : ""}`}>
-            {daysUntil(dateStr)}
-          </span>
-        )}
+        <TaskDates task={task} />
         {task.is_blocked && <span className="dash-card-tag blocked">Blocked</span>}
         {task.status === "waiting" && <span className="dash-card-tag waiting">Waiting</span>}
       </div>
@@ -312,8 +345,7 @@ function TodayCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) 
   );
 }
 
-function UpcomingCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) {
-  const dateStr = task.due_date || task.follow_up_date;
+export function UpcomingCard({ task, onClick }: { task: TaskBrief; onClick: () => void }) {
   const isHigh = task.priority === "high";
 
   return (
@@ -324,7 +356,7 @@ function UpcomingCard({ task, onClick }: { task: TaskBrief; onClick: () => void 
       </div>
       <div className="dash-card-bottom">
         {task.category && <span className="dash-card-meta">{task.category}</span>}
-        {dateStr && <span className="dash-card-date">{daysUntil(dateStr)}</span>}
+        <TaskDates task={task} />
         {task.status === "waiting" && <span className="dash-card-tag waiting">Waiting</span>}
       </div>
     </div>

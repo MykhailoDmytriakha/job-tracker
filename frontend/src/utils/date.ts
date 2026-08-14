@@ -12,6 +12,17 @@ export function isDateOverdue(dateStr: string | null): boolean {
   return calculateDaysDiff(dateStr) < 0;
 }
 
+export function formatFullDateUTC(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const target = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  return target.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function formatShortDateUTC(dateStr: string | null): string {
   if (!dateStr) return "";
   const d = new Date(dateStr);

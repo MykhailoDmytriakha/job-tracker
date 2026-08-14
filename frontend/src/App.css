@@ -550,8 +550,11 @@ main {
 .dash-card-id { color: var(--text-faint); font-weight: 600; font-size: 0.85em; }
 .dash-card-bottom { display: flex; gap: 6px; margin-top: 6px; align-items: center; flex-wrap: wrap; }
 .dash-card-meta { font-size: 10px; color: var(--text-muted); font-weight: 500; }
-.dash-card-date { font-size: 10px; font-weight: 600; color: var(--text-muted); }
+.dash-card-date { font-size: 10px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 .dash-card-date.overdue { color: var(--red); }
+/* Label ("due" / "follow-up") sits quieter than the value it explains */
+.dash-card-date-label { font-weight: 500; color: var(--text-faint); }
+.dash-card-date.overdue .dash-card-date-label { color: var(--red); opacity: 0.75; }
 .dash-card-tag {
   font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
   text-transform: uppercase; letter-spacing: 0.3px;

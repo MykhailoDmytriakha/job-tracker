@@ -366,6 +366,14 @@ Frontend: Delete button first tries without force. If 409, shows modal with the 
 **Fix:** Add explicit `ALLOW_UNAUTHENTICATED=1` opt-in for local no-auth mode. When `GOOGLE_CLIENT_ID` is empty without that flag, `get_current_user` returns HTTP 503 `"Authentication is not configured"` so healthchecks can keep running while protected requests fail closed.
 **Rule:** Fail-open convenience modes must require an explicit development flag. Missing production auth configuration is an outage, not authorization to expose unscoped data.
 
+## 2026-08-14
+
+### L051: An unlabelled date is not a date
+**Context:** User pointed at an Upcoming card reading `in 48d` and asked: 48 days until what - the due date or the follow-up date? Cards showed a single countdown with no label.
+**Root cause:** Frontend rendered `task.due_date || task.follow_up_date` - due date wins - while the backend places and sorts cards by the *earliest* of the two. A task with a follow-up in 3 days and a due date in 79 days therefore appeared in Upcoming showing `in 79d`: the number displayed was neither the reason the card was there nor identifiable as a specific field. The same fallback also broke urgency - an overdue follow-up with a future due date rendered no red border, because only the due date was checked.
+**Fix:** Both dates now render as separate labelled chips (`due in 79d`, `follow-up in 3d`), each coloured by its own overdue state, with the absolute date on hover. Overdue detection on Today cards now ORs the two dates and the strip tooltip names which one passed. Component tests in `frontend/src/__tests__/dashboardCards.test.tsx` cover both-dates, single-date, and split-overdue rendering.
+**Rule:** When two different fields can feed the same UI slot, `a || b` is a bug, not a default - the user cannot tell which value they got. Either label it or show both. And any derived signal (colour, sorting, placement) must read the same set of fields the display reads, otherwise the card contradicts the column it sits in.
+
 ---
 
 ## Meta-patterns observed across all learnings
