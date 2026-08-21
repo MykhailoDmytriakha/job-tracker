@@ -56,14 +56,23 @@ def test_cockpit_is_scoped_to_each_meeting(client):
     assert [s["content"] for s in meetings[meeting_two["id"]]["cockpit_sections"]] == ["B1", "B2"]
 
 
-def test_create_cockpit_is_idempotent_for_existing_meeting(client):
+def test_seed_cockpit_is_idempotent_for_existing_meeting(client):
+    """Idempotent seeding lives at POST /cockpit/seed, not at the collection PUT.
+
+    This test used to call `PUT /cockpit`. Commit d16aa55 renamed that route to
+    `POST /cockpit/seed` and gave it seed-once semantics, but the test was not
+    updated, so it kept asserting seed behaviour against a path that no longer
+    existed. Retargeted here; replace semantics for PUT are covered by
+    test_collection_put_removes_absent_keys.
+    """
     task = _create_task(client, "Idempotent cockpit")
     meeting = _create_meeting(client, task["id"])
+    seed = f"/api/tasks/{task['id']}/meetings/{meeting['id']}/cockpit/seed"
 
-    first = client.put(f"/api/tasks/{task['id']}/meetings/{meeting['id']}/cockpit", json=STARTER_A)
+    first = client.post(seed, json=STARTER_A)
     assert first.status_code == 200
 
-    second = client.put(f"/api/tasks/{task['id']}/meetings/{meeting['id']}/cockpit", json=STARTER_B)
+    second = client.post(seed, json=STARTER_B)
     assert second.status_code == 200
     assert [s["content"] for s in second.json()] == ["A1", "A2"]
 
@@ -95,3 +104,40 @@ def test_delete_meeting_removes_its_cockpit_only(client):
     meetings = task_detail.json()["meetings"]
     assert [m["id"] for m in meetings] == [meeting_two["id"]]
     assert [s["content"] for s in meetings[0]["cockpit_sections"]] == ["B1", "B2"]
+
+
+def test_collection_put_removes_absent_keys(client):
+    """Regression: `jt meeting cockpit del` and `bulk` both PUT the whole set.
+
+    The collection route was missing from the router, so both CLI commands
+    returned 405 while the per-section PUT worked. Keys absent from the
+    payload must be removed; keys present must be upserted in place.
+    """
+    task = _create_task(client, "Collection PUT")
+    meeting = _create_meeting(client, task["id"])
+    base = f"/api/tasks/{task['id']}/meetings/{meeting['id']}/cockpit"
+
+    three = [
+        {"section_key": "alpha", "content": "A", "position": 0},
+        {"section_key": "beta", "content": "B", "position": 1},
+        {"section_key": "gamma", "content": "C", "position": 2},
+    ]
+    assert client.put(base, json=three).status_code == 200
+    assert [s["section_key"] for s in client.get(base).json()] == ["alpha", "beta", "gamma"]
+
+    # drop one key (what `cockpit del <key>` sends)
+    without_beta = [s for s in three if s["section_key"] != "beta"]
+    r = client.put(base, json=without_beta)
+    assert r.status_code == 200
+    assert [s["section_key"] for s in client.get(base).json()] == ["alpha", "gamma"]
+
+    # surviving section keeps its identity, not recreated
+    alpha_id = next(s["id"] for s in client.get(base).json() if s["section_key"] == "alpha")
+    client.put(base, json=[{"section_key": "alpha", "content": "A2", "position": 0}])
+    alpha_after = next(s for s in client.get(base).json() if s["section_key"] == "alpha")
+    assert alpha_after["id"] == alpha_id
+    assert alpha_after["content"] == "A2"
+
+    # empty payload wipes everything (what `cockpit del` with no key sends)
+    assert client.put(base, json=[]).status_code == 200
+    assert client.get(base).json() == []

@@ -1426,6 +1426,70 @@ def list_cockpit_sections(
     return meeting.cockpit_sections
 
 
+@router.put(
+    "/{task_id}/meetings/{meeting_id}/cockpit",
+    response_model=list[schemas.CockpitSectionOut],
+)
+def replace_cockpit_sections(
+    task_id: int,
+    meeting_id: int,
+    sections: list[schemas.CockpitSectionCreate],
+    db: Session = Depends(get_db),
+    user: models.User | None = Depends(get_current_user),
+):
+    """Replace the whole cockpit section set for a meeting.
+
+    Powers two CLI commands that had no server route and returned 405:
+      - `jt meeting cockpit bulk` — writes a new full set
+      - `jt meeting cockpit del`  — writes the set minus one key, or an empty set
+
+    Keys absent from the payload are removed. Keys present are upserted in place,
+    so `created_at` survives for sections that stay.
+    """
+    require_task(db, task_id, user)
+    meeting = db.query(models.Meeting).filter(
+        models.Meeting.id == meeting_id, models.Meeting.task_id == task_id
+    ).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    existing = {
+        s.section_key: s
+        for s in db.query(models.CockpitSection).filter(
+            models.CockpitSection.meeting_id == meeting_id
+        ).all()
+    }
+    incoming_keys = {s.section_key for s in sections}
+
+    for key, row in existing.items():
+        if key not in incoming_keys:
+            db.delete(row)
+
+    for s in sections:
+        row = existing.get(s.section_key)
+        if row:
+            row.content = s.content or ""
+            row.position = s.position or 0
+        else:
+            db.add(models.CockpitSection(
+                meeting_id=meeting_id,
+                section_key=s.section_key,
+                content=s.content or "",
+                position=s.position or 0,
+            ))
+
+    db.commit()
+    db.refresh(meeting)
+    removed = len(set(existing) - incoming_keys)
+    log_activity(
+        db,
+        task_id,
+        "cockpit_replaced",
+        f"meeting_id={meeting_id} sections={len(sections)} removed={removed}",
+    )
+    return sorted(meeting.cockpit_sections, key=lambda x: x.position)
+
+
 @router.post("/{task_id}/meetings/{meeting_id}/cockpit/seed", response_model=list[schemas.CockpitSectionOut])
 def seed_cockpit_sections(
     task_id: int,
